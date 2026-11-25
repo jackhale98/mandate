@@ -1,56 +1,141 @@
-/* The notebook (DEC-091, K5): the pocket's Notebook tab. Its own tabs match
-   the pocket's (DEC-088): a row of equal tabs, icon over label on phones. */
-.notebook { display: flex; flex-direction: column; gap: 10px; }
-.nb-search .input { width: 100%; }
+/* The pocket's rows, folds and sections (DEC-113 §3), the Notebook's one row
+   of tabs, and the arc sheet's pieces. A row is two or three short lines
+   (about 57 px, 76 px with a reason); a folded section is one row with a
+   count. Shapes and words carry meaning, never colour alone (DEC-051). */
 
-.nb-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); }
+/* Sections. */
+.rw-sec { display: flex; flex-direction: column; gap: 6px; }
+.rw-h { margin: 2px 0 0; font-size: 0.9rem; color: var(--muted); font-weight: 600; }
+
+/* A list of rows: one bordered block. */
+.rw-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); overflow: hidden; }
+.rw-rows > li { border-bottom: 1px solid var(--border); }
+.rw-rows > li:last-child { border-bottom: 0; }
+.rw-li-open { background: var(--surface); }
+
+/* A row: mark, lines (one button, the whole row its target), end. */
+.rw-row { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 10px; align-items: center; min-height: 56px; padding: 6px 10px; }
+.rw-row:not(:has(> .rw-mark)) { grid-template-columns: minmax(0, 1fr) auto; }
+.rw-main {
+  display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 1px; min-width: 0; min-height: 44px; padding: 0;
+  border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+/* The whole row answers a tap on its lines or its mark; the end's buttons sit above. */
+.rw-main::after { content: ""; position: absolute; inset: 0; }
+.rw-main:focus-visible { outline: none; }
+.rw-main:focus-visible::after { outline: 3px solid var(--info); outline-offset: -3px; border-radius: 8px; }
+.rw-main:disabled { cursor: default; }
+.rw-end { position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; }
+.rw-mark { width: 30px; text-align: center; font-size: 1.15rem; line-height: 1; }
+.rw-l1 { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.rw-title { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.95rem; }
+.rw-role { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 0.82rem; }
+.rw-l2 { font-size: 0.84rem; color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.rw-l3 { font-size: 0.86rem; color: var(--text); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; }
+.rw-li-open .rw-l2, .rw-li-open .rw-l3 { -webkit-line-clamp: 4; line-clamp: 4; }
+/* A place's row: what can be done there on one line, so a row with a reason stays within 80 px (L4). */
+.spot .rw-l2 { -webkit-line-clamp: 1; line-clamp: 1; }
+.rw-stance { font-weight: 600; color: var(--text); white-space: nowrap; }
+.rw-when { font-size: 0.8rem; font-weight: 700; white-space: nowrap; text-align: right; }
+.rw-when small { display: block; font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+.rw-go { min-height: 44px; min-width: 52px; padding: 0 10px; font-size: 0.84rem; }
+/* Every target in a row is at least 44 px (DEC-113 L7). */
+.rw-end .btn, .rw-open .btn, .arc-story .btn, .nb-lead .btn { min-height: 44px; }
+.rw-li[data-new="true"] { box-shadow: inset 3px 0 0 var(--accent); }
+.rw-new { flex: none; padding: 0 6px; font-size: 0.68rem; line-height: 1.5; }
+.rw-muted .rw-row { opacity: 0.75; }
+
+/* A row opened in place. */
+.rw-open { padding: 2px 12px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; }
+.rw-open p { margin: 0; }
+.rw-why { padding-left: 10px; border-left: 3px solid var(--accent); }
+.rw-know { padding-left: 10px; border-left: 3px solid var(--info); }
+.rw-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.rw-acts .btn { flex: 1 1 auto; min-height: 44px; white-space: nowrap; }
+.rw-open .ask-next .bill-actions .btn, .rw-open .bill-actions .btn { min-height: 44px; }
+
+/* A portrait in a row: the person's bust, small. */
+.rw-face { display: block; width: 36px; height: 36px; border-radius: 8px; overflow: hidden; background: linear-gradient(#7fb3d9 0 58%, #c9b48a 58% 100%); }
+.rw-face .portrait.rw-portrait { --p: 2px; --n: 0px; width: 36px; height: 36px; border: 0; box-shadow: none; clip-path: none; filter: none; place-items: end center; background: none; }
+.rw-face .rw-portrait .portrait-canvas { width: 32px; height: 32px; margin: 0; }
+
+/* A folded section: a row with a count; it opens in place. */
+.rw-fold { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); overflow: hidden; }
+.rw-fold-h { margin: 0; font-size: inherit; }
+.rw-fold-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 46px; padding: 6px 12px;
+  border: 0; background: none; color: inherit; font: inherit; font-weight: 600; font-size: 0.92rem; text-align: left; cursor: pointer;
+}
+.rw-fold-head:focus-visible { outline: 3px solid var(--info); outline-offset: -3px; border-radius: 10px; }
+.rw-fold-title { flex: 1; min-width: 0; }
+.rw-fold-title small { display: block; font-weight: 400; color: var(--muted); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rw-count { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.rw-chev { color: var(--muted); font-size: 1.1rem; width: 1em; text-align: center; }
+.rw-fold-body { border-top: 1px solid var(--border); }
+.rw-fold-body > .rw-rows { border: 0; border-radius: 0; }
+.rw-fold-body > .rw-pad, .rw-pad { padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.rw-more-btn { align-self: flex-start; min-height: 44px; }
+.rw-fold-body > .rw-more-btn { margin: 4px 8px 8px; }
+
+/* Today: the three tiles in one strip. */
+.today-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.today-strip > div { padding: 6px 10px; display: flex; flex-direction: column; min-width: 0; border-left: 1px solid var(--border); }
+.today-strip > div:first-child { border-left: 0; }
+.today-strip span { font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.today-strip b { font-size: 0.98rem; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.today-where { margin: 0; }
+.today-empty { margin: 0; color: var(--muted); }
+
+/* The Notebook's one row of tabs, with search at its end. */
+.nb-tabs { display: flex; gap: 2px; margin: 8px -16px 0; padding: 0 8px; border-top: 1px solid var(--border); align-items: stretch; }
+.nb-tablist { flex: 1; min-width: 0; display: flex; gap: 2px; }
 .nb-tab {
-  position: relative; flex: 1 1 0; min-width: 0; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  min-height: 50px; padding: 4px 1px 2px; border: 0; border-bottom: 3px solid transparent; background: none;
-  color: var(--muted); font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  position: relative; flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0 4px; border: 0; border-bottom: 3px solid transparent; background: none;
+  color: var(--muted); font: inherit; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer;
 }
 .nb-tab-on { color: var(--text); border-bottom-color: var(--accent); }
 .nb-tab:focus-visible { outline: 3px solid var(--info); outline-offset: -3px; }
-.nb-tab-dim { opacity: 0.55; }
-.nb-tab-icon { font-size: 1.05rem; line-height: 1.15; }
-.nb-tab-name { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nb-tab-badge { position: absolute; top: 2px; left: calc(50% + 8px); padding: 0 5px; font-size: 0.66rem; line-height: 1.45; }
-
-/* The four pocket tabs in the 400 px side panel on wide
-   screens: icon over label there too, as on phones (DEC-088). */
-@media (min-width: 481px) {
-  .pocket .pocket-tabs { gap: 2px; padding: 0 4px; }
-  .pocket .pocket-tabs .pocket-tab { flex-direction: column; gap: 1px; min-height: 52px; padding: 4px 2px 2px; font-size: 0.8rem; }
-  .pocket .pocket-tab-icon { font-size: 1.15rem; line-height: 1.15; }
-  .pocket .pocket-tab-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-  .pocket .pocket-tabs .pocket-tab-badge { position: absolute; top: 2px; left: calc(50% + 9px); padding: 0 5px; font-size: 0.68rem; line-height: 1.45; }
+.nb-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The narrowest phones (320 px, a wide system font): the four names stay whole; a count sits on the name's shoulder. */
+@media (max-width: 380px) {
+  .nb-tabs { padding: 0 2px; gap: 0; }
+  .nb-tablist { gap: 0; }
+  .nb-tab { padding: 0 1px; font-size: 0.74rem; }
+  .nb-tab .badge { position: absolute; top: 2px; right: 0; }
 }
+.nb-tab .badge { padding: 0 5px; font-size: 0.66rem; line-height: 1.5; }
+.nb-find { flex: 0 0 44px; min-width: 44px; min-height: 44px; border: 0; background: none; color: var(--muted); font-size: 1.05rem; cursor: pointer; }
+.nb-find:focus-visible { outline: 3px solid var(--info); outline-offset: -3px; }
+.nb-search { display: flex; gap: 6px; align-items: center; margin: 8px 0 0; }
+.nb-search .input { flex: 1; min-width: 0; min-height: 44px; }
+.nb-panel { display: flex; flex-direction: column; gap: 10px; }
+.nb-panel:focus { outline: none; }
+.nb-panel:focus-visible { outline: 3px solid var(--info); outline-offset: 4px; }
+.notebook { display: flex; flex-direction: column; gap: 10px; }
+.nb-lead { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-left: 10px; border-left: 3px solid var(--info); font-size: 0.88rem; }
+.nb-lead p { margin: 0; }
+.nb-lead-label { font-weight: 600; }
+.nb-facts { display: flex; flex-direction: column; gap: 2px; }
+.nb-entry-list .rw-row { min-height: 48px; }
+
+/* The Notebook beside Today on wide screens (owner's answer 4): a panel on the left. */
+.pocket-book {
+  position: fixed; left: 0; top: 0; bottom: var(--bar-h, 0px); width: 400px; overflow: auto; z-index: 1;
+  --surface: var(--sheet); --surface-2: var(--sheet-2); --border: var(--sheet-border);
+  background: var(--sheet); border-right: 1px solid var(--sheet-border); box-shadow: 12px 0 32px rgba(0, 0, 0, 0.3); padding: 0 16px 16px;
+}
+.pocket-book > .sheet-head { position: sticky; top: 0; z-index: 2; margin: 0 -16px 8px; padding: 12px 16px 0; background: var(--sheet); border-bottom: 1px solid var(--sheet-border); flex-direction: column; align-items: stretch; gap: 0; }
+.pocket-book-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pocket-book-title h2 { margin: 0; font-size: 1.1rem; }
+.pocket-book .nb-tabs { border-top: 0; margin-top: 4px; }
+
+/* The arc sheet (A3). */
+.arc-clock { margin: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--accent); background: var(--surface-2); font-size: 0.9rem; }
+.arc-story { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.arc-story p { margin: 0; }
+.arc-lead { display: flex; flex-direction: column; gap: 8px; }
+.arc-lead p { margin: 0; }
 
 /* The setup screen's "Start with local knowledge" (DEC-091). */
 .local-knowledge .check input { margin: 0; }
 .local-knowledge .hint { margin-top: 0; }
-
-.nb-panel { display: flex; flex-direction: column; gap: 8px; }
-.nb-panel section { display: flex; flex-direction: column; gap: 6px; }
-.nb-panel .sub { margin: 4px 0 0; }
-.nb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.nb-item {
-  display: flex; flex-direction: column; gap: 2px; padding: 8px 12px;
-  border: 1px solid var(--border); border-radius: 10px; background: var(--sheet-2, var(--surface-2));
-}
-.nb-item[data-new="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
-/* A placeholder: dashed, the way an empty line in a notebook waits to be filled. */
-.nb-gap { background: none; border-style: dashed; }
-.nb-gap .nb-title { color: var(--muted); }
-.nb-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.nb-title { margin: 0; font-size: 0.95rem; }
-.nb-new { flex: none; }
-.nb-item p { margin: 0; }
-.nb-level { color: var(--muted); }
-.nb-dots { letter-spacing: 1px; color: var(--accent); font-size: 0.8em; }
-.nb-fact { font-size: 0.9rem; }
-.nb-history summary { cursor: pointer; color: var(--muted); font-size: 0.82rem; min-height: 28px; display: flex; align-items: center; }
-.nb-history ol { margin: 2px 0 0; padding-left: 20px; color: var(--muted); }
-.nb-lead { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 4px; padding-left: 10px; border-left: 3px solid var(--info); font-size: 0.88rem; }
-.nb-lead-label { font-weight: 600; }
-.nb-item .link-btn { align-self: flex-start; margin-top: 2px; }

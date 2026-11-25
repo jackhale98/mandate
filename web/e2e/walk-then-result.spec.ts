@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openPocket } from "./pocket";
+import { openAgenda } from "./pocket";
 
 // An action chosen from the pocket somewhere else walks the player there first; what happened
 // shows only once they have arrived (owner report: fundraising's result appeared before the
@@ -17,7 +17,7 @@ test("an action from the pocket shows its result only after the walk to where it
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
   await expect(page.locator(".town-street-stage[data-ready='1']")).toBeVisible({ timeout: 30_000 });
 
-  const agenda = (await openPocket(page, "today")).getByTestId("agenda");
+  const agenda = await openAgenda(page);
   await agenda.getByText("Fundraise", { exact: true }).first().click();
   await agenda.getByRole("button", { name: "Go" }).click();
 

@@ -1,9 +1,9 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { openPocket } from "./pocket";
+import { openFold, openPocket, openRow, pocketMenu } from "./pocket";
 import { seedFor } from "./seeds";
 
-// Asks and promises (E7; DEC-097 §2, ENGAGEMENT §3.9): offers in the Today
-// tab with Accept and Decline, an accepted ask kept and marked kept; a
+// Asks and promises (E7; DEC-097 §2, ENGAGEMENT §3.9): offers under Today's
+// "Needs you", each opened in place to Accept or Decline (DEC-113), an accepted ask kept and marked kept; a
 // campaign promise made from the picker; and the time skip's summary listing
 // a lapsed law, with counts in the locale's style. Desktop and phone.
 // MANDATE_CAPTURE=<dir> saves screenshots (deviceScaleFactor 2) for review.
@@ -42,19 +42,23 @@ test("asks: accept one, decline one, keep one and see it kept", async ({ page },
   // A town-hall ask and one other offered in its first turns (the seed is
   // cached in tests/seeds.json and found again when the world changes).
   await start(page, seedFor("ask_town_hall_and_another_offered"));
-  // Two turns in, two offers wait (the badge counts them).
-  for (let i = 0; i < 4 && (await page.getByTestId("asks-badge").count()) === 0; i++) await endTurn(page);
-  await expect(page.getByTestId("asks-badge")).toBeVisible();
-  await expect(page.getByTestId("asks-badge")).toHaveAttribute("title", /asks? or promises? waiting/);
+  // Two turns in, two offers wait under "Needs you" (the bar counts what needs you, DEC-113).
+  const offers = async () => (await openPocket(page, "today")).locator('li[data-need="ask_offer"]').count();
+  for (let i = 0; i < 4 && (await offers()) === 0; i++) await endTurn(page);
+  await expect(page.getByTestId("needs-badge")).toBeVisible();
+  await expect(page.getByTestId("needs-badge")).toHaveAttribute("title", /things? needs? you/);
 
   let pocket = await openPocket(page, "today");
-  const block = pocket.getByTestId("pocket-asks");
+  const block = pocket.getByTestId("pocket-needs");
   await expect(block).toBeVisible();
   await expect(block).not.toContainText("⟦");
   const meeting = block.locator('li[data-template="ask.town_hall_here"][data-status="offered"]');
   const other = block.locator('li[data-status="offered"]:not([data-template="ask.town_hall_here"])').first();
   await expect(meeting).toBeVisible();
   await expect(other).toBeVisible();
+  // A row opens in place: its price is read before it is answered.
+  await openRow(meeting);
+  await openRow(other);
   await expect(meeting.getByRole("button", { name: /^Accept: / })).toBeVisible();
   await expect(meeting).toContainText(/Answer by .* left/);
   await shot(block, "today-asks", info.project.name);
@@ -75,6 +79,7 @@ test("asks: accept one, decline one, keep one and see it kept", async ({ page },
   await expect(accepted).toHaveAttribute("data-status", "accepted");
   await expect(accepted.getByTestId("ask-need")).toContainText("Next: Hold a town hall in");
   await expect(accepted).toContainText(/Due .* left/);
+  await openFold(pocket.locator('[data-fold="today-settled"]'));
   await expect(pocket.getByTestId("asks-recent").getByTestId(otherId)).toHaveAttribute("data-status", "declined");
 
   // Keep it: go where it is done (the engine's route) and hold the meeting.
@@ -88,10 +93,12 @@ test("asks: accept one, decline one, keep one and see it kept", async ({ page },
   await panel.getByRole("button", { name: "Close" }).click();
   await endTurn(page);
   pocket = await openPocket(page, "today");
+  await openFold(pocket.locator('[data-fold="today-settled"]'));
   const kept = pocket.getByTestId("asks-recent").getByTestId(meetingId);
   await expect(kept).toHaveAttribute("data-status", "kept");
+  await openRow(kept);
   await expect(kept.getByTestId("ask-status")).toHaveText("Kept");
-  await expect(pocket.getByTestId("pocket-asks")).not.toContainText("⟦");
+  await expect(pocket).not.toContainText("⟦");
 });
 
 /** Talk to someone from an ask's Talk button: go to them if they are elsewhere, choose the ask's own choice, and return what they said. */
@@ -125,6 +132,7 @@ test("an introduction: put in a word with the official, tell the asker, and it i
     await openPocket(page, "today");
   }
   await expect(offer()).toBeVisible();
+  await openRow(offer());
   const askId = (await offer().getAttribute("data-testid")) ?? "";
   const choice = `choice.ask.${askId.replace(/^ask-/, "")}`;
   await press(offer().getByRole("button", { name: /^Accept: / }));
@@ -146,10 +154,12 @@ test("an introduction: put in a word with the official, tell the asker, and it i
   const thanks = await askInConversation(page, askId, choice, /^Tell \S.* it is arranged$/);
   expect(thanks).toContain("Thank you");
   pocket = await openPocket(page, "today");
+  await openFold(pocket.locator('[data-fold="today-settled"]'));
   const kept = pocket.getByTestId("asks-recent").getByTestId(askId);
   await expect(kept).toHaveAttribute("data-status", "kept");
+  await openRow(kept);
   await expect(kept.getByTestId("ask-status")).toHaveText("Kept");
-  await expect(pocket.getByTestId("pocket-asks")).not.toContainText("⟦");
+  await expect(pocket).not.toContainText("⟦");
 });
 
 test("a campaign promise is made from the picker", async ({ page }, info) => {
@@ -160,7 +170,7 @@ test("a campaign promise is made from the picker", async ({ page }, info) => {
   for (let round = 0; round < 6; round++) {
     const pocket = await openPocket(page, "today");
     if ((await pocket.getByTestId("open-promises").count()) > 0) break;
-    await pocket.getByTestId("open-term-review").click();
+    await (await pocketMenu(page)).getByTestId("open-term-review").click();
     const review = page.getByTestId("term-review");
     await expect(review).toBeVisible();
     const target = review.getByTestId("skip-target-campaign");
@@ -191,11 +201,11 @@ test("a campaign promise is made from the picker", async ({ page }, info) => {
   await expect(picker).toHaveCount(0);
   // The promise stands in the Today block, and in the story so far.
   pocket = await openPocket(page, "today");
-  const promised = pocket.getByTestId("pocket-asks").locator('li[data-template^="promise."]');
+  const promised = pocket.getByTestId("pocket-under-way").locator('li[data-template^="promise."]');
   await expect(promised.first()).toBeVisible();
   await expect(promised.first()).toContainText(label.replace(/^Promise: /, ""));
   await expect(promised.first()).toContainText("Campaign promise");
-  await pocket.getByTestId("open-story").click();
+  await (await pocketMenu(page)).getByTestId("open-story").click();
   const story = page.getByTestId("story-sheet");
   await expect(story.getByTestId("story-promises")).toContainText("Made 1");
 });
@@ -207,8 +217,7 @@ test("the skip summary lists a lapsed law, with counts in the locale's style", a
   // crates/mandate-wasm/tests/asks.rs.
   await start(page, seedFor("law_lapses_in_first_skip"));
   await endTurn(page);
-  const pocket = await openPocket(page, "today");
-  await pocket.getByTestId("open-term-review").click();
+  await (await pocketMenu(page)).getByTestId("open-term-review").click();
   const review = page.getByTestId("term-review");
   await review.getByTestId("skip-target-next_session").check();
   await review.getByTestId("skip-go").click();

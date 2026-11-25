@@ -45,7 +45,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,wasm,png,svg,woff2}"],
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // a size guard: the engine (WASM, names stripped) is 8.43 MB raw (8,427,141 bytes), 2.02 MB gzipped, measured 2026-11-24; it must be precached for offline play. A size pass is planned with the performance work
+        maximumFileSizeToCacheInBytes: 14 * 1024 * 1024, // a size guard: the engine (WASM, names stripped) must be precached for offline play. 8.43 MB raw (2.02 MB gzipped) on 2026-11-24; 10.5 MB after industries, the impact estimate, the grader and the exchange scenes on 2026-11-25, so the guard went from 10 to 14 MiB and the size pass (M6_CHECKLIST, the WASM size item) is due before the tester checkpoint
         clientsClaim: true, // the first install takes control at once (offline readiness); later updates still wait for the prompt
         navigateFallback: `${base}index.html`,
         // Prototype pages published beside the app (DEC-050) are never served the

@@ -78,6 +78,20 @@ fn marks(b: &ContentBundle, def: &ArcDef) -> Marks {
                 m.player.extend(own);
             }
             BeatKind::Visit { .. } | BeatKind::Ask { .. } => m.player.extend(own),
+            // A scene (DEC-112): an empty chair ends it with no act of the
+            // player's; every other end is one they played.
+            BeatKind::Exchange(x) => {
+                for (end, outcome) in &x.outcome {
+                    if let Some(s) = &outcome.sets {
+                        if *end == mandate_content::exchange::Outcome::Absent {
+                            m.passive.insert(s.clone());
+                        } else {
+                            m.player.insert(s.clone());
+                        }
+                    }
+                }
+                m.player.extend(own);
+            }
             BeatKind::Press { .. } | BeatKind::Heard { .. } | BeatKind::Move { .. } => {
                 m.passive.extend(own)
             }

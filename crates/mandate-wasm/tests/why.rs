@@ -837,7 +837,8 @@ fn every_cause_and_link_has_a_line() {
         "why-player",
         every!(PlayerAct: Start, Vote, File, Draft, Amend, Introduce, Withdraw, Move, Meet,
             Answer, LetPass, Talk, RespondAsk, Promise, Lobby, TradeFavor, TownHall, Press,
-            Canvass, Fundraise, Rest, Advertise, TakeBribe, DipFunds, LeakFile, Visit, Casework),
+            Canvass, Fundraise, Rest, Advertise, TakeBribe, DipFunds, LeakFile, Visit, Casework,
+            Exchange),
     );
     family(
         "why-process",

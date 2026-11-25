@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { officeFigures, openPeople, openPocket, showPlaces } from "./pocket";
+import { officeFigures, openPeople, pocketMenu, showPlaces } from "./pocket";
 
 // "Report a problem" (bug bundles for the M6 testers): play a few turns
 // (canvass, talk, end turn), save a report from the pocket, read the file,
@@ -92,8 +92,7 @@ test("report a problem: the file holds the run, and it replays to the same hashe
   await endTurn(page, 3);
 
   // The pocket's "Report a problem": what the file holds, and that nothing is sent.
-  const pocket = await openPocket(page);
-  await pocket.getByTestId("report-problem").click();
+  await (await pocketMenu(page)).getByTestId("report-problem").click();
   const dialog = page.getByRole("dialog", { name: "Report a problem" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByTestId("report-privacy")).toContainText("Nothing is sent anywhere");

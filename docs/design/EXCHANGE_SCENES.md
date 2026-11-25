@@ -1,6 +1,6 @@
 # Exchange scenes: an arc's turn is played
 
-**Status:** design for the owner (2026-11-25). Nothing here is built. A decision record is proposed in §14. It extends `STAGED_ARCS.md` (DEC-109) with one beat kind and one rule.
+**Status:** accepted (DEC-112, 2026-11-25). **X1 is built** (the core, and the debate as its first scene, engine side): §15 says what is built against each section and every departure. X2 (the screen), X3 (stand-ins, bots, the grader) and X4 (the other arcs) are not. It extends `STAGED_ARCS.md` (DEC-109) with one beat kind and one rule.
 
 The owner's question: "Being challenged to a debate do we just click the yes button and it happens? Or for the favor do we just say yes or no? We will want our storylines to be engaging for the player." Today the answer is yes to both. The rival arc's turn is one decision with two options (`content/base/arcs/rival.jsonc`, stage `showdown`; `dilemma.debate_challenge` in `content/base/dilemmas.jsonc`), and its aftermath is one line: "You debated { $rival } in front of a packed hall. The whole town heard you." (`locale/en/narrative.ftl`, `dilemma-debate-accept-after`). The favour debt's turn is one decision with three (`arcs/favour_debt.jsonc`, stage `called_in`; `dilemma.favour_called_in`). The flood arc is the standard to reach: visits, talks, a money decision, a hall meeting, press and a law (`arcs/flood.jsonc`).
 
@@ -1124,3 +1124,49 @@ X1 is expected to move first-election results, since the proxy and the idle bot 
   11. **It belongs to the arcs domain.** One command, one view, state on the run, save v29 by defaults. Engine never produces prose (DEC-054); every scene is reachable in quick mode (DEC-051).
 - **Order:** the core with the debate (X1); the view and screen with the arc view (X2, A3); the stand-ins, bots and skip stop with the grader (X3, A4); the rival, the favour, the flood and the plant rewritten in the arc content task (X4, A6). Numbers are placeholders until the tuning pass at the end of M6.
 - **Dependencies:** DEC-030, DEC-033, DEC-041, DEC-051, DEC-054, DEC-073, DEC-091, DEC-093, DEC-097, DEC-098, DEC-100, DEC-102, DEC-109, DEC-110.
+
+---
+
+## 15. What X1 built (2026-11-25)
+
+The core is `mandate-content/src/exchange.rs` (the beat and the constants) and `mandate-sim/src/arcs/exchange/` (`state`, `audience`, `attacks`, `moves`, `landing`, `play`, `view`). The debate is the `debate` beat of `arc.rival`'s `showdown`. Engine only: there is no DTO and no screen.
+
+### 15.1 Built, by section
+
+| Section | Built | Not built (parsed and validated; an arc that uses it is never raised, `arcs::not_yet`) |
+|---|---|---|
+| §2 the shape | `ArcExchangeDef` with every part; the six audience sources bind; weights, starting leans, the cap of five with "elsewhere"; `temper` (the run's heat scales gains; `own`, staying and `heard` cool it); `count` (heads against `member_line`); per-scene `params` and per-tier overrides by dotted path | `table` (the negotiation's conditional offers, `wants`, `watchers`) |
+| §3 moves | All eleven kinds with their requirements and strengths; a subject is said once; `repeat`; answers or changes the subject; the list of four or five by §3.3's order; one locked line with a route | A promise outside a campaign (an ask accepted on the spot); `offer` across a table (only time is offered) |
+| §4 the other side | The debate's nine sources (`broken_promise`, `vote_against_lean`, `failed_law`, `thin_record`, `absent`, `scandal`, `hidden_fact`, `governing_record`, `top_worry`); anchors on the spine (an attack the log has forgotten is gone); the deck by skill, aim (measured or felt) and character; answers to `record`, `promise`, `turn`, `act`, `second`; their own chance on a weak claim; every draw keyed on run, beat and round | The other eleven sources (the negotiation's, the hearing's, the meeting's) |
+| §5 resolution | `landing::land`, the one function; `landing::preview`, the same at the ends of what the player does not know; won, split, lost, absent; forfeits; every effect of §5.5 as a request with the round's or the closing event as its cause; every constant in `content/base/exchange.jsonc` | Calibration (test 4) is the lab's (X3) |
+| §9.4 lints | All eight static lints, each with a failing fixture (`mandate-content/tests/exchange.rs`), and `exchange-not-at-turn` | The doctor's dynamic lints (X3) |
+| §11 architecture | `PlayerCommand::Exchange { run, beat, act }`; `PlayerAct::Exchange`; `ArcExchange` and `ArcExchangeEnded`; `Effect::Awareness`, `Effect::Surface`, `Effect::Promise`, the community filter on `Effect::Approval`; `StorySource::Exchange`; `ArcEffect::Learn`; `BeatAction::Exchange` | `QueryDto::ArcExchange`, the DTO and the protocol's redaction (X2) |
+
+### 15.2 The engine's API for X2 and X3
+
+- `arcs::exchange::view(state, content, run, beat) -> SceneView`: phase, place, cost, last day, groups (lean only where the player may know it), the prompt (key, arguments, the event behind it, what it leaves standing), the options (id, kind, keys, arguments, each group's change as a span, the chance, costs as keys, what is known of the answer), the locked line, the rounds played, the result. `view_known` is the same with nothing hidden.
+- `arcs::exchange::view::open_scenes(state, content)` and `arcs::beats::offers` (`BeatAction::Exchange`): what can be begun now and where.
+- `Command::Player(PlayerCommand::Exchange { run, beat: "<stage>.<beat>", act: Begin | Say { option } | Leave })`; quick mode sends `Go { location, then: Exchange { Begin } }`.
+- Text: `locale/en/exchange.ftl`. An argument the engine names as `<x>_key` is the text of that key as `$x` (the convention asks and events follow).
+
+### 15.3 Departures from the design, each with its reason
+
+1. **Save v31, not v29** (industries took v29, the impact estimate v30). The step is `exchange_scenes` in `mandate-save`; it names no version, and only its key needs renumbering.
+2. **`arc-turn-single-decision` is reported by `mandate-cli content validate` (`arcs::lints`), not in `load`'s warnings.** The base pack is kept at no warnings and about a dozen tests assert it. Seven stages in four arcs are flagged today: `arc.budget_round` (`turn_hole`, `turn_surplus`, `turn_deal`, `turn_line`), `arc.favour_debt` (`called_in`), `arc.flood` (`meeting`), `arc.plant_closure` (`organising`). When they are rewritten the lint moves into validation as an error.
+3. **A seat that is one neighbourhood is heard by income class.** In a small world a first seat is one neighbourhood, so "the areas one level down" gave one group and no line chose whom it spoke to. An `areas` source that binds to one area gives that area's three classes, and a class's worries are the place's own levels felt as that class leans (the rule of `concerns::ranked`, over the class's cohorts; it should move into `concerns`).
+4. **Second-hand knowledge gives the line with a risk** (§9's block, over §3.1's table). `heard` needs a group's worries at `heard` or better, and at `heard` it stands with chance `hold.heard` and costs `backfire.heard` if it does not (a new constant, 0.10). `turn` on the public record needs the other side at `heard` or better, with the same chance at `heard`.
+5. **The three preparation beats sit in `showdown`**, open until the debate's day: rehearse with an ally (`rehearsed`; also a briefing on the rival, to `known`), ask a backer (`endorsed`), read the cuttings (the rival to `detailed`, through the new `ArcEffect::Learn`). X4 moves them to `lead_up` and adds the rest.
+6. **At most one scene a chapter: the lead's if the lead has one, else whichever is begun first.** Read literally, a material arc with no scene that leads a campaign chapter would silence the debate.
+7. **The showdown has a clock** (14 to 21 days): the debate's day. It can be begun until the day before; on the day, a player who never came is `absent`. The stage still ends when the voters decide.
+8. **The other side spends no secret on an empty chair**, and in rounds forfeited after the player has left.
+9. **The room does not ask the same question twice**: `top_worry` gives the strongest worry not yet asked.
+10. **A promise made on stage does not add the promise menu's own door-to-door persuasion.** The room's change in lean is its persuasion.
+11. **A secret the player airs on weak knowledge that does not stand up stays hidden** (it is not believed); the `aired` mark is set either way.
+12. **The deck's size bounds attacks; answers are bounded by their count a scene.** The design ranks both in one list.
+13. **A prompt that did not stand up** moves each group to the player by `backfire.turn ×` its fit; the design says only that the bite turns back.
+14. **Redaction is in the engine's view** (`SceneView`), since X1 has no protocol. X2 carries it.
+15. **`proof` reads `prep` marks only** (each with its `evidence`); `deny` lands and marks the run but does not yet write the media's denial; a member's `goal` fit is not read; staying costs time only. None is used by the debate.
+16. **The rival's competence lever (DEC-102 clause 3) is not wired** to the deck; skill is the character's own.
+17. **An older save's waiting challenge is withdrawn** (it lapses); the debate is not held for that campaign, since an older run has no hall cast. `dilemma.debate_challenge` stays in `dilemmas.jsonc`, named by no arc, until X4 retires it.
+18. **The skip stop is built into `skip.rs`** (`exchange_keys`) until the act flow has a data-driven interrupt for an arc's stage.
+

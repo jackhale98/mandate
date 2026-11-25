@@ -1,5 +1,5 @@
 /// <reference types="node" />
-// The asks block, casework and the promise picker render the engine's views
+// Asks as rows (Today, the arc sheet), casework and the promise picker render the engine's views
 // (asks.fixture.json: a real game's views, round-tripped through the Rust
 // types by crates/mandate-wasm/tests/asks.rs) with every string in Fluent,
 // keyboard-reachable buttons with screen-reader labels, and commands in the
@@ -15,8 +15,8 @@ import type { PocketView } from "../../engine/protocol/PocketView";
 import type { PromiseMenuView } from "../../engine/protocol/PromiseMenuView";
 import { englishTranslator } from "../../i18n/englishLocale";
 import { useGame } from "../../state/gameStore";
-import { pocketBadges } from "../Pocket";
-import { CaseworkHere, StoryPromises, TodayAsks } from "./Asks";
+import { barBadges } from "../Pocket";
+import { AskRow, CaseworkHere, StoryPromises } from "./Asks";
 import { PromisePicker } from "./PromisePicker";
 
 interface Fixture {
@@ -46,25 +46,37 @@ describe("asks and promises", () => {
     useGame.setState({ tr: englishTranslator(), busy: false, pocket: pocket(), respondAsk, casework, openPromises, makePromise, promiseMenu: null, asks: null });
   });
 
-  it("the Today block: offers with Accept and Decline, accepted asks with their next step and deadline, recent outcomes", () => {
-    render(<TodayAsks p={pocket()} />);
-    const block = screen.getByTestId("pocket-asks");
-    expect(block.textContent).not.toContain("⟦");
-    expect(block.textContent).not.toMatch(/\{\s*\$/);
+  it("an ask as a row: two lines closed, opened in place to read its price, then Accept and Decline, or the next step with the engine's odds", () => {
     const offer = fixture.pocket_asks.find((a) => a.status === "offered");
+    const work = fixture.pocket_asks.find((a) => a.status === "accepted" && a.odds !== null);
     expect(offer).toBeDefined();
-    if (!offer) return;
-    const accept = screen.getByTestId(`ask-accept-${offer.id}`);
+    expect(work).toBeDefined();
+    if (!offer || !work) return;
+    render(
+      <ul>
+        <AskRow a={offer} />
+        <AskRow a={work} />
+      </ul>,
+    );
+    const row = screen.getByTestId(`ask-${offer.id}`);
+    expect(row.getAttribute("data-status")).toBe("offered");
+    expect(row.textContent).not.toContain("⟦");
+    expect(row.textContent).not.toMatch(/\{\s*\$/);
+    // Closed: no answer yet; the row's button says it opens.
+    expect(within(row).queryByTestId(`ask-accept-${offer.id}`)).toBeNull();
+    const toggle = within(row).getAllByRole("button")[0] as HTMLElement;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    const accept = within(screen.getByTestId(`ask-${offer.id}`)).getByTestId(`ask-accept-${offer.id}`);
     expect(accept.getAttribute("aria-label")).toMatch(/^Accept: /);
     fireEvent.click(accept);
     expect(respondAsk).toHaveBeenCalledWith(offer.id, true);
     fireEvent.click(screen.getByTestId(`ask-decline-${offer.id}`));
     expect(respondAsk).toHaveBeenCalledWith(offer.id, false);
-    // An accepted casework ask: the engine's odds, and "Sort it out" with its label.
-    const work = fixture.pocket_asks.find((a) => a.status === "accepted" && a.odds !== null);
-    expect(work).toBeDefined();
-    if (!work) return;
+    // An accepted casework ask: its next step on the closed row; opened, the engine's odds and "Sort it out".
     const item = screen.getByTestId(`ask-${work.id}`);
+    expect(item.textContent).toMatch(/Next: /);
+    fireEvent.click(within(item).getAllByRole("button")[0] as HTMLElement);
     expect(within(item).getByTestId("ask-odds").textContent).toContain(`${Math.round((work.odds ?? 0) * 100)}%`);
     expect(within(item).getByTestId("ask-need").textContent).toMatch(/^Next: /);
     expect(item.textContent).toMatch(/Due .* left|Due .* today/);
@@ -72,19 +84,26 @@ describe("asks and promises", () => {
     expect(sort.getAttribute("aria-label")).toMatch(/^Sort it out at the town hall: /);
     fireEvent.click(sort);
     expect(casework).toHaveBeenCalledWith(work.id);
-    // Kept asks are marked kept among the last outcomes.
-    const kept = within(screen.getByTestId("asks-recent")).getAllByTestId("ask-status");
-    expect(kept.map((k) => k.textContent)).toContain("Kept");
-    // The picker opens while campaigning.
-    fireEvent.click(screen.getByTestId("open-promises"));
-    expect(openPromises).toHaveBeenCalledWith(true);
   });
 
-  it("the badge counts offers and asks due within the turn, and says so", () => {
+  it("a settled ask reads as how it ended", () => {
+    const kept = fixture.asks_recent.find((a) => a.status === "kept");
+    expect(kept).toBeDefined();
+    if (!kept) return;
+    render(
+      <ul>
+        <AskRow a={kept} />
+      </ul>,
+    );
+    expect(screen.getByTestId(`ask-${kept.id}`).textContent).toContain("Kept");
+  });
+
+  it("the bar's count is the engine's, and says what it counts", () => {
     const tr = englishTranslator();
-    const b = pocketBadges(tr, pocket({ asks_due_soon: 2 }));
-    expect(b.today?.n).toBe(2);
-    expect(b.today?.text).toBe("2 asks or promises waiting");
+    const b = barBadges(tr, pocket({ needs_count: 2, notebook_new: 1 }));
+    expect(b.needs.n).toBe(2);
+    expect(b.needs.text).toBe("2 things need you");
+    expect(b.notebook.text).toBe("1 new in your notebook");
   });
 
   it("casework at the services desk lists what needs sorting, with the odds", () => {

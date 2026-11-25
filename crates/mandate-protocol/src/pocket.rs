@@ -386,7 +386,8 @@ impl Matters {
                 BeatAction::Talk { person: p, .. } => {
                     person(&mut m, p, make(NowLine::ArcTalk));
                 }
-                BeatAction::Visit { location, .. } => {
+                // A scene (DEC-112) is begun at its place, as a visit is.
+                BeatAction::Visit { location, .. } | BeatAction::Exchange { location, .. } => {
                     m.places.push((location, make(NowLine::PlaceBeat)));
                 }
                 BeatAction::Decision { .. } | BeatAction::Ask { .. } => {}

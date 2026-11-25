@@ -200,6 +200,8 @@ impl Script {
                     _ => None,
                 }
             }
+            // The budget round holds no scene.
+            BeatAction::Exchange { .. } => None,
         }
     }
 

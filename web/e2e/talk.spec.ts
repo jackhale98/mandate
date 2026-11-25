@@ -191,7 +191,7 @@ test("talk to someone at a place, from the place panel's people: what was learne
   // Tapping it leaves the conversation for the notebook.
   await noted.getByTestId("talk-noted-open").click();
   await expect(dlg).toHaveCount(0);
-  await expect(page.getByTestId("pocket").getByTestId("pocket-tab-notebook")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("pocket").getByTestId("pocket-tab-notebook")).toHaveAttribute("data-on", "true");
 });
 
 test("walk up to someone in the street and talk (a tap on them; Enter beside them on desktop): the street frames the two, a bubble over the person", async ({ page, isMobile }) => {

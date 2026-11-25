@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { openPocket } from "./pocket";
+import { openAgenda, openPocket, pocketMenu } from "./pocket";
 
 // UI polish (owner, 2026-11-19): sheet heads, the pocket's slide, swipe to
 // close, the player's town on the map, and the pocket's agenda picker.
@@ -30,10 +30,13 @@ const expectHeadFlush = async (sheet: Locator) => {
 
 test("sheet heads stay flush with the top of the sheet when scrolled", async ({ page }) => {
   await start(page, "4242");
+  // A short window and the agenda open, so Today scrolls on a wide screen too.
+  await page.setViewportSize({ width: page.viewportSize()?.width ?? 1280, height: 480 });
+  await openAgenda(page);
   const pocket = await openPocket(page);
   await page.waitForTimeout(400);
   await expectHeadFlush(pocket);
-  await pocket.getByRole("button", { name: "Overview", exact: true }).click();
+  await (await pocketMenu(page)).getByRole("button", { name: "Overview", exact: true }).click();
   await page.locator(".region-accordion > li > .row-btn").first().click();
   await page.locator(".town-list .row-btn").first().click();
   await expect(page.getByRole("heading", { name: "Resources" })).toBeVisible();
@@ -43,6 +46,12 @@ test("sheet heads stay flush with the top of the sheet when scrolled", async ({ 
 
 test("the pocket slides in from the side it is docked on", async ({ page }, info) => {
   await start(page, "4242");
+  // On a wide screen the Notebook opens beside it and the pocket then appears in place: hide the Notebook first.
+  if (info.project.name === "desktop") {
+    await (await openPocket(page)).getByTestId("notebook-close").click();
+    await page.getByTestId("pocket").getByRole("button", { name: "Close", exact: true }).click();
+    await expect(page.getByTestId("pocket")).toHaveCount(0);
+  }
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Animation.enable");
   await cdp.send("Animation.setPlaybackRate", { playbackRate: 0.1 });
@@ -75,7 +84,7 @@ test("reduced motion: the pocket opens without sliding", async ({ page }) => {
 
 test("the pocket's agenda starts with no action chosen", async ({ page }) => {
   await start(page, "4242");
-  const agenda = (await openPocket(page)).getByTestId("agenda");
+  const agenda = await openAgenda(page);
   await expect(agenda.getByTestId("agenda-choose")).toBeVisible();
   await expect(agenda.locator(".agenda-kinds .seg-on")).toHaveCount(0);
   await expect(agenda.locator('.agenda-kinds input[type="radio"]:checked')).toHaveCount(0);
@@ -133,8 +142,8 @@ test("phone: swiping a sheet down closes it, a short drag springs back", async (
 
 test("the player's town is marked on the map and in the town list", async ({ page }) => {
   await start(page, "4242");
-  const town = await openPocket(page);
-  const home = (await town.locator(".sheet-head p").textContent())?.split(" · ").pop()?.trim() ?? "";
+  const town = await pocketMenu(page);
+  const home = (await town.locator("p.muted").first().textContent())?.split(" · ").pop()?.trim() ?? "";
   expect(home.length).toBeGreaterThan(0);
   await town.getByRole("button", { name: "Map", exact: true }).click();
   const canvas = page.getByRole("img", { name: new RegExp(`Drag to pan.*You: ${home}`) });
@@ -154,7 +163,7 @@ test("the player's town is marked on the map and in the town list", async ({ pag
   await page.getByTestId("town-map-close").click();
   await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
   // The town list flags it too, with text.
-  await (await openPocket(page)).getByRole("button", { name: "Overview", exact: true }).click();
+  await (await pocketMenu(page)).getByRole("button", { name: "Overview", exact: true }).click();
   await page.locator(".region-accordion > li > .row-btn", { has: page.locator(".you-chip") }).click();
   await expect(page.getByTestId("town-list-home")).toBeVisible();
   await expect(page.locator(".town-home")).toContainText(home);
@@ -162,8 +171,7 @@ test("the player's town is marked on the map and in the town list", async ({ pag
 
 test("Escape closes the sheet on top", async ({ page }) => {
   await start(page, "4242");
-  const pocket = await openPocket(page);
-  await pocket.getByRole("button", { name: "Overview", exact: true }).click();
+  await (await pocketMenu(page)).getByRole("button", { name: "Overview", exact: true }).click();
   await page.locator(".region-accordion > li > .row-btn").first().click();
   await page.locator(".town-list .row-btn").first().click();
   await expect(page.getByRole("heading", { name: "Resources" })).toBeVisible();

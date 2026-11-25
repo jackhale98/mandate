@@ -1,27 +1,50 @@
-import { useEffect, useRef, useState } from "react";
+// The pocket (DEC-113, structure B): two sides under one switch. Today is for
+// doing: one page with the turn's three tiles, where you are, what needs you,
+// what is under way, and (folded) an action to take and your standing. The
+// Notebook is for looking things up: one row of four tabs (People, Places,
+// Town, Policies). Save and quit, the story so far, the maps and the rest are
+// in the ⋯ menu at the top, never under a scroll. A bottom sheet on phones; on
+// wide screens Today is a panel on the right (it can stay docked) and the
+// Notebook sits open on the left beside it (owner's answer 4). Always
+// available, coarse, never the only path to anything vital (DEC-079 rule 3).
+// Every order, reason and count is the engine's (`PocketView.needs_you`,
+// `arcs`, `next_up`, `needs_count`): the UI sorts and counts nothing.
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { ArcSummaryView } from "../engine/protocol/ArcSummaryView";
+import type { NeedView } from "../engine/protocol/NeedView";
 import type { PocketView } from "../engine/protocol/PocketView";
-import type { PocketBillView } from "../engine/protocol/PocketBillView";
 import { useGame } from "../state/gameStore";
 import { useReport } from "../state/reportStore";
 import { routeFor } from "../state/routing";
+import { isWide } from "../state/devicePrefs";
 import { formatDate, formatMoney } from "../i18n/format";
-import { StatTile } from "./StatTile";
 import { ActionForm, AGENDA, type FormAction } from "./ActionForm";
-import { placeIcon, placeName } from "../places/labels";
+import { placeName } from "../places/labels";
 import { useSheetClose } from "./useSheetClose";
-import { capital, deadlineText } from "./DecisionSheet";
+import { capital } from "./DecisionSheet";
 import { Legal } from "./Newspaper";
-import { PocketTabs, pocketPanelId, pocketTabId, type TabBadge } from "./PocketTabs";
-import { TownTab } from "./TownCard";
-import { PlaceList } from "./PlaceList";
-import { Notebook } from "./notebook/Notebook";
-import type { PocketTab } from "../state/devicePrefs";
-import type { Translator } from "../i18n/fluent";
-import { TodayAsks } from "./asks/Asks";
+import { PocketTabs, pocketPanelId, pocketTabId } from "./PocketTabs";
+import { Notebook, NotebookTabs } from "./notebook/Notebook";
+import { AskRow } from "./asks/Asks";
+import { BillRow } from "./notebook/Bills";
+import { Fold, Row, RowList, Section, When, shortDate, useFold } from "./notebook/rows";
 
 const TRACKS = ["record", "viability", "standing", "health", "legal_jeopardy", "threat"] as const;
 /** Tracks where a high value is bad (shown with a "risk" bar plus the text label). */
 const RISK = new Set<string>(["legal_jeopardy", "threat"]);
+
+/** Whether the window is wide (900 px and over), following resizes. */
+export function useWide(): boolean {
+  const [wide, setWide] = useState(isWide);
+  useEffect(() => {
+    const m = window.matchMedia?.("(min-width: 900px)");
+    if (!m) return;
+    const on = () => setWide(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return wide;
+}
 
 function Tracks({ p }: { p: PocketView }) {
   const tr = useGame((s) => s.tr);
@@ -43,62 +66,7 @@ function Tracks({ p }: { p: PocketView }) {
   );
 }
 
-function PocketBill({ b }: { b: PocketBillView }) {
-  const tr = useGame((s) => s.tr);
-  const pocket = useGame((s) => s.pocket);
-  const visit = useGame((s) => s.visit);
-  const route = routeFor(pocket, { action: b.status === "draft" ? "draft" : "vote", lateNight: false, neighborhood: null });
-  return (
-    <li className="pocket-bill">
-      <div>
-        <strong>{tr.t(b.name_key)}</strong>
-        <div className="muted small">
-          {tr.t(`status-${b.status}`)}
-          {b.status === "under_consideration" && <> · {tr.t("ui-whip-about", { yes: b.about_yes, seats: b.seats, needed: b.needed })}</>}
-          {b.next_vote && b.next_stage_key && <> · {tr.t("ui-next-vote", { stage: tr.t(b.next_stage_key), date: formatDate(tr, b.next_vote) })}</>}
-          {b.can_vote && <> · {tr.t("ui-awaits-your-vote")}</>}
-        </div>
-      </div>
-      {route?.to && (
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => route.to && void visit(route.to.location)}>
-          {placeIcon(route.to.kind_key)} {placeName(tr, route.to)}
-        </button>
-      )}
-    </li>
-  );
-}
-
-/** Decisions waiting for the player (DEC-079: always listed and answerable here). */
-function Decisions({ p }: { p: PocketView }) {
-  const tr = useGame((s) => s.tr);
-  const openDecision = useGame((s) => s.openDecision);
-  return (
-    <section className="card" data-testid="pocket-decisions">
-      <h2>{tr.t("ui-decisions")}</h2>
-      {p.decisions.length === 0 ? (
-        <p className="muted small">{tr.t("ui-decisions-none")}</p>
-      ) : (
-        <ul className="plain-list">
-          {p.decisions.map((d) => (
-            <li key={d.id} className="pocket-bill">
-              <div>
-                <strong>{capital(tr.event(d.title_key, d.args))}</strong>
-                <div className="muted small">
-                  {tr.t(`ui-decision-kind-${d.kind}`)} · {deadlineText(tr, d)}
-                </div>
-              </div>
-              <button type="button" className="btn btn-sm" onClick={() => void openDecision(d.id)} data-testid={`open-decision-${d.id}`}>
-                {tr.t("ui-choose")}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-/** The always-available agenda: every action, auto-routed to where it is done (DEC-079). */
+/** The always-available agenda: every action, auto-routed to where it is done (DEC-079). Folded under "Take an action". */
 function Agenda({ p }: { p: PocketView }) {
   const tr = useGame((s) => s.tr);
   const visit = useGame((s) => s.visit);
@@ -110,9 +78,7 @@ function Agenda({ p }: { p: PocketView }) {
     if (to) void visit(to.location);
   };
   return (
-    <section className="card" data-testid="agenda">
-      <h2>{tr.t("ui-agenda")}</h2>
-      <p className="hint">{tr.t("ui-agenda-help")}</p>
+    <div className="rw-pad">
       <div className="segmented segmented-sm agenda-kinds" role="radiogroup" aria-label={tr.t("ui-agenda")}>
         {kinds.map((k) => (
           <label key={k} className={kind === k ? "seg seg-on" : "seg"}>
@@ -128,7 +94,7 @@ function Agenda({ p }: { p: PocketView }) {
           {tr.t("ui-agenda-choose")}
         </p>
       )}
-      <h3 className="sub">{tr.t("ui-agenda-places")}</h3>
+      <h4 className="sub">{tr.t("ui-agenda-places")}</h4>
       <div className="bill-actions">
         <button type="button" className="btn btn-sm" onClick={() => go("draft")}>
           {tr.t("ui-agenda-draft")}
@@ -140,22 +106,203 @@ function Agenda({ p }: { p: PocketView }) {
           {tr.t("ui-agenda-file")}
         </button>
       </div>
-    </section>
+    </div>
   );
 }
 
-/** Today: the turn, what is waiting (decisions, alerts, votes), the agenda and your standing. */
-function TodayTab({ p }: { p: PocketView }) {
+/** "5 days" over "by 14 Mar". */
+function dueWhen(tr: ReturnType<typeof useGame.getState>["tr"], days: number | null, due: PocketView["date"] | null): ReactNode {
+  if (days === null || due === null) return null;
+  return <When top={tr.t("ui-days-left", { n: days })} under={tr.t("ui-by-date", { date: shortDate(tr, due) })} />;
+}
+
+const NEED_MARK: Record<string, string> = { decision: "❗", ask_offer: "🤝", ask_due: "📌", vote: "🗳️", beat: "⏳" };
+
+/**
+ * One thing that needs the player (Today's "Needs you"), in the engine's
+ * order. A decision goes straight to its sheet ("Choose"); an ask opens in
+ * place so its price is read before it is answered; a vote opens to where it
+ * is cast; an arc's beat opens the arc's sheet.
+ *
+ * Step 4 (the exchange scene, DEC-112, EXCHANGE_SCENES §7) plugs in here: a
+ * need of kind `scene` will open the scene's screen from this row, as a
+ * decision opens its sheet.
+ */
+function NeedRow({ n, p }: { n: NeedView; p: PocketView }) {
   const tr = useGame((s) => s.tr);
+  const busy = useGame((s) => s.busy);
+  const openDecision = useGame((s) => s.openDecision);
+  const openArc = useGame((s) => s.openArc);
+  const visit = useGame((s) => s.visit);
+  const arc = n.arc !== null ? p.arcs.find((a) => a.id === n.arc) : undefined;
+  const arcTitle = arc ? tr.event(arc.title_key, arc.args) : null;
+  const t = n.target;
+  if (t.type === "ask") {
+    const a = p.asks.find((x) => x.id === t.id);
+    if (a) return <AskRow a={a} mark={NEED_MARK[n.kind]} />;
+  }
+  const title = capital(tr.event(n.title_key, n.args));
+  if (t.type === "decision") {
+    const id = t.id;
+    // The deadline goes in the line: the title keeps the room "Choose" leaves it.
+    const sub = [tr.t("ui-need-decision"), arcTitle, n.days_left !== null ? tr.t("ui-days-left", { n: n.days_left }) : null].filter(Boolean).join(" · ");
+    return (
+      <Row
+        mark={NEED_MARK.decision}
+        title={title}
+        sub={sub}
+        label={`${title}. ${sub}`}
+        onActivate={() => void openDecision(id)}
+        end={
+          <>
+            <button type="button" className="btn btn-sm btn-primary rw-go" tabIndex={-1} disabled={busy} aria-label={tr.t("ui-choose-label", { what: title })} onClick={() => void openDecision(id)} data-testid={`open-decision-${id}`}>
+              {tr.t("ui-choose")}
+            </button>
+          </>
+        }
+        li={{ "data-testid": `need-decision-${id}`, "data-need": n.kind }}
+      />
+    );
+  }
+  if (t.type === "bill") {
+    const route = routeFor(p, { action: "vote", lateNight: false, neighborhood: null });
+    const where = route?.to ? placeName(tr, route.to) : null;
+    const sub = [tr.t("ui-need-vote"), where].filter(Boolean).join(" · ");
+    return (
+      <Row
+        mark={NEED_MARK.vote}
+        title={title}
+        sub={sub}
+        label={`${title}. ${sub}`}
+        onActivate={() => route?.to && void visit(route.to.location)}
+        end={dueWhen(tr, n.days_left, n.due)}
+        li={{ "data-testid": `need-vote-${t.id}`, "data-need": n.kind }}
+      />
+    );
+  }
+  // An arc's beat in its last turn: its sheet says what can be done.
+  const arcId = t.type === "beat" ? t.arc : n.arc;
+  return (
+    <Row
+      mark={NEED_MARK[n.kind] ?? "⏳"}
+      title={title}
+      sub={arcTitle ?? undefined}
+      label={[title, arcTitle].filter(Boolean).join(". ")}
+      onActivate={() => arcId !== null && void openArc(arcId)}
+      end={dueWhen(tr, n.days_left, n.due)}
+      li={{ "data-testid": `need-beat-${arcId ?? 0}`, "data-need": n.kind }}
+    />
+  );
+}
+
+/** A running arc as a row (A3): its name and where, its stage in a line, how many things are the player's to do, its clock. Opens its sheet. */
+export function ArcRow({ a }: { a: ArcSummaryView }) {
+  const tr = useGame((s) => s.tr);
+  const openArc = useGame((s) => s.openArc);
+  const title = capital(tr.event(a.title_key, a.args));
+  const stage = tr.event(a.stage.key, a.stage.args);
+  const todo = a.open_beats > 0 ? tr.t("ui-arc-to-do", { n: a.open_beats }) : null;
+  return (
+    <Row
+      mark="⏳"
+      title={title}
+      role={a.place}
+      sub={stage}
+      label={[title, a.place, stage, todo].filter(Boolean).join(". ")}
+      onActivate={() => void openArc(a.id)}
+      end={todo || a.clock ? <When top={todo ?? (a.clock ? tr.t("ui-days-left", { n: a.clock.days_left }) : "")} under={todo && a.clock ? tr.t("ui-days-left", { n: a.clock.days_left }) : null} /> : undefined}
+      li={{ "data-testid": `arc-row-${a.id}`, "data-arc": String(a.id) }}
+      mainTestId={`open-arc-${a.id}`}
+    />
+  );
+}
+
+/** What is under way: running arcs, accepted asks and promises (not already waiting above), the player's bills. Past nine rows with "Needs you", its tail folds (the engine's order decides which show). */
+function UnderWay({ p }: { p: PocketView }) {
+  const tr = useGame((s) => s.tr);
+  const [all, setAll] = useState(false);
+  const waiting = new Set(p.needs_you.flatMap((n) => (n.target.type === "ask" ? [n.target.id] : [])));
+  const rows: ReactNode[] = [
+    ...p.arcs.map((a) => <ArcRow key={`arc-${a.id}`} a={a} />),
+    ...p.asks.filter((a) => a.status === "accepted" && !waiting.has(a.id)).map((a) => <AskRow key={`ask-${a.id}`} a={a} />),
+    ...p.bills.map((b) => <BillRow key={`bill-${b.id}`} b={b} p={p} testId={`bill-${b.id}`} />),
+  ];
+  if (rows.length === 0 && p.asks_recent.length === 0) return null;
+  const room = Math.max(3, 9 - p.needs_you.length);
+  const shown = all ? rows : rows.slice(0, room);
+  const more = rows.length - shown.length;
+  return (
+    <Section id="today-under-way" title={tr.t("ui-under-way")} testId="pocket-under-way">
+      {rows.length > 0 && <RowList>{shown}</RowList>}
+      {more > 0 && (
+        <button type="button" className="btn btn-ghost rw-more-btn" onClick={() => setAll(true)} data-testid="under-way-more">
+          {tr.t("ui-and-more", { n: more })}
+        </button>
+      )}
+      {p.asks_recent.length > 0 && (
+        <Fold id="today-settled" title={tr.t("ui-settled-lately")} count={p.asks_recent.length}>
+          <RowList testId="asks-recent">
+            {p.asks_recent.map((a) => (
+              <AskRow key={a.id} a={a} />
+            ))}
+          </RowList>
+        </Fold>
+      )}
+    </Section>
+  );
+}
+
+/** Nothing waiting: say so, and name the next dated thing (the engine's `next_up`). */
+function NextUp({ p }: { p: PocketView }) {
+  const tr = useGame((s) => s.tr);
+  const openArc = useGame((s) => s.openArc);
+  const n = p.next_up;
+  return (
+    <div className="today-next" data-testid="pocket-next-up">
+      <p className="today-empty">{tr.t("ui-nothing-waiting")}</p>
+      {n && (
+        <RowList>
+          <Row
+            mark="📅"
+            title={n.title ? capital(tr.event(n.title.key, n.title.args)) : tr.t(n.key, n.args)}
+            sub={n.title ? tr.t(n.key, n.args) : undefined}
+            end={<When top={shortDate(tr, n.date)} under={tr.t("ui-days-left", { n: n.days_left })} />}
+            onActivate={() => n.arc !== null && void openArc(n.arc)}
+            disabled={n.arc === null}
+          />
+        </RowList>
+      )}
+    </div>
+  );
+}
+
+/** Today (DEC-113): one page. */
+function Today({ p }: { p: PocketView }) {
+  const tr = useGame((s) => s.tr);
+  const busy = useGame((s) => s.busy);
+  const openPromises = useGame((s) => s.openPromises);
   const setTab = useGame((s) => s.setPocketTab);
+  const setFold = useGame((s) => s.setFold);
+  const more = AGENDA.length - 4;
   return (
     <>
-      <div className="stats stats-3">
-        <StatTile label={tr.t("ui-slots-short")} value={`${p.slots_left}/${p.slot_cap}`} />
-        <StatTile label={tr.t("ui-money")} value={formatMoney(p.money)} />
-        <StatTile label={tr.t("ui-mandate")} value={String(Math.round(p.mandate))} />
+      <div className="today-strip" data-testid="today-strip">
+        <div>
+          <span>{tr.t("ui-slots-short")}</span>
+          <b>
+            {p.slots_left}/{p.slot_cap}
+          </b>
+        </div>
+        <div>
+          <span>{tr.t("ui-money")}</span>
+          <b>{formatMoney(p.money)}</b>
+        </div>
+        <div>
+          <span>{tr.t("ui-mandate")}</span>
+          <b>{String(Math.round(p.mandate))}</b>
+        </div>
       </div>
-      <p className="small" data-testid="pocket-location">
+      <p className="small today-where" data-testid="pocket-location">
         {tr.t("ui-you-are-at", { place: placeName(tr, p.location) })}
       </p>
       {p.alerts.length > 0 && (
@@ -170,156 +317,287 @@ function TodayTab({ p }: { p: PocketView }) {
       {p.notebook_new > 0 && (
         <p className="note" data-testid="today-notebook">
           {tr.t("ui-notebook-today", { n: p.notebook_new })}{" "}
-          <button type="button" className="link-btn" onClick={() => setTab("notebook")} data-testid="today-notebook-open">
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => {
+              setFold("notebook-land", true);
+              // On a wide screen the Notebook's panel opens again if it was hidden, and a place's panel over it gives way.
+              if (isWide()) useGame.getState().uncoverNotebook();
+              setTab("notebook");
+            }}
+            data-testid="today-notebook-open"
+          >
             {tr.t("ui-notebook-today-open")}
           </button>
         </p>
       )}
-      <Decisions p={p} />
-      <TodayAsks p={p} />
       {p.legal && <Legal l={p.legal} />}
-      <Agenda p={p} />
-      <h3 className="sub">{tr.t("ui-your-bills")}</h3>
-      {p.bills.length === 0 ? (
-        <p className="muted small">{tr.t("ui-no-bills")}</p>
+      {p.needs_you.length > 0 ? (
+        <Section id="today-needs" title={tr.t("ui-needs-you")} testId="pocket-needs">
+          <RowList testId="pocket-needs-list">
+            {p.needs_you.map((n, i) => (
+              <NeedRow key={`${n.kind}-${i}`} n={n} p={p} />
+            ))}
+          </RowList>
+        </Section>
       ) : (
-        <ul className="plain-list" data-testid="pocket-bills">
-          {p.bills.map((b) => (
-            <PocketBill key={b.id} b={b} />
-          ))}
-        </ul>
+        <NextUp p={p} />
       )}
-      <h3 className="sub">{tr.t("ui-next-election")}</h3>
-      <p className="small" data-testid="pocket-election">
-        {p.next_election ? formatDate(tr, p.next_election) : "—"}
-        {p.days_to_election !== null && <span className="muted"> · {tr.t("ui-days-left", { n: p.days_to_election })}</span>}
-      </p>
-      <h3 className="sub">{tr.t("ui-tracks")}</h3>
-      <Tracks p={p} />
+      <UnderWay p={p} />
+      <section className="rw-sec" aria-label={tr.t("ui-today-do")}>
+        {p.can_promise && (
+          <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void openPromises(true)} data-testid="open-promises">
+            {tr.t("ui-promise-make")}
+          </button>
+        )}
+        <Fold id="today-agenda" title={tr.t("ui-take-action")} hint={tr.t("ui-take-action-hint", { n: more })} count={null} testId="agenda" headTestId="agenda-open">
+          <Agenda p={p} />
+        </Fold>
+        <Fold
+          id="today-standing"
+          title={p.days_to_election !== null ? tr.t("ui-election-in", { n: p.days_to_election }) : tr.t("ui-tracks")}
+          hint={
+            <span data-testid="pocket-election">
+              {[p.next_election ? formatDate(tr, p.next_election) : null, `${tr.t("track-record")} ${Math.round(p.record)}`, `${tr.t("track-standing")} ${Math.round(p.tracks.standing)}`].filter(Boolean).join(" · ")}
+            </span>
+          }
+          count={null}
+          testId="pocket-standing"
+        >
+          <div className="rw-pad">
+            <Tracks p={p} />
+          </div>
+        </Fold>
+      </section>
     </>
   );
 }
 
-/** What waits on each tab, counted (the tabs' badges and the pocket button's). */
-export function pocketBadges(tr: Translator, p: PocketView): Partial<Record<PocketTab, TabBadge>> {
-  const today = [
-    p.decisions.length > 0 ? tr.t("ui-decision-count", { n: p.decisions.length }) : null,
-    p.asks_due_soon > 0 ? tr.t("ui-ask-count", { n: p.asks_due_soon }) : null,
-    p.alerts.length > 0 ? tr.t("ui-alert-count", { n: p.alerts.length }) : null,
-  ].filter((x): x is string => x !== null);
-  return {
-    today: { n: p.decisions.length + p.asks_due_soon + p.alerts.length, text: today.join(", ") },
-    notebook: { n: p.notebook_new, text: tr.t("ui-notebook-new-count", { n: p.notebook_new }) },
-  };
-}
-
-/**
- * The pocket (phone and notebook): always available, coarse, never the only
- * path to anything vital (DEC-079 rule 3). Tabs keep it short (DEC-088 main
- * screen): Today, Town (the town card), Places (every place, no walking),
- * Notebook (what you know, with placeholders and leads, DEC-091; its People
- * section is the one place for people: the key figures pinned, then everyone
- * else you know, each with Talk and Go to them). A bottom sheet on phones; on
- * wide screens a side panel that can stay docked open beside the town.
- */
-export function Pocket() {
+/** The ⋯ menu (owner's answer 3): the maps, the story so far, skip ahead, Legacy, save and leave, report a problem, privacy. */
+function MoreMenu() {
   const tr = useGame((s) => s.tr);
-  const p = useGame((s) => s.pocket);
   const o = useGame((s) => s.office);
-  const open = useGame((s) => s.pocketOpen);
-  const setOpen = useGame((s) => s.setPocketOpen);
-  const tab = useGame((s) => s.pocketTab);
-  const setTab = useGame((s) => s.setPocketTab);
-  const docked = useGame((s) => s.pocketDocked);
-  const setDocked = useGame((s) => s.setPocketDocked);
-  const focusTick = useGame((s) => s.pocketFocus);
+  const busy = useGame((s) => s.busy);
   const setView = useGame((s) => s.setView);
   const openMap = useGame((s) => s.openMap);
-  const busy = useGame((s) => s.busy);
   const saveAndQuit = useGame((s) => s.saveAndQuit);
   const openStory = useGame((s) => s.openStory);
   const openTermReview = useGame((s) => s.openTermReview);
   const openLegacy = useGame((s) => s.openLegacy);
   const actOver = useGame((s) => s.overview?.act?.ended_key != null);
   const openReport = useReport((s) => s.openReport);
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [open]);
+  const act = (f: () => void) => () => {
+    setOpen(false);
+    f();
+  };
+  return (
+    <div className="pocket-more" ref={wrap}>
+      <button
+        ref={toggle}
+        type="button"
+        className="btn btn-ghost pocket-icon"
+        aria-expanded={open}
+        aria-controls="pocket-menu"
+        aria-label={tr.t("ui-pocket-more")}
+        title={tr.t("ui-pocket-more")}
+        onClick={() => setOpen(!open)}
+        data-testid="pocket-more"
+      >
+        <span aria-hidden="true">⋯</span>
+      </button>
+      {open && (
+        <nav
+          id="pocket-menu"
+          className="pocket-menu"
+          aria-label={tr.t("ui-pocket-links")}
+          data-testid="pocket-menu"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              setOpen(false);
+              toggle.current?.focus();
+            }
+          }}
+        >
+          {o && <p className="muted small pocket-menu-who">{[o.player.name, tr.t(o.player.role_key), o.player.municipality].join(" · ")}</p>}
+          <button type="button" className="btn" onClick={act(() => openMap("country"))} data-testid="pocket-country-map">
+            {tr.t("ui-map")}
+          </button>
+          <button type="button" className="btn" onClick={act(() => setView("overview"))}>
+            {tr.t("ui-overview")}
+          </button>
+          <button type="button" className="btn" onClick={act(() => void openStory(true))} data-testid="open-story">
+            {tr.t("ui-story-so-far")}
+          </button>
+          {!actOver && (
+            <button type="button" className="btn" disabled={busy} onClick={act(() => void openTermReview(true))} data-testid="open-term-review">
+              {tr.t("ui-term-review-open")}
+            </button>
+          )}
+          <button type="button" className="btn" onClick={act(() => void openLegacy(true))} data-testid="open-legacy">
+            {actOver ? tr.t("ui-epilogue") : tr.t("ui-epilogue-legacy")}
+          </button>
+          <button type="button" className="btn" disabled={busy} onClick={act(() => void saveAndQuit())}>
+            {tr.t("ui-save-quit")}
+          </button>
+          <button type="button" className="btn" onClick={act(() => openReport("menu"))} data-testid="report-problem">
+            {tr.t("ui-report")}
+          </button>
+          <a className="btn" href={`${import.meta.env.BASE_URL}../privacy.html`} target="_blank" rel="noopener" title={tr.t("ui-privacy-note")} data-testid="privacy-link-pocket">
+            {tr.t("ui-privacy")}
+          </a>
+        </nav>
+      )}
+    </div>
+  );
+}
+
+/** The Notebook beside Today on wide screens: a panel on the left with its own head (covered while another sheet is open there). */
+function NotebookPane({ onClose }: { onClose: () => void }) {
+  const tr = useGame((s) => s.tr);
+  const panel = useRef<HTMLDivElement>(null);
+  const focusTick = useGame((s) => s.pocketFocus);
+  useEffect(() => {
+    if (focusTick === 0) return;
+    const id = requestAnimationFrame(() => panel.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [focusTick]);
+  return (
+    <section id="pocket-book" className="pocket-book" aria-labelledby="pocket-book-title" data-testid="pocket-notebook">
+      <div className="sheet-head">
+        <div className="pocket-book-title">
+          <h2 id="pocket-book-title">{tr.t("ui-pocket-tab-notebook")}</h2>
+          <button type="button" className="btn btn-ghost pocket-icon" onClick={onClose} aria-label={tr.t("ui-notebook-close")} data-testid="notebook-close">
+            ✕
+          </button>
+        </div>
+        <NotebookTabs />
+      </div>
+      <Notebook panelRef={panel} />
+    </section>
+  );
+}
+
+/**
+ * The pocket. The switch (`./PocketTabs`) shows Today or the Notebook on a
+ * phone; on a wide screen Today stays on the right and the Notebook opens on
+ * the left, both at once.
+ */
+export function Pocket() {
+  const tr = useGame((s) => s.tr);
+  const p = useGame((s) => s.pocket);
+  const open = useGame((s) => s.pocketOpen);
+  const setOpen = useGame((s) => s.setPocketOpen);
+  const side = useGame((s) => s.pocketTab);
+  const setTab = useGame((s) => s.setPocketTab);
+  const docked = useGame((s) => s.pocketDocked);
+  const setDocked = useGame((s) => s.setPocketDocked);
+  const focusTick = useGame((s) => s.pocketFocus);
+  const leftBusy = useGame((s) => s.openPlace !== null || s.character !== null || s.decision !== null || s.story !== null || s.arc !== null || s.talk !== null || s.termReview !== null || s.legacy !== null || s.promiseMenu !== null || s.skipSummary !== null);
+  const [bookShut, setBookShut] = useFold("pocket-book-shut", false);
+  const uncover = useGame((s) => s.uncoverNotebook);
+  const wide = useWide();
   const [closing, requestClose, sheetRef] = useSheetClose(() => setOpen(false));
   const panelRef = useRef<HTMLDivElement>(null);
   const shown = open && p !== null;
-  // "Skip to Places" (and anything else that asks) moves the keyboard into the open tab.
+  const book = wide && !bookShut;
+  // "Skip to Places" (and anything else that asks) moves the keyboard into the open side.
   useEffect(() => {
-    if (!shown || focusTick === 0) return;
+    if (!shown || focusTick === 0 || (wide && side === "notebook")) return;
     const id = requestAnimationFrame(() => panelRef.current?.focus());
     return () => cancelAnimationFrame(id);
-  }, [focusTick, shown]);
+  }, [focusTick, shown, wide, side]);
+  // "/" goes to the Notebook's search (a desktop key), unless the player is typing.
+  const setQ = useGame((s) => s.setNotebookQuery);
+  useEffect(() => {
+    if (!shown) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))) return;
+      e.preventDefault();
+      if (!wide) setTab("notebook");
+      else setBookShut(false);
+      setQ("");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [shown, wide, setTab, setQ, setBookShut]);
   if (!shown) return null;
-  const cls = ["sheet", "pocket", docked ? "pocket-docked" : "", closing ? "sheet-closing" : ""].filter(Boolean).join(" ");
+  const bookShown = book && !leftBusy;
+  // With the Notebook beside it, the pocket appears in place: a slide would carry the Notebook's panel with it.
+  const cls = ["sheet", "pocket", docked ? "pocket-docked" : "", bookShown ? "pocket-with-book" : "", closing ? "sheet-closing" : ""].filter(Boolean).join(" ");
+  // On a phone the switch shows one side; on a wide screen Today is always this panel.
+  const showing = wide ? "today" : side;
+  const onSwitch = (t: "today" | "notebook") => {
+    if (wide) {
+      if (t === "notebook") {
+        // Asked for, the Notebook comes back from under whatever covers it on the left.
+        setBookShut(false);
+        uncover();
+      }
+      setTab(t);
+      return;
+    }
+    setTab(t);
+  };
   return (
     <>
       <div className={closing ? "sheet-scrim sheet-closing" : "sheet-scrim"} onClick={requestClose} aria-hidden="true" />
-      <aside ref={sheetRef} className={cls} aria-label={tr.t("ui-pocket")} data-testid="pocket">
+      <aside ref={sheetRef} className={cls} aria-label={tr.t("ui-pocket")} data-testid="pocket" data-side={showing}>
         <div className="sheet-head pocket-head">
           <div className="pocket-head-row">
-            <div>
-              <h2>{tr.t("ui-pocket")}</h2>
-              {o && (
-                <p className="muted small">
-                  {o.player.name} · {tr.t(o.player.role_key)} · {o.player.municipality}
-                </p>
-              )}
-            </div>
-            <div className="sheet-tools">
-              <button
-                type="button"
-                className="btn btn-ghost pocket-dock"
-                aria-pressed={docked}
-                onClick={() => setDocked(!docked)}
-                aria-label={tr.t("ui-pocket-dock")}
-                title={tr.t(docked ? "ui-pocket-undock-hint" : "ui-pocket-dock-hint")}
-                data-testid="pocket-dock"
-              >
-                <span aria-hidden="true">{docked ? "◧" : "▭"}</span>
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={requestClose} aria-label={tr.t("ui-close")}>
-                ✕
-              </button>
-            </div>
+            <PocketTabs side={showing} onChange={onSwitch} p={p} wide={wide} bookOpen={bookShown} />
+            <MoreMenu />
+            <button
+              type="button"
+              className="btn btn-ghost pocket-icon pocket-dock"
+              aria-pressed={docked}
+              onClick={() => setDocked(!docked)}
+              aria-label={tr.t("ui-pocket-dock")}
+              title={tr.t(docked ? "ui-pocket-undock-hint" : "ui-pocket-dock-hint")}
+              data-testid="pocket-dock"
+            >
+              <span aria-hidden="true">{docked ? "◧" : "▭"}</span>
+            </button>
+            <button type="button" className="btn btn-ghost pocket-icon" onClick={requestClose} aria-label={tr.t("ui-close")}>
+              ✕
+            </button>
           </div>
-          <PocketTabs tab={tab} onChange={setTab} badges={pocketBadges(tr, p)} />
+          {!wide && side === "notebook" && <NotebookTabs />}
         </div>
         <div className="sheet-body pocket-body">
-          <div ref={panelRef} role="tabpanel" id={pocketPanelId(tab)} aria-labelledby={pocketTabId(tab)} tabIndex={-1} className="pocket-panel" data-testid={`pocket-panel-${tab}`}>
-            {tab === "today" ? <TodayTab p={p} /> : tab === "town" ? <TownTab /> : tab === "places" ? <PlaceList /> : <Notebook />}
-          </div>
-          <nav className="pocket-links" aria-label={tr.t("ui-pocket-links")}>
-            <button type="button" className="btn" onClick={() => openMap("country")} data-testid="pocket-country-map">
-              {tr.t("ui-map")}
-            </button>
-            <button type="button" className="btn" onClick={() => setView("overview")}>
-              {tr.t("ui-overview")}
-            </button>
-            <button type="button" className="btn" onClick={() => void openStory(true)} data-testid="open-story">
-              {tr.t("ui-story-so-far")}
-            </button>
-            {!actOver && (
-              <button type="button" className="btn" disabled={busy} onClick={() => void openTermReview(true)} data-testid="open-term-review">
-                {tr.t("ui-term-review-open")}
-              </button>
-            )}
-            <button type="button" className="btn" onClick={() => void openLegacy(true)} data-testid="open-legacy">
-              {actOver ? tr.t("ui-epilogue") : tr.t("ui-epilogue-legacy")}
-            </button>
-            <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void saveAndQuit()}>
-              {tr.t("ui-save-quit")}
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={() => openReport("menu")} data-testid="report-problem">
-              {tr.t("ui-report")}
-            </button>
-            <a className="btn btn-ghost" href={`${import.meta.env.BASE_URL}../privacy.html`} target="_blank" rel="noopener" title={tr.t("ui-privacy-note")} data-testid="privacy-link-pocket">
-              {tr.t("ui-privacy")}
-            </a>
-          </nav>
+          {showing === "today" ? (
+            <div ref={panelRef} role={wide ? "region" : "tabpanel"} id={pocketPanelId("today")} aria-labelledby={wide ? undefined : pocketTabId("today")} aria-label={wide ? tr.t("ui-pocket-tab-today") : undefined} tabIndex={-1} className="pocket-panel" data-testid="pocket-panel-today">
+              <Today p={p} />
+            </div>
+          ) : (
+            <div role="tabpanel" id={pocketPanelId("notebook")} aria-labelledby={pocketTabId("notebook")} className="pocket-panel" data-testid="pocket-panel-notebook">
+              <Notebook panelRef={panelRef} />
+            </div>
+          )}
         </div>
+        {bookShown && <NotebookPane onClose={() => setBookShut(true)} />}
       </aside>
     </>
   );
+}
+
+/** The bar's two counts (owner's answer 5): what needs you (the engine's count) and what is new in the notebook. */
+export function barBadges(tr: ReturnType<typeof useGame.getState>["tr"], p: PocketView): { needs: { n: number; text: string }; notebook: { n: number; text: string } } {
+  return {
+    needs: { n: p.needs_count, text: tr.t("ui-needs-count", { n: p.needs_count }) },
+    notebook: { n: p.notebook_new, text: tr.t("ui-notebook-new-count", { n: p.notebook_new }) },
+  };
 }

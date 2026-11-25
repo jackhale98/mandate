@@ -1,13 +1,14 @@
-// Asks and promises (DEC-097 §2; ENGAGEMENT §3.9): the Today block (offers
-// with Accept and Decline, accepted asks and promises with their next need,
-// progress, deadline and a way to do it), casework at the services desk, and
-// the story sheet's promises. Everything shown is the engine's: what an ask
+// Asks and promises (DEC-097 §2; ENGAGEMENT §3.9): an ask as a row (DEC-113:
+// Today's "Needs you" and "Under way", the arc sheet), opened in place to its
+// body (Accept and Decline for an offer; for an accepted ask or promise its
+// next need, progress, deadline and a way to do it), casework at the services
+// desk, and the story sheet's promises. Everything shown is the engine's: what an ask
 // needs, how far along it is, where it is done, the casework odds and what
 // keeping or breaking it does (the UI never computes an outcome).
 import type { AskView } from "../../engine/protocol/AskView";
 import type { EffectLineView } from "../../engine/protocol/EffectLineView";
-import type { PocketView } from "../../engine/protocol/PocketView";
 import type { Translator } from "../../i18n/fluent";
+import { Row, When, shortDate, useFold } from "../notebook/rows";
 import { formatDate } from "../../i18n/format";
 import { placeIcon, placeName } from "../../places/labels";
 import { useGame } from "../../state/gameStore";
@@ -126,11 +127,7 @@ function NextStep({ a }: { a: AskView }) {
 /** One ask or promise: what, who, by when, the next step, and what keeping or breaking it does. */
 export function AskItem({ a }: { a: AskView }) {
   const tr = useGame((s) => s.tr);
-  const busy = useGame((s) => s.busy);
-  const respond = useGame((s) => s.respondAsk);
   const title = askTitle(tr, a);
-  const offered = a.status === "offered";
-  const open = offered || a.status === "accepted";
   const headId = `ask-${a.id}-title`;
   return (
     <li className="ask" data-testid={`ask-${a.id}`} data-status={a.status} data-template={a.template} aria-labelledby={headId}>
@@ -141,6 +138,53 @@ export function AskItem({ a }: { a: AskView }) {
           · {a.promise ? tr.t("ui-ask-promise") : tr.t("ui-ask-from", { who: askerText(tr, a) })}
         </span>
       </div>
+      <AskBody a={a} />
+    </li>
+  );
+}
+
+/**
+ * An ask or promise as a row (DEC-113 §3: Today's "Needs you" and "Under
+ * way", the arc sheet): what, from whom, by when; opened in place, the price
+ * is read before it is answered (accept, decline, the next step).
+ */
+export function AskRow({ a, mark = "🤝" }: { a: AskView; mark?: string | undefined }) {
+  const tr = useGame((s) => s.tr);
+  const [open, setOpen] = useFold(`row-ask-${a.id}`, false);
+  const title = askTitle(tr, a);
+  const offered = a.status === "offered";
+  const who = a.promise ? tr.t("ui-ask-promise") : askerText(tr, a);
+  const sub = offered ? tr.t("ui-need-asks", { who }) : a.status === "accepted" ? tr.t("ui-ask-next", { need: tr.event(a.need_key, a.args) }) : askStatusText(tr, a);
+  const progress = a.progress ? tr.t("ui-ask-progress", { done: a.progress.done, total: a.progress.total }) : null;
+  const due = offered && a.respond_by ? a.respond_by : a.due;
+  const live = offered || a.status === "accepted";
+  return (
+    <Row
+      mark={a.promise ? "📣" : mark}
+      title={title}
+      role={offered ? undefined : who}
+      sub={progress ? `${sub} · ${progress}` : sub}
+      end={live ? <When top={tr.t("ui-days-left", { n: a.days_left })} under={shortDate(tr, due)} /> : <When top={askStatusText(tr, a)} under={a.resolved_on ? shortDate(tr, a.resolved_on) : null} />}
+      open={open}
+      onToggle={() => setOpen(!open)}
+      label={[title, who, sub].join(". ")}
+      li={{ "data-testid": `ask-${a.id}`, "data-status": a.status, "data-template": a.template, "data-need": offered ? "ask_offer" : undefined }}
+    >
+      <AskBody a={a} />
+    </Row>
+  );
+}
+
+/** What an ask says once opened: its standing, the detail, the next step or the answer, and what keeping or breaking it does. */
+export function AskBody({ a }: { a: AskView }) {
+  const tr = useGame((s) => s.tr);
+  const busy = useGame((s) => s.busy);
+  const respond = useGame((s) => s.respondAsk);
+  const title = askTitle(tr, a);
+  const offered = a.status === "offered";
+  const open = offered || a.status === "accepted";
+  return (
+    <>
       <p className="muted small">
         <span className={a.status === "broken" ? "chip chip-warn" : "chip chip-muted"} data-testid="ask-status">
           {askStatusText(tr, a)}
@@ -178,43 +222,7 @@ export function AskItem({ a }: { a: AskView }) {
           </div>
         </details>
       )}
-    </li>
-  );
-}
-
-/** The Today tab's "Asks and promises" block, under Decisions. */
-export function TodayAsks({ p }: { p: PocketView }) {
-  const tr = useGame((s) => s.tr);
-  const busy = useGame((s) => s.busy);
-  const openPromises = useGame((s) => s.openPromises);
-  return (
-    <section className="card" data-testid="pocket-asks" aria-labelledby="pocket-asks-title">
-      <h2 id="pocket-asks-title">{tr.t("ui-asks")}</h2>
-      {p.can_promise && (
-        <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void openPromises(true)} data-testid="open-promises">
-          {tr.t("ui-promise-make")}
-        </button>
-      )}
-      {p.asks.length === 0 ? (
-        <p className="muted small">{tr.t("ui-asks-none")}</p>
-      ) : (
-        <ul className="plain-list asks">
-          {p.asks.map((a) => (
-            <AskItem key={a.id} a={a} />
-          ))}
-        </ul>
-      )}
-      {p.asks_recent.length > 0 && (
-        <>
-          <h3 className="sub">{tr.t("ui-asks-recent")}</h3>
-          <ul className="plain-list asks" data-testid="asks-recent">
-            {p.asks_recent.map((a) => (
-              <AskItem key={a.id} a={a} />
-            ))}
-          </ul>
-        </>
-      )}
-    </section>
+    </>
   );
 }
 

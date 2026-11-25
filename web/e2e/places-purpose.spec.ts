@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openPocket, showPlaces } from "./pocket";
+import { openFold, openPocket, showPlaces } from "./pocket";
 
 // Places with purpose (DEC-079 note, PL1): the factory has things to do.
 // Walk there from the Places tab, tour the works (a verb of the generic
@@ -37,9 +37,9 @@ test("walk to the factory, tour the works, and see what was learned", async ({ p
   // Something learned: the notebook's places list the town's industry and the works' conditions.
   await expect(page.getByTestId("notebook-badge")).toBeVisible();
   if (await panel.isVisible()) await panel.getByRole("button", { name: "Close" }).first().click();
-  const pocket = await openPocket(page, "notebook");
+  const pocket = await openPocket(page, "places");
   const nb = pocket.getByTestId("notebook");
-  await nb.getByTestId("notebook-tab-places").click();
+  await openFold(nb.getByTestId("notebook-places-known"));
   await expect(nb.locator('[data-testid="notebook-entry"][data-subject="sector"]')).toContainText(/Manufacturing in .+: (taking people on|steady|letting people go)/);
   await expect(nb.locator('[data-testid="notebook-entry"][data-subject="site"]')).toContainText("Conditions at");
 });

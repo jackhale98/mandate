@@ -180,7 +180,9 @@ fn story_event(engine: &Engine, s: &Story) -> Option<u32> {
     use mandate_sim::spine::Thread;
     let log = &engine.state().events;
     match &s.source {
-        StorySource::Town { event } => crate::why::askable(log, *event),
+        StorySource::Town { event } | StorySource::Exchange { event } => {
+            crate::why::askable(log, *event)
+        }
         StorySource::Scandal { id }
         | StorySource::Response { scandal: id, .. }
         | StorySource::Backfire { scandal: id } => {
@@ -283,6 +285,14 @@ pub fn article(engine: &Engine, s: &Story) -> Option<ArticleView> {
             // second person and ends in a full stop; a headline is neither,
             // so it reads in a column and retold in a quote).
             v.text_key.replacen("event-", "headline-", 1)
+        }
+        // A scene's result (DEC-112): the scene's own headline for how it
+        // ended (`<text>-headline-<outcome>` beside `<text>-result-…`).
+        StorySource::Exchange { event } => {
+            let e = st.events.get(*event)?;
+            let v = event_view(e, engine);
+            args.extend(v.args);
+            v.text_key.replacen("-result-", "-headline-", 1)
         }
     };
     Some(ArticleView {

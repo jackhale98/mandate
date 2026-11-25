@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { expect, test } from "./csp";
 import type { Page } from "@playwright/test";
+import { pocketMenu } from "./pocket";
 
 // DEC-083: the landing page at the site root, the game at play/. The
 // playwright baseURL is the game; the landing page is one level up.
@@ -166,8 +167,7 @@ test("the landing page never creates the game's database, and offers to continue
   await page.getByPlaceholder("e.g. 20260").fill("4242");
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
-  if ((await page.getByTestId("pocket").count()) === 0) await page.getByTestId("pocket-button").click();
-  await page.getByTestId("pocket").getByRole("button", { name: "Save & quit" }).click();
+  await (await pocketMenu(page)).getByRole("button", { name: "Save & quit" }).click();
   await expect(page.getByRole("button", { name: "Continue" }).first()).toBeVisible();
   await page.goto(LANDING);
   const cont = page.locator("[data-continue]");

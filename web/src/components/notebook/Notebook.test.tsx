@@ -1,136 +1,178 @@
+/// <reference types="node" />
+// The Notebook (DEC-113) against the engine's views for the pocket
+// (../fixtures/pocket/*.json, written by crates/mandate-wasm/tests/pocket_views.rs):
+// four tabs and a search; People from the one People query, in the engine's
+// sections and order; Places by the engine's rank with its reasons; Town with
+// its loose ends; and nothing that counts knowledge (DEC-091).
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import type { NotebookView } from "../../engine/protocol/NotebookView";
+import type { PeopleView } from "../../engine/protocol/PeopleView";
 import type { PocketView } from "../../engine/protocol/PocketView";
+import type { TownPlacesView } from "../../engine/protocol/TownPlacesView";
 import { englishTranslator } from "../../i18n/englishLocale";
 import { useGame } from "../../state/gameStore";
-import type { TownPlacesView } from "../../engine/protocol/TownPlacesView";
-import { notebookFixture, officeFixture, seenAtDiner, seenAtUnionHall, sheetFixture, townCharacterFixture } from "./fixture";
-import { Notebook } from "./Notebook";
-import type { SheetLoader } from "./People";
+import { Notebook, NotebookTabs } from "./Notebook";
 
-const pocket = (notebook_new: number) => ({ notebook_new }) as unknown as PocketView;
+const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../fixtures/pocket");
+const load = <T,>(name: string) => JSON.parse(readFileSync(path.join(dir, `${name}.json`), "utf8")) as T;
 
-function setup(notebook_new = 0, fresh: string[] = []) {
+function setup(over: { notebook?: NotebookView; notebook_new?: number } = {}) {
   const seeNotebook = vi.fn(() => Promise.resolve());
   const loadNotebook = vi.fn(() => Promise.resolve());
   const leaveNotebook = vi.fn();
   const visit = vi.fn(() => Promise.resolve());
   const openTalk = vi.fn(() => Promise.resolve());
   const openCharacter = vi.fn(() => Promise.resolve());
-  useGame.setState({ tr: englishTranslator(), busy: false, notebook: notebookFixture(), notebookFresh: fresh, pocket: pocket(notebook_new), office: null, town: null, seeNotebook, loadNotebook, leaveNotebook, visit, openTalk, openCharacter });
-  return { seeNotebook, loadNotebook, leaveNotebook, visit, openTalk, openCharacter };
+  const openDecision = vi.fn(() => Promise.resolve());
+  const pocket = { ...load<PocketView>("pocket"), notebook_new: over.notebook_new ?? 0 };
+  useGame.setState({
+    tr: englishTranslator(),
+    busy: false,
+    notebook: over.notebook ?? load<NotebookView>("notebook"),
+    notebookFresh: [],
+    people: load<PeopleView>("people"),
+    pocket,
+    town: load<TownPlacesView>("town"),
+    notebookTab: "people",
+    notebookQuery: null,
+    folds: {},
+    seeNotebook,
+    loadNotebook,
+    leaveNotebook,
+    visit,
+    openTalk,
+    openCharacter,
+    openDecision,
+  });
+  render(
+    <>
+      <NotebookTabs />
+      <Notebook />
+    </>,
+  );
+  return { seeNotebook, loadNotebook, leaveNotebook, visit, openTalk, openCharacter, openDecision };
 }
 
-/** Character sheets as the engine would send them (Vera usually at the diner; the executive cool). */
-const sheets: SheetLoader = (ids) => Promise.resolve(new Map(ids.map((id) => [id, sheetFixture(id, id === 12 ? { usually: seenAtDiner } : id === 21 ? { opinion_band: "cool", trust_band: "low" } : {})])));
+/** Nothing counts knowledge (L8): no meter, no "Not known yet", no "N of M known", no per cent beside a knowledge word. */
+function expectNoKnowledgeCount(el: HTMLElement) {
+  const text = el.textContent ?? "";
+  expect(text).not.toMatch(/[●○]/);
+  expect(text).not.toContain("Not known yet");
+  expect(text).not.toMatch(/\d+ of \d+ known|known \d+%|\d+% known/i);
+  expect(text).not.toContain("⟦");
+  expect(text).not.toMatch(/\{\s*\$/);
+}
 
-describe("sighting lines", () => {
-  const tr = englishTranslator();
-  it("name a place by its proper name, or by its kind when it has none; the first level reads as hearing of it", () => {
-    expect(tr.event(seenAtDiner.key, seenAtDiner.args)).toBe("Usually at Rosa's in the afternoon.");
-    expect(tr.event(seenAtUnionHall.key, seenAtUnionHall.args)).toBe("Last seen at the union hall, in the morning.");
-    expect(tr.event("seen-last", { place_key: "seen-place-home", part_key: "day-part-evening" })).toBe("Last seen at home, in the evening.");
-    expect(tr.event("lead-usually-at-kind", { to_place_key: "talk-place-union_hall", part_key: "day-part-morning" })).toBe("Usually at the union hall in the morning.");
-    expect(tr.t("ui-notebook-lead-gives", { level: "heard", dots: "●○○", name: "Heard of" })).toBe("You would hear of this");
-  });
-});
-
-describe("the notebook page", () => {
-  it("is a tab list of sections; placeholders say what is not known, with the lead that would reveal it", () => {
-    const { visit } = setup();
-    render(<Notebook />);
-    expect(screen.getByRole("heading", { name: "What you know about Ashford" })).toBeTruthy();
+describe("the Notebook", () => {
+  it("has one row of four tabs and a search at its end; arrows move along it", () => {
+    setup();
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.getAttribute("id"))).toEqual(["notebook-tab-people", "notebook-tab-places", "notebook-tab-issues", "notebook-tab-policies", "notebook-tab-leads"]);
-    fireEvent.click(screen.getByRole("tab", { name: /Worries/ }));
-    const panel = screen.getByRole("tabpanel");
-    expect(panel.getAttribute("aria-labelledby")).toBe("notebook-tab-issues");
-    expect(within(panel).getByRole("heading", { name: "By neighbourhood" })).toBeTruthy();
-    const gap = within(panel).getByTestId("notebook-gap");
-    expect(within(gap).getByRole("heading").textContent).toBe("What Eastgate worries about");
-    // The level in words beside its dots (not colour alone).
-    expect(gap.textContent).toContain("○○○");
-    expect(gap.textContent).toContain("Not known yet");
-    expect(within(gap).getByTestId("notebook-lead").textContent).toContain("Canvass Eastgate to hear what worries people there.");
-    // What following the lead does, in the card's own terms (dots and words).
-    expect(within(gap).getByTestId("notebook-lead-gives").textContent).toBe("Would raise this to ●●○ Known");
-    expect(gap.textContent).not.toContain("would tell you");
-    fireEvent.click(within(gap).getByTestId("notebook-lead-go"));
-    expect(visit).toHaveBeenCalledWith({ type: "street", neighborhood: 3 });
-    // A known entry: what, how known, from where and when.
-    const known = within(panel).getAllByTestId("notebook-entry");
-    expect(known.map((k) => k.getAttribute("data-level"))).toEqual(["known", "known"]);
-    expect(within(known[1] as HTMLElement).getByTestId("notebook-from").textContent).toMatch(/ · Canvass a neighbourhood, /);
+    expect(tabs.map((t) => t.id)).toEqual(["notebook-tab-people", "notebook-tab-places", "notebook-tab-town", "notebook-tab-policies"]);
+    expect(tabs.map((t) => t.getAttribute("tabindex"))).toEqual(["0", "-1", "-1", "-1"]);
+    fireEvent.keyDown(tabs[0] as HTMLElement, { key: "ArrowRight" });
+    expect(useGame.getState().notebookTab).toBe("places");
+    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe("notebook-tab-places");
+    expect(screen.getByTestId("notebook-search-open").getAttribute("aria-label")).toBe("Search the notebook");
   });
 
-  it("marks new entries, lands on their tab and tells the engine they have been seen", () => {
-    const westfield = JSON.stringify({ type: "hood_concerns", hood: 2 });
-    const { seeNotebook, loadNotebook } = setup(1, [westfield]);
-    const { unmount } = render(<Notebook />);
+  it("People: the engine's sections and order; who matters now open with why, the rest folded with what they hold counted", () => {
+    const { visit, openTalk, openCharacter } = setup();
+    const people = load<PeopleView>("people");
+    const now = within(screen.getByTestId("notebook-people-now")).getAllByTestId("notebook-person");
+    expect(now.map((r) => Number(r.getAttribute("data-person")))).toEqual(people.rows.filter((r) => r.group === "now").map((r) => r.id));
+    // Three lines: the name, the stance in a word with its shape and the role, the reason (34 characters at most).
+    const first = now[0] as HTMLElement;
+    expect(first.textContent).toContain("Bettina Zeller");
+    expect(first.textContent).toContain("◆ Neutral");
+    expect(first.textContent).toContain("An ask needs a word with them");
+    // Folded sections: a count, never a share.
+    for (const [id, n] of [
+      ["notebook-key-figures", 5],
+      ["notebook-people-rest", 23],
+      ["notebook-people-gone", 10],
+    ] as const) {
+      const fold = screen.getByTestId(id);
+      const head = within(fold).getByRole("button", { expanded: false });
+      expect(head.textContent).toMatch(new RegExp(`${n}, ${n} people`));
+      expect(within(fold).queryAllByTestId("notebook-person")).toHaveLength(0);
+    }
+    // Opened: why now, how they stand, Talk and Go to them, and everything about them.
+    fireEvent.click(within(first).getAllByRole("button", { expanded: false })[0] as HTMLElement);
+    const opened = screen.getAllByTestId("notebook-person")[0] as HTMLElement;
+    expect(within(opened).getAllByTestId("person-why").length).toBe(2);
+    expect(within(opened).getByTestId("notebook-standing").textContent).toBe("Neutral about you · Trusts you a little");
+    fireEvent.click(within(opened).getByRole("button", { name: "Go to Bettina Zeller" }));
+    expect(visit).toHaveBeenCalledWith({ type: "place", place: 132 });
+    fireEvent.click(within(opened).getByRole("button", { name: "Talk to Bettina Zeller" }));
+    expect(openTalk).toHaveBeenCalledWith({ type: "person", person: 1027 });
+    fireEvent.click(within(opened).getByTestId("notebook-person-name"));
+    expect(openCharacter).toHaveBeenCalledWith(1027);
+    // A person only heard of: the engine's one sentence, no placeholder.
+    const sana = screen.getAllByTestId("notebook-person")[1] as HTMLElement;
+    fireEvent.click(within(sana).getAllByRole("button")[0] as HTMLElement);
+    expect(within(screen.getAllByTestId("notebook-person")[1] as HTMLElement).getByTestId("person-note").textContent).toBe("You only know the name.");
+    // Someone here: Talk is the row's action.
+    const here = screen.getAllByTestId("notebook-person")[2] as HTMLElement;
+    expect(within(here).getByTestId("talk-button")).toBeTruthy();
+    // A fold opens on a tap and shows the engine's first twelve, then the rest on asking.
+    fireEvent.click(within(screen.getByTestId("notebook-people-rest")).getByRole("button", { expanded: false }));
+    const rest = screen.getByTestId("notebook-people-rest");
+    expect(within(rest).getAllByTestId("notebook-person")).toHaveLength(12);
+    fireEvent.click(within(rest).getByTestId("show-more"));
+    expect(within(rest).getAllByTestId("notebook-person")).toHaveLength(23);
+    expectNoKnowledgeCount(document.body);
+  });
+
+  it("Places: what matters now first in the engine's order with its reasons; each neighbourhood a row with how many places, the one you are in open", () => {
+    const { visit } = setup();
+    fireEvent.click(screen.getByRole("tab", { name: /Places/ }));
+    const now = screen.getByTestId("places-now");
+    expect(within(now).getAllByRole("button").map((b) => b.getAttribute("data-testid"))).toEqual(["spot-streets", "spot-community_centre"]);
+    expect(now.textContent).toContain("There is something to do here");
+    expect(within(now).getByTestId("you-are-here")).toBeTruthy();
+    const hoods = screen.getAllByTestId("town-hood");
+    expect(hoods).toHaveLength(6);
+    const centre = hoods[0] as HTMLElement;
+    expect(within(centre).getByRole("button", { expanded: false }).textContent).toContain("10");
+    fireEvent.click(within(centre).getByRole("button", { expanded: false }));
+    fireEvent.click(within(screen.getAllByTestId("town-hood")[0] as HTMLElement).getByTestId("spot-town_hall"));
+    expect(visit).toHaveBeenCalledWith({ type: "place", place: 132 });
+    expectNoKnowledgeCount(document.body);
+  });
+
+  it("Town: the card without placeholders, and the loose ends (an arc only heard of is a lead with where)", () => {
+    const withLead = load<NotebookView>("notebook-arc-lead");
+    setup({ notebook: withLead });
+    fireEvent.click(screen.getByRole("tab", { name: /Town/ }));
+    expect(screen.getByTestId("town-card")).toBeTruthy();
+    fireEvent.click(within(screen.getByTestId("notebook-loose-ends")).getByRole("button", { expanded: false }));
+    expect(screen.getByTestId("arc-lead").textContent).toContain("Something is going on in Orchardfield.");
+    expectNoKnowledgeCount(document.body);
+  });
+
+  it("search: one flat list grouped by kind; something not known answers with the way to find out", () => {
+    setup();
+    fireEvent.click(screen.getByTestId("notebook-search-open"));
+    fireEvent.change(screen.getByTestId("notebook-search"), { target: { value: "vargawell" } });
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
+    expect(within(screen.getByTestId("notebook-results-people")).getAllByTestId("notebook-person")).toHaveLength(1);
+    fireEvent.change(screen.getByTestId("notebook-search"), { target: { value: "abbey green" } });
+    const gap = screen.getByTestId("notebook-results-gaps");
+    expect(gap.textContent).toContain("Canvass Abbey Green");
+    fireEvent.change(screen.getByTestId("notebook-search"), { target: { value: "zzzz" } });
+    expect(screen.getByTestId("notebook-results").textContent).toContain("Nothing you know matches “zzzz”.");
+    fireEvent.keyDown(screen.getByTestId("notebook-search"), { key: "Escape" });
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
+  });
+
+  it("looking is seeing: the engine is told once, and again only for something newer", () => {
+    const { seeNotebook, loadNotebook } = setup({ notebook_new: 2 });
     expect(loadNotebook).toHaveBeenCalledTimes(1);
     expect(seeNotebook).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("tab", { selected: true }).id).toBe("notebook-tab-issues");
-    expect(screen.getByTestId("notebook-tab-badge-issues").textContent).toBe("1");
-    expect(screen.getByTestId("notebook-fresh").textContent).toBe("One new entry since you last looked.");
-    const fresh = screen.getAllByTestId("notebook-new");
-    expect(fresh).toHaveLength(1);
-    expect((fresh[0] as HTMLElement).closest("li")?.textContent).toContain("Westfield");
-    // Seen: the engine's count is zero and no second call is made.
-    act(() => useGame.setState({ pocket: pocket(0) }));
+    act(() => useGame.setState({ pocket: { ...(useGame.getState().pocket as PocketView), notebook_new: 0 } }));
     expect(seeNotebook).toHaveBeenCalledTimes(1);
-    unmount();
-    expect(useGame.getState().leaveNotebook).toHaveBeenCalled();
-  });
-
-  it("searches across sections and says where else something matches", () => {
-    setup();
-    render(<Notebook />);
-    fireEvent.click(screen.getByRole("tab", { name: /People/ }));
-    fireEvent.change(screen.getByTestId("notebook-search"), { target: { value: "vera" } });
-    expect(screen.getAllByTestId("notebook-person")).toHaveLength(1);
-    fireEvent.click(screen.getByRole("tab", { name: /Worries/ }));
-    expect(screen.getByRole("tabpanel").textContent).toContain("Nothing here matches “vera”.");
-    expect(within(screen.getByTestId("notebook-elsewhere")).getByRole("button").textContent).toBe("People (1)");
-  });
-
-  it("People is the single place for people: the key figures pinned, then everyone else, each with Talk and Go to them", async () => {
-    const { openTalk, openCharacter } = setup();
-    useGame.setState({ office: officeFixture(), town: { character: townCharacterFixture() } as unknown as TownPlacesView });
-    render(<Notebook loadSheets={sheets} />);
-    fireEvent.click(screen.getByRole("tab", { name: /People/ }));
-    const pinned = within(screen.getByTestId("notebook-key-figures"));
-    expect(pinned.getByRole("heading", { name: "Key figures" })).toBeTruthy();
-    const cards = pinned.getAllByTestId("notebook-person");
-    // Who runs things, the rival, the executive, the members (the player left out).
-    expect(cards.map((c) => c.getAttribute("data-person"))).toEqual(["30", "31", "21", "12", "22"]);
-    expect(cards[0]?.textContent).toContain("Power broker");
-    expect(cards[0]?.textContent).toContain("(rumoured)");
-    expect(cards[1]?.textContent).toContain(`Your rival · ${englishTranslator().t("role-councillor")} · Ward 1`);
-    expect(cards[2]?.textContent).toContain(englishTranslator().t("role-mayor"));
-    // How they stand with you, what you know and where you saw them (S1).
-    const vera = cards[3] as HTMLElement;
-    expect(await within(vera).findByText("Usually at Rosa's in the afternoon.", { exact: false })).toBeTruthy();
-    expect(within(vera).getByTestId("notebook-standing").textContent).toBe("Warm toward you · Trusts you a little");
-    expect(vera.textContent).toContain("●●○ Known");
-    expect(within(cards[2] as HTMLElement).getByTestId("notebook-standing").textContent).toBe("Cool toward you · Doesn't trust you");
-    // Talk opens the dialogue; the name opens the sheet; Go to them is there for each.
-    fireEvent.click(within(vera).getByRole("button", { name: "Talk to Vera Holt" }));
-    expect(openTalk).toHaveBeenCalledWith({ type: "person", person: 12 });
-    fireEvent.click(within(vera).getByTestId("notebook-person-name"));
-    expect(openCharacter).toHaveBeenCalledWith(12);
-    expect(within(vera).getByRole("button", { name: "Go to Vera Holt" })).toBeTruthy();
-    // Everyone else known, with the same card.
-    const others = within(screen.getByTestId("notebook-people-others")).getAllByTestId("notebook-person");
-    expect(others.map((c) => c.getAttribute("data-person"))).toEqual(["4"]);
-    expect(within(others[0] as HTMLElement).getByRole("button", { name: "Talk to Albert Crane" })).toBeTruthy();
-    // Placeholders stay (who runs things, the rival's plans).
-    expect(within(screen.getByTestId("notebook-people-power")).getAllByTestId("notebook-gap")).toHaveLength(2);
-  });
-
-  it("lists the leads picked up and the ways to find out the rest", () => {
-    setup();
-    render(<Notebook />);
-    fireEvent.click(screen.getByRole("tab", { name: /Leads/ }));
-    expect(within(screen.getByTestId("notebook-leads-open")).getAllByTestId("notebook-lead")).toHaveLength(1);
-    expect(within(screen.getByTestId("notebook-leads-standing")).getByTestId("notebook-lead").textContent).toContain("Canvass Eastgate");
   });
 });

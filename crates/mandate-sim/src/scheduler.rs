@@ -158,11 +158,38 @@ pub enum Effect {
         owed_to_player: bool,
     },
     /// Approval of the player in an area (population applies), × room, by
-    /// income class (empty: all).
+    /// income class (empty: all) and by community (registry indices;
+    /// empty: all).
     Approval {
         scope: crate::world::Area,
         delta: f64,
         classes: Vec<u8>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        communities: Vec<u16>,
+    },
+    /// Recognition of the player in an area (population applies): a gain
+    /// is × the room left, a loss is taken whole; by income class and
+    /// community as `Approval` (DEC-112: being seen is being known).
+    Awareness {
+        scope: crate::world::Area,
+        delta: f64,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        classes: Vec<u8>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        communities: Vec<u16>,
+    },
+    /// A hidden fact was aired in public (DEC-112): the media open it as a
+    /// story by their own rules, as a leak does. `by`: who said it.
+    Surface {
+        hidden: u32,
+        by: Option<crate::characters::CharacterId>,
+    },
+    /// A campaign promise made in front of a room (DEC-112): the asks
+    /// make it, with its deadline, its keep and its break. The room's own
+    /// lean is its persuasion.
+    Promise {
+        template: ContentKey,
+        answer: Option<ContentKey>,
     },
     /// A politician's record of visible work (politics applies).
     Record {

@@ -211,6 +211,15 @@ pub enum PlayerCommand {
         #[serde(default)]
         args: Vec<(String, String)>,
     },
+    /// Take part in an exchange scene (DEC-112): a beat of an arc run
+    /// (`<stage>.<beat>`). `Begin` is done at the scene's place and spends
+    /// its time; `Say` names one of the lines on offer by its id; `Leave`
+    /// forfeits the rounds left.
+    Exchange {
+        run: u32,
+        beat: String,
+        act: crate::arcs::exchange::ExchangeAct,
+    },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -284,6 +293,10 @@ fn apply_command(
         PlayerCommand::Promise { template, args } => {
             return crate::asks::commands::promise(state, content, template, args);
         }
+        // A scene checks its own place (`Begin`); its lines are said there.
+        PlayerCommand::Exchange { run, beat, act } => {
+            return crate::arcs::exchange::apply(state, content, *run, beat, act);
+        }
         PlayerCommand::Go { location, then } => {
             if then.as_deref().is_some_and(|c| {
                 matches!(c, PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. })
@@ -305,7 +318,8 @@ fn apply_command(
         | PlayerCommand::Go { .. }
         | PlayerCommand::Answer { .. }
         | PlayerCommand::RespondAsk { .. }
-        | PlayerCommand::Promise { .. } => {}
+        | PlayerCommand::Promise { .. }
+        | PlayerCommand::Exchange { .. } => {}
         PlayerCommand::Talk {
             to,
             topic,

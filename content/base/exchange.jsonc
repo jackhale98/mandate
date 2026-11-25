@@ -1,0 +1,126 @@
+// Exchange scenes (DEC-112; docs/design/EXCHANGE_SCENES.md §5.6): every
+// constant of the mechanism. A scene is a beat of type `exchange` on an arc's
+// stage (`content/base/arcs/*.jsonc`); this block is what all of them share.
+//
+// ALL OF THESE ARE PLACEHOLDERS: the design's first values, where it gives
+// one, and a plain first guess where it does not (marked "no value in the
+// design"). Nothing here is tuned. They are set once, at the tuning pass at
+// the end of M6, against the grader's and the lab's gates.
+//
+// A scene may set any number for itself in its own `params` by dotted path
+// ("win": 0.1, "cover.own": 0.5); `tiers` below does the same for every
+// scene of a tier (DEC-098).
+//
+//   bite(g)   = bite · size(prompt) · fit(prompt, g) · cold(round)
+//   cover     = cover[kind] · strength      if the line answers the prompt
+//   gain(g)   = gain · voice · strength · fit(line, g) · reach · temper
+//   Δlean(g)  = − bite(g) · (1 − cover) + gain(g)          if the line stands
+//             = − bite(g) − backfire[kind] · reach          if it does not
+{
+  "kind": "exchange_params",
+  "value": {
+    "rounds": 3,
+    "bite": 0.30,
+    "gain": 0.25,
+    // Round 1 when the player did not know what was coming.
+    "cold": 1.25,
+    // How much a group cares, by the worry's place among its own: first,
+    // second or third, lower. `flat`: a subject that is no worry.
+    "fit": { "top": 1.0, "next": 0.6, "low": 0.25, "flat": 0.6 },
+    // What a line that names one group gives the others.
+    "spill": 0.3,
+    "size": {
+      "promise": 0.6,
+      "question": 0.3,
+      // No value in the design from here down.
+      "absent": 0.3,          // for each thing let pass in the arc
+      "thin_line": 0.25,      // a record under this is "thin"
+      "failed_line": 0.25,    // a law that delivers less than this "failed"
+      "lean_line": 0.15,      // a group must lean this far against a vote
+      "governing_line": 0.5,  // the government's approval under which its record is put
+      "recency_days": 730,    // a broken promise fades to half in this long
+      "gravity_ethics": 0.4, "gravity_misconduct": 0.7, "gravity_crime": 1.0,
+    },
+    "public_share": 0.6,
+    "voted_share": 0.5,
+    "second_base": 0.6,
+    // No value in the design: `act`, `heard`, staying.
+    "act_base": 0.5,
+    "act_votes": 0.2,
+    "heard_floor": 0.5,
+    "visits_full": 3.0,
+    "visits_keep": 0.5,
+    "stay_strength": 0.5,
+    // `deny` and `offer`: no value in the design.
+    "cover": { "record": 0.8, "proof": 0.9, "own": 0.6, "act": 0.6, "promise": 0.5,
+               "heard": 0.4, "second": 0.4, "turn": 0.3, "pass": 0.2,
+               "deny": 1.0, "offer": 0.4 },
+    // `deny` and `heard` (a doorstep the player has only second-hand): no
+    // value in the design.
+    "backfire": { "turn": 0.25, "proof": 0.15, "deny": 0.25, "heard": 0.10 },
+    // The chance a claim stands up, by how well it is known.
+    "hold": { "heard": 0.4, "known": 0.75, "detailed": 1.0 },
+    "repeat": 0.6,
+    "win": 0.08,
+    "lose": 0.08,
+    "group_margin": 0.05,
+    // No value in the design: a hearing's line, a table's.
+    "member_line": 0.2,
+    "walk_away": -0.5,
+    // Only `promise` has a value in the design.
+    "answer": { "promise": 0.5, "turn": 0.4, "act": 0.4, "record": 0.4, "second": 0.3 },
+    "voice_base": 0.8,
+    "voice_span": 0.4,
+    "list_max": 5,
+    "prep_pins": 2,
+    // Wordings written for each prompt, and for each line of the player's.
+    "prompt_variants": 3,
+    "say_variants": 2,
+    // The other side (§4.2). No value in the design but its example: an
+    // opponent of oratory 0.7 gives two answers a scene.
+    "deck": {
+      "base": 2.0, "per_skill": 4.0,
+      "answers_base": 1.0, "answers_per_skill": 2.0,
+      "sharp": 0.6, "pick_top": 2,
+      "weak_evidence": 0.5, "integrity_bar": 0.6, "bold_bar": 0.6,
+      "bold_personal": 0.3, "grudge_personal": 0.3, "grudge_traits": ["trait.grudge_holder"],
+      "warm_question": 0.2,
+    },
+    // How a member or a person cares (a hearing, a table). No value in the
+    // design.
+    "member_fit": {
+      "base": 0.6, "min": 0.1, "max": 1.2,
+      "integrity": { "own": 0.3, "deny": -0.3 },
+      "loyalty": { "record": 0.2, "second": 0.2 },
+      "memory": 0.2, "goal": 1.0,
+      "party_step": 0.2, "favour_step": 0.2, "demand": 1.0,
+    },
+    // What cools a room with a temper. `own` and staying are the design's
+    // example (§6.4); `heard` has no value there.
+    "temper": { "cool_own": 0.15, "cool_stay": 0.20, "cool_heard": 0.05 },
+    // What a scene does in the world (§5.5). `approve` and `aware` are the
+    // design's; the rest have no value there.
+    "world": {
+      "approve": 0.08, "aware": 0.04,
+      "opinion": 20.0, "memory_at": 0.15,
+      "own_standing": -1.0, "second_lost": -5.0, "pressed": -4.0,
+      "story_weight": 0.5,
+    },
+    // How a law's ledger speaks to each worry (§3.1, `record`): its reading
+    // ÷ the amount that is a full answer (for every thousand residents of
+    // the law's jurisdiction where `per_thousand`), × the law's progress.
+    // A key ending in `_` is a prefix. No value in the design: the pass
+    // sets `full` so that a typical good law gives a strength near 0.6.
+    "worries": [
+      { "concern": "concern.jobs", "readings": [ { "key": "jobs_added_", "full": 8.0, "per_thousand": true } ] },
+      { "concern": "concern.housing", "readings": [
+          { "key": "homes_added", "full": 6.0, "per_thousand": true },
+          { "key": "rent_held_pct", "full": 10.0 } ] },
+      { "concern": "concern.services", "readings": [ { "key": "service_gain_pct", "full": 10.0 } ] },
+      { "concern": "concern.recovery", "readings": [ { "key": "damage_reduction_pct", "full": 40.0 } ] },
+    ],
+    // A bill is about the worry whose attitudes it lines up with at least
+    // this much; under it, it is about no worry (`fit.flat`).
+    "worry_match": 0.3,
+  },
+}

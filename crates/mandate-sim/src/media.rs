@@ -239,6 +239,12 @@ pub enum StorySource {
     Town {
         event: EventId,
     },
+    /// An exchange scene's closing event (DEC-112): the paper's account of
+    /// a debate, a hearing, a meeting. About the player; those who were
+    /// not in the room hear of it through the media's own perception rule.
+    Exchange {
+        event: EventId,
+    },
 }
 
 /// A story an outlet ran (coverage).
@@ -704,6 +710,49 @@ pub fn weekly(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
     if !m.active || r.player.is_none() {
         return;
     }
+    // Hidden facts aired in public since last week (`Effect::Surface`):
+    // a story now, by the rules a leak follows.
+    for q in out.take(|e| matches!(e, Effect::Surface { .. })) {
+        let Effect::Surface { hidden, by } = q.effect else {
+            continue;
+        };
+        let fact = r
+            .narrative()
+            .hidden
+            .iter()
+            .find(|h| h.id == hidden && !m.discovered.contains(&h.id))
+            .cloned();
+        let Some(h) = fact else { continue };
+        let Some(id) = open_scandal(
+            m,
+            r.politics(),
+            r.world,
+            &h,
+            Discoverer::Rival,
+            by,
+            r.date,
+            true,
+        ) else {
+            continue;
+        };
+        let Some(subject) = h.subject else { continue };
+        let causes = h
+            .cause
+            .into_iter()
+            .fold(Causes::from(q.cause), Causes::and)
+            .and_event(out.events.head(Thread::Hidden(h.id)), Link::Revealed);
+        out.events.record(
+            r.date,
+            EventKind::ScandalBroke {
+                scandal: id,
+                politician: subject.0,
+                municipality: h.town.unwrap_or(0),
+                severity: h.severity.key().into(),
+                kind: h.kind.clone(),
+            },
+            causes,
+        );
+    }
     discover(m, r, out);
     heat(m, r, out);
     cover(m, r, out);
@@ -952,6 +1001,7 @@ fn candidates(
     r: &Reads<'_>,
     week_start: SimDate,
     news: &[(EventId, u32)],
+    scenes: &[(EventId, u32, i32)],
 ) -> Vec<Cand> {
     let content = r.content;
     let cv = &content.media.coverage;
@@ -1115,6 +1165,34 @@ fn candidates(
                 });
             }
         }
+        // A scene (DEC-112): the paper was in the room. Its weight is the
+        // result against the scene's own thresholds; the framing is the
+        // outlet's, as for any story about the player.
+        if let Some(pl) = r.player {
+            let x = &content.exchange;
+            for (e, town, result_pm) in scenes {
+                if *town != municipality {
+                    continue;
+                }
+                let d = f64::from(*result_pm) / 1000.0;
+                let line = if d >= 0.0 { x.win } else { x.lose }.max(1e-6);
+                out.push(Cand {
+                    source: StorySource::Exchange { event: *e },
+                    subject: Some(pl.politician),
+                    town: municipality,
+                    score: 0.6,
+                    weight: x.world.story_weight * (d.abs() / line).min(1.0),
+                    sign: if d > 0.0 {
+                        1.0
+                    } else if d < 0.0 {
+                        -1.0
+                    } else {
+                        0.0
+                    },
+                    statement: false,
+                });
+            }
+        }
     }
     out
 }
@@ -1140,6 +1218,7 @@ fn source_order(s: &StorySource) -> (u8, u32) {
         StorySource::Correction { rumour } => (5, *rumour),
         StorySource::Statement { politician, .. } => (6, politician.0),
         StorySource::Town { event } => (7, event.0),
+        StorySource::Exchange { event } => (8, event.0),
     }
 }
 
@@ -1151,6 +1230,7 @@ fn cover(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let pol = r.politics();
     // Town news: what the event log recorded in a town since last week.
     let mut news: Vec<(EventId, u32)> = Vec::new();
+    let mut scenes: Vec<(EventId, u32, i32)> = Vec::new();
     let mut last = m.last_event;
     for e in out.events.iter().filter(|e| e.id.0 > m.last_event) {
         last = last.max(e.id.0);
@@ -1177,6 +1257,12 @@ fn cover(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     news.push((e.id, m.0));
                 }
             }
+            // A scene's result (DEC-112), in the town it was held in.
+            EventKind::ArcExchangeEnded { at, result_pm, .. } => {
+                if let Some(m) = at.municipality() {
+                    scenes.push((e.id, m.0, *result_pm));
+                }
+            }
             EventKind::ArcEnded {
                 at, template, exit, ..
             } => {
@@ -1195,7 +1281,7 @@ fn cover(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let mut ran: Vec<Story> = Vec::new();
     for oi in 0..m.outlets.len() {
         let o = &m.outlets[oi];
-        let mut cands = candidates(m, o, r, week_start, &news);
+        let mut cands = candidates(m, o, r, week_start, &news, &scenes);
         cands.retain(|c| c.score >= content.media.coverage.min_score);
         cands.sort_by(|a, b| {
             b.score
@@ -1373,7 +1459,7 @@ fn story_cause(log: &crate::events::EventLog, source: &StorySource) -> Cause {
         StorySource::Rumour { id } | StorySource::Correction { rumour: id } => {
             log.head(Thread::Rumour(*id))
         }
-        StorySource::Town { event } => Some(*event),
+        StorySource::Town { event } | StorySource::Exchange { event } => Some(*event),
         StorySource::Statement { .. } => None,
     };
     Cause::event_or(about, Link::Revealed, Cause::Process(Process::Press))
@@ -1455,6 +1541,54 @@ pub fn advertised(state: &mut State, content: &ContentBundle, p: PoliticianId) {
     {
         s.heat *= keep;
     }
+}
+
+/// A hidden fact aired in public (DEC-112, `Effect::Surface`): it comes
+/// out now as a story, as a leaked fact does. `by`: who said it. Nothing
+/// when the fact is already out or was never whose it was said to be.
+pub fn surface(
+    state: &mut State,
+    hidden: u32,
+    by: Option<CharacterId>,
+    cause: Cause,
+) -> Option<u32> {
+    let date = state.calendar.date;
+    let h = state
+        .narrative
+        .hidden
+        .iter()
+        .find(|h| h.id == hidden && !state.media.discovered.contains(&h.id))
+        .cloned()?;
+    let subject = h.subject?;
+    let id = open_scandal(
+        &mut state.media,
+        &state.politics,
+        &state.world,
+        &h,
+        Discoverer::Rival,
+        by,
+        date,
+        true,
+    )?;
+    // Whoever aired it brought it out (and the subject's own act, which
+    // the airing only exposed).
+    let causes = h
+        .cause
+        .into_iter()
+        .fold(Causes::from(cause), Causes::and)
+        .and_event(state.events.head(Thread::Hidden(h.id)), Link::Revealed);
+    state.events.record(
+        date,
+        EventKind::ScandalBroke {
+            scandal: id,
+            politician: subject.0,
+            municipality: h.town.unwrap_or(0),
+            severity: h.severity.key().into(),
+            kind: h.kind.clone(),
+        },
+        causes,
+    );
+    Some(id)
 }
 
 /// What a leak did.
@@ -1702,6 +1836,17 @@ pub fn audit_story(state: &State, s: &Story) -> Vec<String> {
                 }
             }
             _ => bad("no such event".into()),
+        },
+        StorySource::Exchange { event } => match state.events.get(*event).map(|e| &e.kind) {
+            Some(EventKind::ArcExchangeEnded { at, .. }) => {
+                if at.municipality().map(|m| m.0) != Some(s.town) {
+                    bad("the scene was in another town".into());
+                }
+                if s.subject != state.player.as_ref().map(|p| p.politician) {
+                    bad("the subject is not the player".into());
+                }
+            }
+            _ => bad("no such scene".into()),
         },
     }
     out

@@ -10,6 +10,8 @@
 //!   its topic.
 //! - **decision**, **ask**: the run asked the narrative and the asks for
 //!   them (`step`); the player answers with `Answer` and `RespondAsk`.
+//! - **exchange**: a played scene (DEC-112; [`super::exchange`]): the
+//!   `Exchange` command, begun at the cast place.
 //!
 //! These are the arcs' own commands: they write `ArcsState`, the time the
 //! act takes, and the event; what the beat changes elsewhere is applied
@@ -104,6 +106,13 @@ pub enum BeatAction {
     Decision { decision: u32 },
     /// `RespondAsk { ask, .. }`, then whatever keeps it.
     Ask { ask: u32 },
+    /// `Exchange { run, beat, act: Begin }` at `location`, then a `Say`
+    /// for each round.
+    Exchange {
+        run: u32,
+        beat: String,
+        location: Location,
+    },
 }
 
 /// A beat of a run on offer to the player.
@@ -197,6 +206,22 @@ pub fn has_time(state: &State, time: VisitTime) -> bool {
     }
 }
 
+/// Spend the time a beat takes (half a slot shares the conversation's
+/// bank).
+pub(crate) fn spend(state: &mut State, time: VisitTime) {
+    let turn = state.calendar.turn;
+    if let Some(pl) = state.player.as_mut() {
+        match time {
+            VisitTime::Half if pl.talk.half_slot == Some(turn) => pl.talk.half_slot = None,
+            VisitTime::Half => {
+                pl.slots_used += 1;
+                pl.talk.half_slot = Some(turn);
+            }
+            VisitTime::Slot => pl.slots_used += 1,
+        }
+    }
+}
+
 /// The names and dates a run's text is given from the simulation's side
 /// (a visit's outcome, a choice's lines): `COMMON_ARGS` and the cast.
 fn text_args(state: &State, run: &ArcRun) -> Vec<(String, String)> {
@@ -253,18 +278,7 @@ pub fn visit(
     let BeatKind::Visit { outcome_key, .. } = &beat.kind else {
         return Err(bad("there is nothing like that to do now"));
     };
-    // The time it takes (half a slot shares the conversation's bank).
-    let turn = state.calendar.turn;
-    if let Some(pl) = state.player.as_mut() {
-        match offer.time {
-            VisitTime::Half if pl.talk.half_slot == Some(turn) => pl.talk.half_slot = None,
-            VisitTime::Half => {
-                pl.slots_used += 1;
-                pl.talk.half_slot = Some(turn);
-            }
-            VisitTime::Slot => pl.slots_used += 1,
-        }
-    }
+    spend(state, offer.time);
     let run = done(
         state,
         content,
@@ -524,6 +538,18 @@ pub fn offers(state: &State, content: &ContentBundle) -> Vec<BeatOffer> {
                 action: BeatAction::Ask { ask: a.id.0 },
             });
         }
+    }
+    // A scene that can be begun now.
+    for (run, beat, location) in super::exchange::view::open_scenes(state, content) {
+        out.push(BeatOffer {
+            run,
+            action: BeatAction::Exchange {
+                run: run.0,
+                beat: beat.key(),
+                location,
+            },
+            beat,
+        });
     }
     out
 }

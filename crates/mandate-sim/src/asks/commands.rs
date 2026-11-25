@@ -329,12 +329,52 @@ pub fn promise(
     template: &str,
     args: &[(String, String)],
 ) -> Result<ActionResult, EngineError> {
-    let (race, election, hoods) =
-        my_race(state).ok_or_else(|| bad("promises are made while campaigning"))?;
     let answer = args
         .iter()
         .find(|(k, _)| k == mandate_content::asks::ROLE_ANSWER)
         .map(|(_, v)| v.clone());
+    make_promise(
+        state,
+        content,
+        template,
+        answer,
+        true,
+        Cause::Player(PlayerAct::Promise),
+    )
+}
+
+/// A promise made in front of a room (DEC-112, `Effect::Promise`): the
+/// same promise, from the same menu, with its deadline, its keep and its
+/// break, accepted on the spot. The scene's audience heard it, and their
+/// lean is its persuasion: the menu's own door-to-door persuasion is not
+/// added on top. `cause`: the round it was made in.
+pub fn promise_on_stage(
+    state: &mut State,
+    content: &ContentBundle,
+    template: &str,
+    answer: Option<&str>,
+    cause: Cause,
+) -> Result<ActionResult, EngineError> {
+    make_promise(
+        state,
+        content,
+        template,
+        answer.map(String::from),
+        false,
+        cause,
+    )
+}
+
+fn make_promise(
+    state: &mut State,
+    content: &ContentBundle,
+    template: &str,
+    answer: Option<String>,
+    persuade: bool,
+    cause: Cause,
+) -> Result<ActionResult, EngineError> {
+    let (race, election, hoods) =
+        my_race(state).ok_or_else(|| bad("promises are made while campaigning"))?;
     let menu = promise_menu(state, content);
     let option = menu
         .iter()
@@ -371,7 +411,7 @@ pub fn promise(
     let discount = p
         .broken_discount
         .powi(state.asks.broken_public_promises() as i32);
-    if !kept_before {
+    if !kept_before && persuade {
         for h in &hoods {
             let salience = match &option.concern {
                 Some(c) => felt(state, &[*h], c),
@@ -420,7 +460,6 @@ pub fn promise(
         arc: None,
     });
     a.tally.promises_made += 1;
-    let cause = Cause::Player(PlayerAct::Promise);
     state.events.record(
         date,
         EventKind::AskAccepted {

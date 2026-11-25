@@ -576,6 +576,7 @@ pub fn apply(state: &mut State, content: &ContentBundle, o: Opening, p: &Preview
                     scope,
                     delta: p.gaffe_approval,
                     classes: Vec::new(),
+                    communities: Vec::new(),
                 },
             );
         } else {
@@ -586,6 +587,7 @@ pub fn apply(state: &mut State, content: &ContentBundle, o: Opening, p: &Preview
                         scope,
                         delta: *delta,
                         classes: classes.clone(),
+                        communities: Vec::new(),
                     },
                 );
             }

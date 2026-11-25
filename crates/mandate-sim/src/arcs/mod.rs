@@ -35,12 +35,15 @@
 //! - [`beats`]: the beats a player takes (a visit, a choice in a
 //!   conversation), and what is offered where.
 //! - [`effects`]: an arc's effects as effect requests.
+//! - [`exchange`]: the eighth beat kind (DEC-112): a played scene of a few
+//!   rounds, its state on the run.
 //! - [`score`]: the five terms and coverage a played run is measured by
 //!   (the grader, and the audition to come).
 
 pub mod beats;
 pub mod cast;
 pub mod effects;
+pub mod exchange;
 pub mod score;
 pub mod step;
 
@@ -167,6 +170,15 @@ pub struct ArcRun {
     /// the same turn does not come twice running).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub before: Option<String>,
+    /// An exchange scene begun and not finished (DEC-112). It never spans
+    /// a turn. Not written when there is none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exchange: Option<exchange::ArcExchangeState>,
+    /// The scenes this run has finished, oldest first: the beat, the
+    /// outcome, the groups before and after, the rounds. Not written when
+    /// empty, so a run no scene has touched serializes as it did.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub played: Vec<exchange::ExchangePlayed>,
 }
 
 impl ArcRun {

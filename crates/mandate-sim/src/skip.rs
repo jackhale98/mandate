@@ -751,6 +751,7 @@ pub fn start(
     let mut seen: Vec<String> = interrupt_keys(state, content)
         .into_iter()
         .map(|(_, k, _)| k)
+        .chain(exchange_keys(state, content).into_iter().map(|x| x.0))
         .collect();
     seen.sort();
     seen.dedup();
@@ -780,6 +781,35 @@ fn home_crises(state: &crate::State) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// An exchange scene on offer (DEC-112; DEC-102 clause 7): a key for each,
+/// with the arguments its message reads. A skip stops when one opens, and
+/// the stand-in never plays one. (Built in until the act flow has a
+/// data-driven interrupt for an arc's stage.)
+fn exchange_keys(
+    state: &crate::State,
+    content: &ContentBundle,
+) -> Vec<(String, Vec<(String, String)>)> {
+    crate::arcs::exchange::view::open_scenes(state, content)
+        .into_iter()
+        .map(|(run, beat, _)| {
+            let last = state
+                .arcs
+                .run(run)
+                .and_then(crate::arcs::exchange::last_day)
+                .map(|d| d.calendar());
+            let mut args = vec![
+                ("run".to_string(), run.0.to_string()),
+                ("beat".to_string(), beat.key()),
+            ];
+            if let Some(c) = last {
+                args.push(("last_day".into(), c.day.to_string()));
+                args.push(("last_month_key".into(), format!("month-{}", c.month)));
+            }
+            (format!("interrupt.exchange:{}.{}", run.0, beat.key()), args)
+        })
+        .collect()
+}
+
 /// The first interrupt that newly holds, as a stop (and every key now so
 /// is marked seen).
 pub fn check_interrupts(
@@ -788,6 +818,18 @@ pub fn check_interrupts(
     content: &ContentBundle,
 ) -> Option<SkipStop> {
     let mut fired: Option<SkipStop> = None;
+    for (k, args) in exchange_keys(state, content) {
+        if let Err(at) = run.seen.binary_search(&k) {
+            run.seen.insert(at, k);
+            if fired.is_none() {
+                fired = Some(SkipStop::Interrupted {
+                    interrupt: "interrupt.exchange".into(),
+                    key: "exchange-interrupt".into(),
+                    args,
+                });
+            }
+        }
+    }
     for (i, k, args) in interrupt_keys(state, content) {
         if run.seen.binary_search(&k).is_ok() {
             continue;
