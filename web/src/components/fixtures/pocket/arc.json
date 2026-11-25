@@ -43,7 +43,7 @@
           "ambient_slot": null,
           "can_talk": false,
           "has_news": true,
-          "id": 1027,
+          "id": 1028,
           "level": "known",
           "name": "Bettina Zeller",
           "role_key": "role-mayor",
@@ -154,13 +154,13 @@
       "label": {
         "args": {
           "above": "Loreshire",
-          "away": "379",
+          "away": "374",
           "clock_day": "4",
           "clock_month_key": "month-3",
           "crisis_key": "crisis-disaster_recovery",
           "day": "1",
           "hall": "Bridgegate",
-          "homes": "270",
+          "homes": "266",
           "hood": "Orchardfield",
           "month_key": "month-2",
           "official": "Bettina Zeller",
@@ -243,7 +243,7 @@
         "ambient_slot": null,
         "can_talk": false,
         "has_news": true,
-        "id": 1409,
+        "id": 1399,
         "level": "heard",
         "name": "Sana Vargawell",
         "role_key": "occupation-shopkeeper",
@@ -276,7 +276,7 @@
         "ambient_slot": null,
         "can_talk": false,
         "has_news": true,
-        "id": 1027,
+        "id": 1028,
         "level": "known",
         "name": "Bettina Zeller",
         "role_key": "role-mayor",
@@ -313,13 +313,13 @@
   "headline": {
     "args": {
       "above": "Loreshire",
-      "away": "379",
+      "away": "374",
       "clock_day": "4",
       "clock_month_key": "month-3",
       "crisis_key": "crisis-disaster_recovery",
       "day": "1",
       "hall": "Bridgegate",
-      "homes": "270",
+      "homes": "266",
       "hood": "Orchardfield",
       "month_key": "month-2",
       "official": "Bettina Zeller",
@@ -340,20 +340,20 @@
       "month": 2,
       "year": 2020
     },
-    "id": 1841,
+    "id": 1882,
     "text_key": "headline-arc-flood-struck"
   },
   "history": [
     {
       "args": {
         "above": "Loreshire",
-        "away": "379",
+        "away": "374",
         "clock_day": "4",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "270",
+        "homes": "266",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -374,19 +374,19 @@
         "month": 2,
         "year": 2020
       },
-      "id": 1841,
+      "id": 1882,
       "text_key": "headline-arc-flood-struck"
     },
     {
       "args": {
         "above": "Loreshire",
-        "away": "379",
+        "away": "374",
         "clock_day": "4",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "270",
+        "homes": "266",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -406,7 +406,7 @@
         "month": 2,
         "year": 2020
       },
-      "id": 1840,
+      "id": 1881,
       "text_key": "arc-flood-struck"
     }
   ],
@@ -414,7 +414,7 @@
   "lead": null,
   "level": "known",
   "stage": {
-    "event": 1840,
+    "event": 1881,
     "id": "struck",
     "since": {
       "day": 8,
@@ -425,13 +425,13 @@
     "text": {
       "args": {
         "above": "Loreshire",
-        "away": "379",
+        "away": "374",
         "clock_day": "4",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "270",
+        "homes": "266",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -451,13 +451,13 @@
   "title": {
     "args": {
       "above": "Loreshire",
-      "away": "379",
+      "away": "374",
       "clock_day": "4",
       "clock_month_key": "month-3",
       "crisis_key": "crisis-disaster_recovery",
       "day": "1",
       "hall": "Bridgegate",
-      "homes": "270",
+      "homes": "266",
       "hood": "Orchardfield",
       "month_key": "month-2",
       "official": "Bettina Zeller",

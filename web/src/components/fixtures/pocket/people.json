@@ -24,6 +24,7 @@
   "rows": [
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -46,7 +47,7 @@
       },
       "group": "now",
       "here": false,
-      "id": 1027,
+      "id": 1028,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -132,6 +133,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -154,7 +156,7 @@
       },
       "group": "now",
       "here": false,
-      "id": 1409,
+      "id": 1399,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
@@ -243,6 +245,7 @@
     },
     {
       "can_talk": true,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": true,
@@ -261,7 +264,7 @@
       },
       "group": "now",
       "here": true,
-      "id": 1411,
+      "id": 1401,
       "is_rival": false,
       "last_seen": {
         "args": {
@@ -326,6 +329,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -372,20 +376,25 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 102,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "diner",
           "location": {
-            "neighborhood": 102,
-            "type": "street"
+            "place": 135,
+            "type": "place"
           },
-          "name": "",
-          "neighborhood": 102,
-          "neighborhood_name": "Abbey Green"
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "office",
@@ -398,14 +407,14 @@
       "new_this_turn": false,
       "note": null,
       "now": [],
-      "opinion_band": "neutral",
+      "opinion_band": "warm",
       "owes_you": 0,
       "party": 1,
       "rank": 1,
       "role_key": "role-councillor",
       "stance": {
-        "band": "neutral",
-        "shape": "level"
+        "band": "warm",
+        "shape": "up"
       },
       "trust_band": "some",
       "usually": null,
@@ -414,6 +423,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -460,20 +470,25 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 105,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "diner",
           "location": {
-            "neighborhood": 105,
-            "type": "street"
+            "place": 135,
+            "type": "place"
           },
-          "name": "",
-          "neighborhood": 105,
-          "neighborhood_name": "Churchfield"
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "office",
@@ -486,14 +501,14 @@
       "new_this_turn": false,
       "note": null,
       "now": [],
-      "opinion_band": "neutral",
+      "opinion_band": "warm",
       "owes_you": 0,
       "party": 1,
       "rank": 3,
       "role_key": "role-councillor",
       "stance": {
-        "band": "neutral",
-        "shape": "level"
+        "band": "warm",
+        "shape": "up"
       },
       "trust_band": "some",
       "usually": null,
@@ -502,6 +517,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -520,7 +536,7 @@
       },
       "group": "office",
       "here": false,
-      "id": 1215,
+      "id": 1210,
       "is_rival": false,
       "last_seen": null,
       "level": "detailed",
@@ -544,18 +560,19 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
         "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "diner",
           "location": {
-            "neighborhood": 100,
-            "type": "street"
+            "place": 135,
+            "type": "place"
           },
-          "name": "",
+          "name": "Rolf's",
           "neighborhood": 100,
           "neighborhood_args": {
             "centre_town": "Halobridge"
@@ -590,6 +607,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -632,24 +650,21 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 100,
+        "neighborhood": 105,
         "to": {
-          "kind_key": "market",
+          "kind_key": "streets",
           "location": {
-            "place": 136,
-            "type": "place"
+            "neighborhood": 105,
+            "type": "street"
           },
           "name": "",
-          "neighborhood": 100,
-          "neighborhood_args": {
-            "centre_town": "Halobridge"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Halobridge"
+          "neighborhood": 105,
+          "neighborhood_name": "Churchfield"
         }
       },
       "group": "rest",
@@ -678,6 +693,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -720,20 +736,25 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 102,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "market",
           "location": {
-            "neighborhood": 102,
-            "type": "street"
+            "place": 136,
+            "type": "place"
           },
           "name": "",
-          "neighborhood": 102,
-          "neighborhood_name": "Abbey Green"
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "rest",
@@ -762,6 +783,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -808,6 +830,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -850,24 +873,21 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 100,
+        "neighborhood": 105,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "streets",
           "location": {
-            "place": 135,
-            "type": "place"
+            "neighborhood": 105,
+            "type": "street"
           },
-          "name": "Rolf's",
-          "neighborhood": 100,
-          "neighborhood_args": {
-            "centre_town": "Halobridge"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Halobridge"
+          "name": "",
+          "neighborhood": 105,
+          "neighborhood_name": "Churchfield"
         }
       },
       "group": "rest",
@@ -896,24 +916,21 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 100,
+        "neighborhood": 101,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "streets",
           "location": {
-            "place": 135,
-            "type": "place"
+            "neighborhood": 101,
+            "type": "street"
           },
-          "name": "Rolf's",
-          "neighborhood": 100,
-          "neighborhood_args": {
-            "centre_town": "Halobridge"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Halobridge"
+          "name": "",
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
         }
       },
       "group": "rest",
@@ -942,18 +959,19 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
         "neighborhood": 100,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "market",
           "location": {
-            "place": 135,
+            "place": 136,
             "type": "place"
           },
-          "name": "Rolf's",
+          "name": "",
           "neighborhood": 100,
           "neighborhood_args": {
             "centre_town": "Halobridge"
@@ -988,6 +1006,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1034,20 +1053,25 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 105,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "market",
           "location": {
-            "neighborhood": 105,
-            "type": "street"
+            "place": 136,
+            "type": "place"
           },
           "name": "",
-          "neighborhood": 105,
-          "neighborhood_name": "Churchfield"
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "rest",
@@ -1076,6 +1100,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1122,6 +1147,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1144,7 +1170,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1026,
+      "id": 1027,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
@@ -1168,29 +1194,26 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 100,
+        "neighborhood": 104,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "streets",
           "location": {
-            "place": 135,
-            "type": "place"
+            "neighborhood": 104,
+            "type": "street"
           },
-          "name": "Rolf's",
-          "neighborhood": 100,
-          "neighborhood_args": {
-            "centre_town": "Halobridge"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Halobridge"
+          "name": "",
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
         }
       },
       "group": "rest",
       "here": false,
-      "id": 1028,
+      "id": 1029,
       "is_rival": false,
       "last_seen": null,
       "level": "detailed",
@@ -1214,6 +1237,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1232,7 +1256,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1029,
+      "id": 1030,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
@@ -1244,7 +1268,7 @@
       "owes_you": 0,
       "party": 0,
       "rank": 15,
-      "role_key": "occupation-organiser",
+      "role_key": "occupation-software_engineer",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -1256,29 +1280,26 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 100,
+        "neighborhood": 103,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "streets",
           "location": {
-            "place": 135,
-            "type": "place"
+            "neighborhood": 103,
+            "type": "street"
           },
-          "name": "Rolf's",
-          "neighborhood": 100,
-          "neighborhood_args": {
-            "centre_town": "Halobridge"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Halobridge"
+          "name": "",
+          "neighborhood": 103,
+          "neighborhood_name": "Wharfvale"
         }
       },
       "group": "rest",
       "here": false,
-      "id": 1030,
+      "id": 1031,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -1302,6 +1323,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1320,7 +1342,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1212,
+      "id": 1207,
       "is_rival": false,
       "last_seen": null,
       "level": "detailed",
@@ -1344,18 +1366,19 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
         "neighborhood": 100,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "market",
           "location": {
-            "place": 135,
+            "place": 136,
             "type": "place"
           },
-          "name": "Rolf's",
+          "name": "",
           "neighborhood": 100,
           "neighborhood_args": {
             "centre_town": "Halobridge"
@@ -1366,7 +1389,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1213,
+      "id": 1208,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
@@ -1390,6 +1413,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1408,7 +1432,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1214,
+      "id": 1209,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -1432,18 +1456,19 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
         "neighborhood": 100,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "market",
           "location": {
-            "place": 135,
+            "place": 136,
             "type": "place"
           },
-          "name": "Rolf's",
+          "name": "",
           "neighborhood": 100,
           "neighborhood_args": {
             "centre_town": "Halobridge"
@@ -1454,7 +1479,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1216,
+      "id": 1211,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
@@ -1478,6 +1503,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1500,7 +1526,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1407,
+      "id": 1397,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -1524,6 +1550,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1546,7 +1573,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1408,
+      "id": 1398,
       "is_rival": false,
       "last_seen": null,
       "level": "detailed",
@@ -1570,20 +1597,25 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 104,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "diner",
           "location": {
-            "neighborhood": 104,
-            "type": "street"
+            "place": 135,
+            "type": "place"
           },
-          "name": "",
-          "neighborhood": 104,
-          "neighborhood_name": "Bridgegate"
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "gone",
@@ -1612,6 +1644,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1654,6 +1687,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1696,6 +1730,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1738,6 +1773,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1784,20 +1820,25 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 103,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "market",
           "location": {
-            "neighborhood": 103,
-            "type": "street"
+            "place": 136,
+            "type": "place"
           },
           "name": "",
-          "neighborhood": 103,
-          "neighborhood_name": "Wharfvale"
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "gone",
@@ -1826,24 +1867,21 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 100,
+        "neighborhood": 101,
         "to": {
-          "kind_key": "market",
+          "kind_key": "streets",
           "location": {
-            "place": 136,
-            "type": "place"
+            "neighborhood": 101,
+            "type": "street"
           },
           "name": "",
-          "neighborhood": 100,
-          "neighborhood_args": {
-            "centre_town": "Halobridge"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Halobridge"
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
         }
       },
       "group": "gone",
@@ -1872,6 +1910,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1914,6 +1953,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,
@@ -1956,6 +1996,7 @@
     },
     {
       "can_talk": false,
+      "familiar_key": null,
       "go": {
         "action": "talk",
         "here": false,

@@ -47,7 +47,7 @@ describe("the arc sheet", () => {
     // Who is in it: people with Talk.
     const cast = within(screen.getByTestId("arc-cast-list"));
     fireEvent.click(cast.getByRole("button", { name: "Talk to Bettina Zeller" }));
-    expect(c.openTalk).toHaveBeenCalledWith({ type: "person", person: 1027 });
+    expect(c.openTalk).toHaveBeenCalledWith({ type: "person", person: 1028 });
     // Heat is never drawn.
     expect(sheet.querySelector(".bar")).toBeNull();
   });

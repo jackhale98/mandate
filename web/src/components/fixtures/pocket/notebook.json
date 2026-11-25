@@ -1564,7 +1564,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1026,
+            "person": 1027,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1610,7 +1610,7 @@
           "new_this_turn": false,
           "stale": false,
           "subject": {
-            "person": 1027,
+            "person": 1028,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1665,7 +1665,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1028,
+            "person": 1029,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1673,7 +1673,7 @@
         {
           "args": {
             "name": "Amara Ashby",
-            "role_key": "occupation-organiser"
+            "role_key": "occupation-software_engineer"
           },
           "as_of": null,
           "history": [
@@ -1695,7 +1695,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1029,
+            "person": 1030,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1737,7 +1737,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1030,
+            "person": 1031,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1792,7 +1792,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1212,
+            "person": 1207,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1822,7 +1822,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1213,
+            "person": 1208,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1864,7 +1864,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1214,
+            "person": 1209,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1923,7 +1923,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1215,
+            "person": 1210,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1953,7 +1953,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1216,
+            "person": 1211,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1995,7 +1995,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1407,
+            "person": 1397,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2050,7 +2050,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1408,
+            "person": 1398,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2087,7 +2087,7 @@
           },
           "stale": false,
           "subject": {
-            "person": 1409,
+            "person": 1399,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2150,7 +2150,7 @@
           },
           "stale": false,
           "subject": {
-            "person": 1411,
+            "person": 1401,
             "type": "person"
           },
           "title_key": "notebook-person"

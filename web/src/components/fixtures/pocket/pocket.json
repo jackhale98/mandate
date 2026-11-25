@@ -1,23 +1,16 @@
 {
-  "alerts": [
-    {
-      "args": {
-        "n": "1"
-      },
-      "key": "alert-decisions"
-    }
-  ],
+  "alerts": [],
   "arcs": [
     {
       "args": {
         "above": "Loreshire",
-        "away": "379",
+        "away": "374",
         "clock_day": "4",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "270",
+        "homes": "266",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -59,13 +52,13 @@
       "stage": {
         "args": {
           "above": "Loreshire",
-          "away": "379",
+          "away": "374",
           "clock_day": "4",
           "clock_month_key": "month-3",
           "crisis_key": "crisis-disaster_recovery",
           "day": "1",
           "hall": "Bridgegate",
-          "homes": "270",
+          "homes": "266",
           "hood": "Orchardfield",
           "month_key": "month-2",
           "official": "Bettina Zeller",
@@ -104,7 +97,7 @@
           "ambient_slot": null,
           "can_talk": false,
           "has_news": true,
-          "id": 1409,
+          "id": 1399,
           "level": "heard",
           "name": "Sana Vargawell",
           "role_key": "occupation-shopkeeper",
@@ -204,7 +197,7 @@
         "ambient_slot": null,
         "can_talk": false,
         "has_news": true,
-        "id": 1027,
+        "id": 1028,
         "level": "known",
         "name": "Bettina Zeller",
         "role_key": "role-mayor",
@@ -246,7 +239,7 @@
           "ambient_slot": null,
           "can_talk": false,
           "has_news": true,
-          "id": 1412,
+          "id": 1402,
           "level": "unknown",
           "name": "Felix Hollisley",
           "role_key": "occupation-editor",
@@ -284,7 +277,7 @@
         "year": 2020
       },
       "due_this_turn": false,
-      "event": 1846,
+      "event": 1887,
       "history": "none",
       "how": null,
       "id": 1,
@@ -359,7 +352,7 @@
           "ambient_slot": null,
           "can_talk": false,
           "has_news": true,
-          "id": 1414,
+          "id": 1404,
           "level": "unknown",
           "name": "Goran Brackenwood",
           "role_key": "occupation-business_leader",
@@ -389,7 +382,7 @@
         "year": 2020
       },
       "due_this_turn": false,
-      "event": 1845,
+      "event": 1886,
       "history": "none",
       "how": null,
       "id": 0,
@@ -589,7 +582,7 @@
           "ambient_slot": null,
           "can_talk": false,
           "has_news": true,
-          "id": 1409,
+          "id": 1399,
           "level": "heard",
           "name": "Sana Vargawell",
           "role_key": "occupation-shopkeeper",
@@ -600,7 +593,7 @@
           "ambient_slot": null,
           "can_talk": false,
           "has_news": true,
-          "id": 1027,
+          "id": 1028,
           "level": "known",
           "name": "Bettina Zeller",
           "role_key": "role-mayor",
@@ -643,6 +636,47 @@
       "title_key": "dilemma-flood-money"
     }
   ],
+  "fortnight": [
+    {
+      "attended": false,
+      "cost": null,
+      "date": {
+        "day": 16,
+        "day_number": 737346,
+        "month": 2,
+        "year": 2020
+      },
+      "expected": false,
+      "here": false,
+      "id": "event.market_day",
+      "main": false,
+      "name": {
+        "args": {
+          "town": "Halobridge"
+        },
+        "key": "cal-market-day"
+      },
+      "now": true,
+      "part": "morning",
+      "part_key": "day-part-morning",
+      "place": {
+        "kind_key": "market",
+        "location": {
+          "place": 136,
+          "type": "place"
+        },
+        "name": "",
+        "neighborhood": 100,
+        "neighborhood_args": {
+          "centre_town": "Halobridge"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Halobridge"
+      },
+      "today": true,
+      "weekday_key": "weekday-tue"
+    }
+  ],
   "headlines": {
     "approval_town": 0.0,
     "approval_ward": 0.1,
@@ -653,8 +687,8 @@
       "level": "known",
       "stale": false
     },
-    "gov_approval": 0.7000000000000001,
-    "monthly_rent": 1130.0,
+    "gov_approval": 0.65,
+    "monthly_rent": 1140.0,
     "top_concern_keys": [
       "concern-recovery",
       "concern-environment"
@@ -750,13 +784,13 @@
       "about_you": false,
       "args": {
         "above": "Loreshire",
-        "away": "379",
+        "away": "374",
         "clock_day": "4",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "270",
+        "homes": "266",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -777,10 +811,10 @@
         "month": 2,
         "year": 2020
       },
-      "event": 1841,
+      "event": 1882,
       "framing": "straight",
       "headline_key": "headline-arc-flood-struck",
-      "id": 12,
+      "id": 10,
       "outlet": {
         "credibility": "high",
         "id": 8,
@@ -802,7 +836,7 @@
         "month": 2,
         "year": 2020
       },
-      "event": 1836,
+      "event": 1877,
       "framing": "straight",
       "headline_key": "headline-disaster",
       "id": 3,
@@ -828,7 +862,7 @@
         "month": 2,
         "year": 2020
       },
-      "event": 1811,
+      "event": 1855,
       "framing": "straight",
       "headline_key": "headline-policy-enacted",
       "id": 2,
@@ -847,6 +881,7 @@
     "month": 11,
     "year": 2020
   },
+  "next_expected": null,
   "next_up": {
     "arc": 0,
     "args": {},
@@ -864,13 +899,13 @@
     "title": {
       "args": {
         "above": "Loreshire",
-        "away": "379",
+        "away": "374",
         "clock_day": "4",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "270",
+        "homes": "266",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -1495,7 +1530,7 @@
     "legal_jeopardy": 0.0,
     "standing": 65.0,
     "threat": 5.0,
-    "viability": 60.33561706542969
+    "viability": 60.335601806640625
   },
   "turn": 3,
   "turn_days": 14

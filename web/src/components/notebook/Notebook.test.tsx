@@ -107,9 +107,9 @@ describe("the Notebook", () => {
     fireEvent.click(within(opened).getByRole("button", { name: "Go to Bettina Zeller" }));
     expect(visit).toHaveBeenCalledWith({ type: "place", place: 132 });
     fireEvent.click(within(opened).getByRole("button", { name: "Talk to Bettina Zeller" }));
-    expect(openTalk).toHaveBeenCalledWith({ type: "person", person: 1027 });
+    expect(openTalk).toHaveBeenCalledWith({ type: "person", person: 1028 });
     fireEvent.click(within(opened).getByTestId("notebook-person-name"));
-    expect(openCharacter).toHaveBeenCalledWith(1027);
+    expect(openCharacter).toHaveBeenCalledWith(1028);
     // A person only heard of: the engine's one sentence, no placeholder.
     const sana = screen.getAllByTestId("notebook-person")[1] as HTMLElement;
     fireEvent.click(within(sana).getAllByRole("button")[0] as HTMLElement);

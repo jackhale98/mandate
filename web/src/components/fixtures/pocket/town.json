@@ -263,7 +263,9 @@
           "services": [
             "overheard"
           ],
-          "verbs": []
+          "verbs": [
+            "verb-be_seen"
+          ]
         },
         {
           "actions": [],
@@ -704,13 +706,13 @@
               "title": {
                 "args": {
                   "above": "Loreshire",
-                  "away": "379",
+                  "away": "374",
                   "clock_day": "4",
                   "clock_month_key": "month-3",
                   "crisis_key": "crisis-disaster_recovery",
                   "day": "1",
                   "hall": "Bridgegate",
-                  "homes": "270",
+                  "homes": "266",
                   "hood": "Orchardfield",
                   "month_key": "month-2",
                   "official": "Bettina Zeller",
