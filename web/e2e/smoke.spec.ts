@@ -6,10 +6,24 @@ import { openAgenda, openPocket, pocketMenu, showPlaces } from "./pocket";
 // (a drawer from the bottom bar: Today and the Notebook, DEC-113) holds the agenda, the town card,
 // every place, and links to the national views.
 
-const stateHash = async (page: Page) => {
+const readHash = async (page: Page) => {
   const menu = await pocketMenu(page);
   await menu.getByRole("button", { name: "Overview", exact: true }).click();
   return page.getByText(/state [0-9a-f]{16}/).textContent();
+};
+
+/** The state's hash once it has settled. Opening the Notebook marks what is new as seen, which is a real command (it
+ *  changes the state and is saved), and it can land just after a read (CI, 2026-11-25). Read until two reads agree. */
+const stateHash = async (page: Page) => {
+  let last = await readHash(page);
+  for (let i = 0; i < 5; i++) {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    const now = await readHash(page);
+    if (now === last) return now;
+    last = now;
+  }
+  return last;
 };
 
 // M0 exit gate: start a game, end a turn, save, reload offline, resume (M0-09).
