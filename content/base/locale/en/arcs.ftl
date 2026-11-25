@@ -74,7 +74,7 @@ scene-flood-hall-organiser = "People came through that door all night, and I've 
 ## in exchange.ftl; the date is given to the organiser in person.
 talk-arc-flood-date = Give a date for the repairs, and put your name to it
 talk-arc-flood-date-say = "Tell them every home in { $hood } will have its repairs started by the date I give you. Hold me to it."
-talk-arc-flood-date-known = "You carried boxes here when it mattered, so they'll hear it from you. Miss it, and they'll hear that too."
+talk-arc-flood-date-known = "You carried boxes at this hall in the first week, so they'll hear it from you. Miss it, and they'll hear that too."
 talk-arc-flood-date-yes = "I'll read it out, and I'll read out your name with it. They've had 'soon' from everyone else."
 
 ## A second roof (the flood's ask)
@@ -129,6 +129,10 @@ talk-arc-favour-want = Ask what they will want for the favour
 talk-arc-favour-want-say = "I know I owe you. What will you want for it?"
 talk-arc-favour-want-yes = "A vote, when it matters to me. I'll tell you which. You'll know it when you see my name on it."
 talk-arc-favour-want-no = "You'll find out when I ask. That's how it works."
+talk-arc-favour-after = Ask what { $creditor } is after
+talk-arc-favour-after-say = "I owe { $creditor } one. What are they after, do you think?"
+talk-arc-favour-after-yes = "A bill of their own, and the votes for it. When it comes up, they'll be counting yours."
+talk-arc-favour-after-no = "Ask them. I don't speak for other people's debts."
 talk-arc-favour-cover = Ask them to give { $creditor } their vote in your place
 talk-arc-favour-cover-say = "{ $creditor } needs one more vote, and mine would cost me. Would you give them yours?"
 talk-arc-favour-cover-yes = "I'll vote with { $creditor }. Then it's me you owe, and I'll want it back."

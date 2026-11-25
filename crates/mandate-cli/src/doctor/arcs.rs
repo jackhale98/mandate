@@ -123,7 +123,11 @@ fn reads_lever(cs: &[Condition], m: &Marks) -> bool {
             | Condition::LawInForce { absent: false, .. }
             | Condition::Recovered { .. }
             | Condition::BodySupport { .. }
-            | Condition::LastRace { .. } => true,
+            | Condition::LastRace { .. }
+            // A plant's review, which relief on its margin pushes on; a
+            // debt paid, which a vote or another coin pays.
+            | Condition::Plant { slot: Some(_), .. }
+            | Condition::Favour { is: false, .. } => true,
             Condition::Any { of } => of.iter().any(|c| one(c, m)),
             _ => false,
         }

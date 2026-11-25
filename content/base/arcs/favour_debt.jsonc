@@ -59,15 +59,6 @@
       "stages": [
         // A favour is owed.
         { "id": "debt", "key": "arc-favour-debt",
-          "next": [
-            { "to": "repaid", "when": [ { "type": "favour", "slot": "creditor", "is": false } ] },
-            { "to": "reminder", "when": [ { "type": "favour", "slot": "creditor" } ], "after_days": 45 },
-            { "to": "settled", "after_days": 46 } ] },
-
-        // A pleasant reminder. The call comes when the creditor has a bill
-        // of their own before the body that the player would pay for
-        // voting through.
-        { "id": "reminder", "key": "arc-favour-reminder", "rise": 0.005,
           "beats": [
             { "id": "want", "type": "talk", "with": "creditor",
               "effects": [ { "type": "learn", "role": "creditor", "level": "detailed" } ],
@@ -78,6 +69,25 @@
                       { "type": "opinion", "slot": "speaker", "min": 0 },
                       { "type": "trust", "slot": "speaker", "min": 0.4 } ] } ] },
                   { "key": "talk-arc-favour-want-no" } ] } },
+          ],
+          "next": [
+            { "to": "repaid", "when": [ { "type": "favour", "slot": "creditor", "is": false } ] },
+            { "to": "reminder", "when": [ { "type": "favour", "slot": "creditor" } ], "after_days": 45 },
+            { "to": "settled", "after_days": 46 } ] },
+
+        // A pleasant reminder. The call comes when the creditor has a bill
+        // of their own before the body that the player would pay for
+        // voting through.
+        { "id": "reminder", "key": "arc-favour-reminder", "rise": 0.005,
+          "beats": [
+            // A colleague who knows them says what they are after.
+            { "id": "after", "type": "talk", "with": "colleague",
+              "effects": [ { "type": "learn", "role": "creditor", "level": "known" } ],
+              "choice": { "label_key": "talk-arc-favour-after", "say_key": "talk-arc-favour-after-say",
+                "replies": [
+                  { "key": "talk-arc-favour-after-yes", "agrees": true,
+                    "when": [ { "type": "opinion", "slot": "speaker", "min": 0 } ] },
+                  { "key": "talk-arc-favour-after-no" } ] } },
           ],
           "next": [
             { "to": "repaid", "when": [ { "type": "favour", "slot": "creditor", "is": false } ] },
