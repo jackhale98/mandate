@@ -23,4 +23,11 @@ odds: number | null, available: boolean,
 /**
  * Why not, as a Fluent key (`talk-why-…`), when not available.
  */
-unavailable_key: string | null, };
+unavailable_key: string | null, 
+/**
+ * The person could be expected to know this, judged from public facts
+ * (their occupation, where they live and work, their post, their
+ * bills, their trade's issue): listed first. The others are listed
+ * after, for "Something else…". Never from what they secretly know.
+ */
+likely: boolean, };

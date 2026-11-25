@@ -16,10 +16,18 @@
 //! conversation with this person this week, so the talk view's greeting
 //! ([`opener`] with no topic) and a reply's opener follow one rule. The
 //! first reply of the day says none: the greeting took its place.
+//!
+//! **Trust sets the depth** (M6 note 26; [`deepest`]): of the substance
+//! lines gated on what the speaker tells of one subject (a `tells`
+//! condition), only the deepest that hold are candidates. The steps are the
+//! content's (`talk_params.discretion`: the level told by opinion and
+//! trust), so a speaker who would name someone does not fall back to the
+//! rumour, and one who would only pass on a rumour never names them.
 
 use super::context::{Args, Ctx};
 use super::state::UsedLine;
-use mandate_content::conversation::{TalkLineDef, TalkPart, TopicDef, VoiceDef};
+use mandate_content::conversation::{SubjectRef, TalkLineDef, TalkPart, TopicDef, VoiceDef};
+use mandate_content::knowledge::Level;
 use mandate_core::Stream;
 
 /// Keyed-RNG tag of conversation draws (DEC-041): never reused.
@@ -94,6 +102,43 @@ fn holding<'c>(
         .collect()
 }
 
+/// The depth of a line on each subject it is gated on: its `tells`
+/// conditions (the deepest per subject; not inside `any`).
+fn depths(l: &TalkLineDef) -> Vec<(&SubjectRef, Level)> {
+    let mut out: Vec<(&SubjectRef, Level)> = Vec::new();
+    for c in &l.when {
+        if let mandate_content::Condition::Tells { subject, min } = c {
+            match out.iter_mut().find(|(s, _)| *s == subject) {
+                Some((_, l)) => *l = (*l).max(*min),
+                None => out.push((subject, *min)),
+            }
+        }
+    }
+    out
+}
+
+/// Trust sets the depth: drop every line gated on telling less of a subject
+/// than another holding line tells of it. Lines gated on no subject stay.
+pub fn deepest<'c>(cands: Vec<(&'c TalkLineDef, Args)>) -> Vec<(&'c TalkLineDef, Args)> {
+    let mut best: Vec<(&SubjectRef, Level)> = Vec::new();
+    for (l, _) in &cands {
+        for (s, lvl) in depths(l) {
+            match best.iter_mut().find(|(b, _)| *b == s) {
+                Some((_, b)) => *b = (*b).max(lvl),
+                None => best.push((s, lvl)),
+            }
+        }
+    }
+    cands
+        .into_iter()
+        .filter(|(l, _)| {
+            depths(l)
+                .iter()
+                .all(|(s, lvl)| best.iter().any(|(b, top)| b == s && lvl >= top))
+        })
+        .collect()
+}
+
 /// The candidates for each part (§3.5 step 2).
 pub fn candidates<'c>(
     ctx: &Ctx<'c>,
@@ -108,16 +153,14 @@ pub fn candidates<'c>(
         TalkPart::Quote => (holding(ctx, of(part)), false),
         TalkPart::Substance => {
             let mine = of(part).filter(|l| l.topic.as_deref() == Some(topic.id.as_str()));
-            let real = holding(ctx, mine.clone().filter(|l| !l.fallback));
+            let real = deepest(holding(ctx, mine.clone().filter(|l| !l.fallback)));
             // Asked about something (an `inform` topic with a subject), the
             // reply answers it: lines that read the subject first; if none
             // holds, the topic's safe answers, never a line about the topic
             // in general ("what worries people?" asked of one neighbourhood
             // is not answered with the town's worries). Only which line is
             // shown changes: the odds are fixed before the reply.
-            if ctx.about.is_some()
-                && topic.mechanic == mandate_content::conversation::TalkMechanic::Inform
-            {
+            if ctx.about.is_some() && topic.mechanic.informs() {
                 let on: Vec<_> = real
                     .iter()
                     .filter(|(l, _)| mandate_content::conversation::reads_about(&l.when))
@@ -265,6 +308,33 @@ pub fn compose_reply<'c>(
     n: u32,
     opening: Opening,
 ) -> Composed<'c> {
+    compose_with(ctx, topic, used, week, n, opening, false)
+}
+
+/// The topic's safe answers that hold (its fallback lines).
+fn safe<'c>(ctx: &Ctx<'c>, topic: &TopicDef) -> Vec<(&'c TalkLineDef, Args)> {
+    holding(
+        ctx,
+        ctx.content.talk_lines.iter().filter(|l| {
+            l.part == TalkPart::Substance
+                && l.fallback
+                && l.topic.as_deref() == Some(topic.id.as_str())
+        }),
+    )
+}
+
+/// Compose a reply; with `safe_only`, the substance is the topic's safe
+/// answer whatever else holds (the open question asked of someone with
+/// nothing on their mind).
+pub fn compose_with<'c>(
+    ctx: &Ctx<'c>,
+    topic: &TopicDef,
+    used: &[UsedLine],
+    week: u32,
+    n: u32,
+    opening: Opening,
+    safe_only: bool,
+) -> Composed<'c> {
     let v = voice(ctx);
     let mut parts = Vec::new();
     let mut fell_back = false;
@@ -277,7 +347,11 @@ pub fn compose_reply<'c>(
             }
             continue;
         }
-        let (cands, fb) = candidates(ctx, topic, part, v);
+        let (cands, fb) = if safe_only && part == TalkPart::Substance {
+            (safe(ctx, topic), true)
+        } else {
+            candidates(ctx, topic, part, v)
+        };
         let mut rng = draw_rng(ctx, &topic.id, week, part, n);
         // A constant number of draws per part, whatever holds.
         let chance = rng.next_f64();

@@ -8,7 +8,9 @@
 // favour they owe adds `favour_discretion`. `speaker_knows`: who knows what
 // (NPCs keep no ledgers; this is derived, never stored). `memory_lines`:
 // lines each person remembers using with the player (the repetition guard);
-// `log_cap`: exchanges kept for the notebook. `quote_share`: how often a
+// `log_cap`: exchanges kept for the notebook. The `discretion` bands are
+// the steps of depth: what is told of who runs things, a rival's plans or
+// a named person follows them, and a reply says the deepest it may. `quote_share`: how often a
 // memory quote is used when one holds. The mechanics: a pitch gives
 // `sway_share` of a lobbying meeting's sway (half the time); asking for
 // support rolls `support` odds (the shared lobbying odds with a politician);
@@ -17,6 +19,27 @@
   "kind": "talk_params",
   "value": {
     "cost": "half_slot",
+    // A miss is free (M6 note 26): on a topic that informs, a reply that is
+    // only the safe answer ("don't know", "won't say") costs no time.
+    "miss_free": true,
+    // The talk panel lists first the subjects public facts say the person
+    // would know at least this well; the rest wait behind "Something else…".
+    "likely_from": "heard",
+    // "What's on your mind?": the first of these the person has, and has
+    // not yet said to the player this week.
+    "open": { "order": ["ask", "worry", "gossip"] },
+    // The role groups informative lines are written for (the doctor reports
+    // a topic that informs with no line of its own for a group).
+    "role_groups": [
+      { "id": "group.officeholders", "roles": ["councillor", "mayor", "assembly_member", "governor", "representative", "senator", "president"] },
+      { "id": "group.organisers", "roles": ["occupation.union_steward", "occupation.shop_steward", "occupation.organiser", "occupation.party_chair"] },
+      { "id": "group.business", "roles": ["occupation.business_leader", "occupation.plant_manager", "occupation.hotel_manager", "occupation.tech_founder", "occupation.harbourmaster"] },
+      { "id": "group.press", "roles": ["occupation.journalist", "occupation.editor"] },
+      { "id": "group.care", "roles": ["occupation.clergy", "occupation.teacher", "occupation.head_teacher", "occupation.nurse", "occupation.gp", "occupation.dean"] },
+      { "id": "group.trade", "roles": ["occupation.shopkeeper", "occupation.diner_owner"] },
+      { "id": "group.farming", "roles": ["occupation.farmer", "occupation.farmhand"] },
+      { "id": "group.residents", "roles": ["occupation.resident", "occupation.retiree", "occupation.student", "occupation.park_keeper", "occupation.software_engineer"] },
+    ],
     "discretion": {
       "bands": [
         { "below": -15, "tells": "unknown" },  // hostile, cool: they deflect
@@ -46,6 +69,10 @@
       { "who": "stake_overlap", "subject": "broker", "level": "detailed" },
       { "who": "broker", "subject": "broker", "level": "detailed" },
       { "who": "politician", "subject": "broker", "level": "heard" },          // owner: politicians have at least heard who runs things
+      // Someone in a post over the town deals with whoever really decides:
+      // they know the name plainly, and say it only once they would tell
+      // that much (the `known` step below; M6 note 26).
+      { "who": "officeholder", "subject": "broker", "level": "known" },
       { "who": "politician", "subject": "rival_plans", "level": "known" },
       { "who": "politician", "subject": "policy_support", "level": "known" },
       { "who": "sponsor", "subject": "sponsored_proposals", "level": "detailed" },

@@ -146,7 +146,8 @@ pub struct Finding {
     /// `text-raw` | `text-empty-arg` | `text-doubled-punct` |
     /// `worry-unconditioned` | `subject-unread` | `subject-drift` |
     /// `subject-stranger` |
-    /// `talk-off-subject` (corpus) | `prose-habit`.
+    /// `talk-off-subject` (corpus) | `prose-habit` | `role-coverage` |
+    /// `role-ungrouped`.
     pub check: String,
     /// The content file (or `.ftl`) that defines the item.
     pub file: String,
@@ -321,6 +322,7 @@ mod fluent;
 mod frequency;
 mod length;
 mod references;
+mod roles;
 mod text;
 mod worry;
 #[cfg(test)]
@@ -423,6 +425,7 @@ pub fn diagnose(sources: &[Source], args: &DoctorArgs) -> Report {
         prose_checks(&b, args, &mut out);
         worry_checks(&b, &mut out);
         relevance_checks(&b, &mut out);
+        roles::role_coverage_checks(&b, &mut out);
         if args.seeds > 0 {
             let seen = careers(&b, args);
             report.careers = seen.len();

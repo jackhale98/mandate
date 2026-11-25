@@ -4,7 +4,11 @@
 ## stake, the town's industry), $rival, $person, $hood, $concern (and
 ## $concern_talk, a lower-case noun phrase for mid-sentence use), $policy,
 ## $support, $memory, $subject (and $subject_kind: bill, decision or none),
-## $year, $n, $crisis. A place without a proper
+## $year, $n, $crisis. Every line also has $office and $chamber (who signs
+## and who votes where the conversation is: "the mayor", "the council"); a
+## line for named roles may have the role's facts: $post ("the mayor", "a
+## councillor") and $body for someone in a post, $work (where they work),
+## $mystake (the industry their occupation speaks for). A place without a proper
 ## name comes as its kind's noun phrase (talk-place-*: "the union hall"), so
 ## $here, $about and $broker_place read mid-sentence. People are named, or
 ## "they" (never he or she) until characters have a pronoun field; say a
@@ -45,7 +49,22 @@ talk-place-regional_assembly = the regional assembly
 talk-place-parliament = parliament
 talk-place-executive_residence = the executive residence
 
+# Posts and bodies, as talk names them mid-sentence ($post, $office: by the
+# post's role word; $body, $chamber: by the body's id).
+talk-post-councillor = a councillor
+talk-post-mayor = the mayor
+talk-post-assembly_member = an assembly member
+talk-post-governor = the governor
+talk-post-representative = a representative
+talk-post-senator = a senator
+talk-post-president = the president
+talk-body-council = the council
+talk-body-assembly = the regional assembly
+talk-body-house = the House
+talk-body-senate = the Senate
+
 # Topics (buttons).
+talk-topic-open = What's on your mind?
 talk-topic-worries = What are people worried about?
 # The whole jurisdiction the conversation is in, as a subject (by tier).
 talk-whole-local = The whole town
@@ -58,6 +77,10 @@ talk-topic-pitch = Pitch a policy
 talk-topic-support = Ask for support
 talk-topic-favour = Trade a favour
 talk-topic-small-talk = Small talk
+# The subject step: everything the person has no particular reason to know.
+ui-dlg-something-else = Something else…
+ui-dlg-something-else-hint = Anything else you know of. They may not know much about it.
+ui-dlg-likely = They would know
 
 ## Openers, by relationship (anyone).
 
@@ -257,6 +280,11 @@ talk-worries-whole-known = "Across { $about }, it's { $concern_talk }. Every par
 talk-worries-whole-known-2 = "If you want one answer for all of { $about }, it's { $concern_talk }."
 talk-worries-whole-desk = "All of { $about } comes across my desk, and the biggest pile is about { $concern_talk }. It is the same from every part of it."
 
+# Officeholders: what reaches them in the post ($post, $work).
+talk-worries-office-heard = "As { $post } I hear it before most: { $concern_talk }. I'd rather not put it more strongly than that to you yet."
+talk-worries-office = "What reaches me as { $post } is { $concern_talk }, more than anything else. I read all of it. I can't fix all of it."
+talk-worries-office-desk = "Every complaint in { $town } ends up at { $work } sooner or later, and the tallest pile is { $concern_talk }. I could show you the folder."
+
 # What the facts are doing to people (anyone).
 talk-worries-jobs = "Another lot laid off. You stop asking where, after a while. You just ask who."
 talk-worries-disaster = "People are still clearing up. You'd think it'd be the damage that gets to them, but it's the waiting."
@@ -293,6 +321,22 @@ talk-worries-folk-rent-2 = "We're four in a one-bed flat. The landlord calls it 
 talk-worries-folk-jobs = "My neighbour got laid off. Twenty-odd years at the same place, and then a letter on a Friday."
 talk-worries-folk-disaster = "Half our street's still waiting on builders. We've had a tarpaulin for a roof longer than I'd like to say."
 
+## What's on your mind? (The open question: an ask of theirs, their main
+## worry, or gossip; the engine chooses.)
+talk-mind-nothing = "Nothing I'd trouble you with."
+talk-mind-busy = "Getting through the day, mostly. Ask me another time."
+talk-mind-ask = "Since you ask: I put something to you, and I'm waiting to see how it comes out. That's what's on my mind."
+talk-mind-ask-2 = "You know what's on my mind. I asked you for something. I'd sooner see it done than talk about it."
+talk-mind-worry-heard = "Honestly? It's { $concern_talk }, same as everyone round { $hood }. I'll not bore you with the rest."
+talk-mind-worry = "It's { $concern_talk }. I think about it more than I'd like, and so does everyone I know in { $hood }."
+talk-mind-worry-detailed = "I'll tell you what keeps me awake: { $concern_talk }. In { $hood } I can count the households it's hit on both hands and start again."
+talk-mind-gossip-heard = "I could tell you a thing or two about { $person }. Not today, though."
+talk-mind-gossip = "Since you ask: { $person }. People talk about them more than they'd like. I'd get to know them before you need to."
+talk-mind-gossip-crooked = "Keep this to yourself: I don't trust { $person }. Nothing I could prove. I've just learned to count my change."
+talk-mind-gossip-ambitious = "It's { $person } I keep thinking about. They want something bigger than what they've got, and they're not patient about it."
+talk-mind-gossip-grudge = "A word about { $person }: they're still angry about something, and they don't let go. I'd find out what before you need them."
+talk-mind-gossip-warm = "I've been meaning to say: { $person } is one of the good ones. If you need a kindness done quietly, start there."
+
 ## Who really runs things.
 
 # Deflections, by role (some point somewhere).
@@ -326,6 +370,32 @@ talk-runs-stake-3 = "Everything round here comes back to { $stake }, and { $brok
 talk-runs-workers = "{ $broker }. Every time we sit down with management, they've been in the room first. You can tell by how little's left to negotiate."
 talk-runs-farm = "Out here you learn who to ask before you open a gate. In town, you ask { $broker }."
 talk-runs-party = "{ $broker }. And yes, the branch has noticed, and no, there's nothing in the rulebook about it."
+
+# By role, from where they stand. Officeholders: their own office and the
+# body first ($post, $chamber, $office), the name once they tell it plainly.
+talk-runs-office = "On paper, { $chamber } votes and { $office } signs, and I'm { $post }, so part of that is me. Who gets a say before the vote is another question. I'd want to know you better before I answered it."
+talk-runs-office-2 = "I'm { $post }. I can tell you how a thing is meant to be decided: { $chamber } votes on it and { $office } signs it. How it is decided, I keep for people I trust."
+talk-runs-office-named = "I'm { $post }, so you get the official answer first: { $chamber } votes and { $office } signs. The other answer is { $broker }. Very little comes to a vote here without them hearing of it first."
+talk-runs-office-named-2 = "From where I sit at { $work }, most votes are settled before anyone stands up to speak. { $broker } is the name you want. I don't hand it to everyone."
+# The union, the party, business, the press, the farm ($work, $mystake).
+talk-runs-workers-rumour = "There's a name that comes up whenever management goes quiet on us: { $broker }. I'd not swear to more than that yet."
+talk-runs-workers-stake = "Anything that touches { $mystake } goes past { $broker } before it reaches us. My members' jobs get settled in rooms I'm not let into, and they're in every one."
+talk-runs-party-rumour = "The branch has a name it rings before it decides anything: { $broker }. You didn't have that from a party officer."
+talk-runs-business-rumour = "In business you learn whose call to return first. Round here that's { $broker }. I'll leave it there for now."
+talk-runs-business = "{ $broker }. Nothing that matters gets signed at { $work } until I know where they stand on it. I'm not the only one who works that way."
+talk-runs-business-stake = "It comes down to { $mystake }. { $broker } decides who gets a hearing on that and who waits. I've done both."
+talk-runs-press-rumour = "There's a name we never quite get into print: { $broker }. Make of that what you like."
+talk-runs-press = "{ $broker }. When a story dies at { $work }, it's usually after a call from that direction. I've taken some of those calls myself."
+talk-runs-farm-rumour = "There's one name you hear at the gate when a decision goes against us: { $broker }. I've not met anyone who'd say it louder than that."
+talk-runs-farm-stake = "Out here it's { $mystake }, and in town it's who lets you sell. That's { $broker }. I've had to go and ask, more than once."
+# Far from power: the visible power, from where they stand (safe answers).
+talk-runs-visible-organiser = "If you go by the letters I write, it's { $office } and { $chamber }. The people I work with never get past the front desk, so that's as far up as I can see."
+talk-runs-visible-business = "From { $work }, it's { $office } and { $chamber }: they grant the licences and sign the contracts. If someone decides for them, I've not been introduced."
+talk-runs-visible-press = "On the record, it's { $office } and { $chamber }: that's who we quote. Off it, I'm still asking the question you've just asked me."
+talk-runs-visible-care = "From where I work, it's { $office } and { $chamber }: they set the budget, and { $work } gets what's left. If someone stands behind them, they've never needed anything from us."
+talk-runs-visible-trade = "From behind a counter, it's { $office } and { $chamber }: the licences, the parking, the opening hours. Whether anyone tells them what to do, nobody's said so in here."
+talk-runs-visible-farmhand = "Out here it's whoever sets the price at the gate. In town it's { $office } and { $chamber }, as far as anyone tells the hands."
+talk-runs-visible-folk = "I'd have said { $office } and { $chamber }: theirs are the names on the letters. If it's someone else, nobody's told our street."
 
 # Asked of the broker.
 talk-runs-self = "You're looking at the answer."
@@ -573,10 +643,17 @@ lead-ask-diner = The diner hears everything. Someone there might say who really 
 lead-ask-market = The stallholders at the market know everyone's business. One of them might know who really runs this town.
 lead-ask-community-centre = The community centre sees who turns up when something needs doing, and who pays for it.
 lead-ask-party-office = The party office keeps a list of the people it daren't upset. Someone there might show you.
+# Leads to who would know ($to_person, $to_hood).
+lead-ask-person-broker = { $to_person } is in a position to know who really runs this town. Ask them.
+lead-ask-person-hood = { $to_person } hears from every part of town. Ask them what worries people there.
+lead-ask-streets-hood = The people who live in { $to_hood } can tell you what worries them. Ask on its streets.
+lead-ask-person-bill = { $to_person } counts the votes. Ask them where people stand on it.
+lead-ask-person-about = The surest way to learn about { $to_person } is to meet them.
 
 # Outcomes of a conversation ($name: who you talked to).
 outcome-talk = You talked with { $name }.
 outcome-talk-again = You asked { $name } again. Nothing new came of it.
+outcome-talk-miss = { $name } couldn't help. It cost you no time.
 outcome-talk-pitch-success = { $name } came round a little on the bill.
 outcome-talk-pitch-fail = { $name } wasn't persuaded.
 outcome-talk-pitch-noted = { $name } heard you out.
