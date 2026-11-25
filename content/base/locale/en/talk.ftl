@@ -327,11 +327,11 @@ talk-mind-nothing = "Nothing I'd trouble you with."
 talk-mind-busy = "Getting through the day, mostly. Ask me another time."
 talk-mind-ask = "Since you ask: I put something to you, and I'm waiting to see how it comes out. That's what's on my mind."
 talk-mind-ask-2 = "You know what's on my mind. I asked you for something. I'd sooner see it done than talk about it."
-talk-mind-worry-heard = "Honestly? It's { $concern_talk }, same as everyone round { $hood }. I'll not bore you with the rest."
+talk-mind-worry-heard = "Honestly? It's { $concern_talk }, same as most people round { $hood }. I'll not bore you with the rest."
 talk-mind-worry = "It's { $concern_talk }. I think about it more than I'd like, and so does everyone I know in { $hood }."
 talk-mind-worry-detailed = "I'll tell you what keeps me awake: { $concern_talk }. In { $hood } I can count the households it's hit on both hands and start again."
 talk-mind-gossip-heard = "I could tell you a thing or two about { $person }. Not today, though."
-talk-mind-gossip = "Since you ask: { $person }. People talk about them more than they'd like. I'd get to know them before you need to."
+talk-mind-gossip = "Since you ask: { $person }. I've known them a while. I'd get to know them before you need them."
 talk-mind-gossip-crooked = "Keep this to yourself: I don't trust { $person }. Nothing I could prove. I've just learned to count my change."
 talk-mind-gossip-ambitious = "It's { $person } I keep thinking about. They want something bigger than what they've got, and they're not patient about it."
 talk-mind-gossip-grudge = "A word about { $person }: they're still angry about something, and they don't let go. I'd find out what before you need them."
@@ -392,7 +392,7 @@ talk-runs-farm-stake = "Out here it's { $mystake }, and in town it's who lets yo
 talk-runs-visible-organiser = "If you go by the letters I write, it's { $office } and { $chamber }. The people I work with never get past the front desk, so that's as far up as I can see."
 talk-runs-visible-business = "From { $work }, it's { $office } and { $chamber }: they grant the licences and sign the contracts. If someone decides for them, I've not been introduced."
 talk-runs-visible-press = "On the record, it's { $office } and { $chamber }: that's who we quote. Off it, I'm still asking the question you've just asked me."
-talk-runs-visible-care = "From where I work, it's { $office } and { $chamber }: they set the budget, and { $work } gets what's left. If someone stands behind them, they've never needed anything from us."
+talk-runs-visible-care = "From where I work, it's { $office } and { $chamber }: theirs are the decisions we live with at { $work }. If someone stands behind them, they've never needed anything from us."
 talk-runs-visible-trade = "From behind a counter, it's { $office } and { $chamber }: the licences, the parking, the opening hours. Whether anyone tells them what to do, nobody's said so in here."
 talk-runs-visible-farmhand = "Out here it's whoever sets the price at the gate. In town it's { $office } and { $chamber }, as far as anyone tells the hands."
 talk-runs-visible-folk = "I'd have said { $office } and { $chamber }: theirs are the names on the letters. If it's someone else, nobody's told our street."
@@ -645,9 +645,9 @@ lead-ask-community-centre = The community centre sees who turns up when somethin
 lead-ask-party-office = The party office keeps a list of the people it daren't upset. Someone there might show you.
 # Leads to who would know ($to_person, $to_hood).
 lead-ask-person-broker = { $to_person } is in a position to know who really runs this town. Ask them.
-lead-ask-person-hood = { $to_person } hears from every part of town. Ask them what worries people there.
+lead-ask-person-hood = { $to_person } would know what worries people there. Ask them.
 lead-ask-streets-hood = The people who live in { $to_hood } can tell you what worries them. Ask on its streets.
-lead-ask-person-bill = { $to_person } counts the votes. Ask them where people stand on it.
+lead-ask-person-bill = { $to_person } would know where people stand on it. Ask them.
 lead-ask-person-about = The surest way to learn about { $to_person } is to meet them.
 
 # Outcomes of a conversation ($name: who you talked to).

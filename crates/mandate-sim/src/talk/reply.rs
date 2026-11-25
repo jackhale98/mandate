@@ -119,7 +119,7 @@ fn depths(l: &TalkLineDef) -> Vec<(&SubjectRef, Level)> {
 
 /// Trust sets the depth: drop every line gated on telling less of a subject
 /// than another holding line tells of it. Lines gated on no subject stay.
-pub fn deepest<'c>(cands: Vec<(&'c TalkLineDef, Args)>) -> Vec<(&'c TalkLineDef, Args)> {
+pub fn deepest(cands: Vec<(&TalkLineDef, Args)>) -> Vec<(&TalkLineDef, Args)> {
     let mut best: Vec<(&SubjectRef, Level)> = Vec::new();
     for (l, _) in &cands {
         for (s, lvl) in depths(l) {
