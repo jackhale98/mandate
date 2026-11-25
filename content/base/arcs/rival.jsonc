@@ -96,7 +96,7 @@
             { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
             { "to": "cooled", "when": [ { "type": "campaigning", "is": false } ] },
             { "to": "pact", "when": [ { "type": "arc_mark", "mark": "pact" } ] },
-            { "to": "lead_up", "when": [ { "type": "election_within", "days": 30 } ] },
+            { "to": "lead_up", "when": [ { "type": "election_within", "days": 40 } ] },
             { "to": "cooled", "after_days": 120 } ] },
 
         // The truce holds until the vote is close.
@@ -105,7 +105,7 @@
             { "to": "won", "when": [ { "type": "last_race", "won": true } ] },
             { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
             { "to": "cooled", "when": [ { "type": "campaigning", "is": false } ] },
-            { "to": "lead_up", "when": [ { "type": "election_within", "days": 30 } ] },
+            { "to": "lead_up", "when": [ { "type": "election_within", "days": 40 } ] },
             { "to": "cooled", "after_days": 120 } ] },
 
         // The challenge is out, and there are weeks to get ready for it.
@@ -153,16 +153,18 @@
             { "to": "won", "when": [ { "type": "last_race", "won": true } ] },
             { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
             { "to": "cooled", "when": [ { "type": "campaigning", "is": false } ] },
-            { "to": "showdown", "when": [ { "type": "election_within", "days": 21 } ] },
+            { "to": "showdown", "when": [ { "type": "election_within", "days": 30 } ] },
             { "to": "cooled", "after_days": 120 } ] },
 
-        // The turn: a debate in front of the seat, with the vote three weeks
-        // off (EXCHANGE_SCENES §10.1: the lead-up from a month out, the
-        // showdown from three weeks). The clock is the debate's day, one or
-        // two weeks on, so the vote reads it. What was not done in the weeks
-        // before can still be done until then.
+        // The turn: a debate in front of the seat, with the vote a month off.
+        // The clock is the debate's day, two or three weeks on, so the vote
+        // reads it. (EXCHANGE_SCENES §10.1 has the lead-up from 45 days and
+        // the showdown from 21; in an eight-week campaign that left the
+        // truce under a week and the debate days from the vote, so the
+        // lead-up runs from 40 days and the showdown keeps X1's month.) What
+        // was not done in the weeks before can still be done until then.
         { "id": "showdown", "key": "arc-rival-showdown", "climax": true, "rise": 0.05,
-          "clock": { "days": [7, 14] },
+          "clock": { "days": [14, 21] },
           "beats": [
             { "id": "rehearse", "type": "talk", "with": "ally", "sets": "rehearsed",
               "when": [ { "type": "arc_mark", "mark": "rehearsed", "is": false } ],

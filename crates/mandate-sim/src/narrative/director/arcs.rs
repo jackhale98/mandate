@@ -91,8 +91,13 @@ fn lead_tier(def: &ArcDef, kind: ChapterKind) -> Tier {
 }
 
 /// A run can give this chapter its turn: it turned inside it, or it has
-/// not turned and a turn is still ahead of its stage.
+/// not turned and a turn is still ahead of its stage. A run in a hidden
+/// stage (signs nobody has been told of: a plant's short weeks) leads
+/// nothing until it breaks.
 fn can_lead(run: &ArcRun, def: &ArcDef, ch: &Chapter) -> bool {
+    if def.stage(&run.stage).is_some_and(|s| s.hidden) {
+        return false;
+    }
     match &run.turn {
         Some(t) => t.on >= ch.start,
         None => crate::arcs::turn_ahead(def, &run.stage),

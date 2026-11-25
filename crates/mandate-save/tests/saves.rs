@@ -1276,7 +1276,14 @@ fn v13_files_decode_with_town_baselines() {
 #[test]
 fn older_saves_migrate_to_the_knowledge_ledger() {
     use mandate_sim::player::knowledge::{LedgerOrigin, Level, Source, Subject};
-    let c = content();
+    // A v13 or v14 save holds no arc (arcs came with v27): the world is
+    // played without arc content, so none is raised in its first weeks (a
+    // plant on short time raises one).
+    let c = {
+        let mut b = (*content()).clone();
+        b.arcs.clear();
+        Arc::new(b)
+    };
     let mut e = generate(
         &WorldConfig {
             seed: 64,

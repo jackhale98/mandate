@@ -208,9 +208,9 @@ fn a_kind_the_arc_can_never_give_is_refused() {
     // A `prep` mark nothing sets.
     refused(
         RIVAL,
-        r#""with": "ally", "sets": "rehearsed","#,
-        r#""with": "ally","#,
-        "mark `rehearsed` is read and never set",
+        r#"{ "mark": "rehearsed", "removes": "cold" },"#,
+        r#"{ "mark": "drilled", "removes": "cold" },"#,
+        "mark `drilled` is read and never set",
     );
 }
 

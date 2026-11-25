@@ -1306,6 +1306,62 @@ fn every_variant_evaluates_in_a_synthetic_state() {
             assert_eq!(got, want);
         }
         assert!(!has(r#"{ "type": "sponsors_bill", "slot": "nobody" }"#));
+        // `bill_costs`: a bill of theirs a yes would cost the player is a
+        // bill of theirs the player can vote on.
+        for m in st
+            .politics
+            .bodies
+            .iter()
+            .filter(|b| b.at == at)
+            .flat_map(|b| b.members.iter())
+        {
+            let who = st.politics.get(*m).unwrap().character;
+            let st = w3.e.state();
+            let r = Reads::of_state(st, &content);
+            let v = View::new(&r, &st.politics);
+            let cast = vec![CastEntry {
+                role: "who".into(),
+                actor: Actor::Person { id: who },
+            }];
+            let mut cx = Ctx::new(&v, Some(st), Some(at));
+            cx.cast = &cast;
+            let mut a = Args::new();
+            let costs = condition::holds(
+                &cx,
+                &parse(r#"{ "type": "bill_costs", "slot": "who" }"#),
+                &mut a,
+            );
+            assert!(!costs || sponsors(who).1);
+            if costs {
+                assert!(["seat", "party", "promise"].contains(&a["bind"].as_str()));
+            }
+        }
+        // `plant` with no slot: a plant of the jurisdiction in one of the
+        // states asked for, with its name parts and jobs.
+        let in_town = |s: &[&str]| {
+            st.economy.plants.iter().any(|p| {
+                st.world
+                    .places
+                    .get(p.place.index())
+                    .is_some_and(|pl| at.contains_hood(&st.world, pl.neighborhood))
+                    && s.contains(&mandate_sim::condition::plant_state(&p.status).key())
+            })
+        };
+        let (any, args) = at_any(&w3.e, r#"{ "type": "plant" }"#, at);
+        assert_eq!(
+            any,
+            in_town(&["running", "short_time", "threatened", "closed"])
+        );
+        if any {
+            assert!(args.contains_key("plant_key") && args.contains_key("jobs"));
+        }
+        for s in ["running", "short_time", "threatened", "closed"] {
+            assert_eq!(
+                has(&format!(r#"{{ "type": "plant", "status": ["{s}"] }}"#)),
+                in_town(&[s]),
+                "{s}"
+            );
+        }
         for k in [
             "budget_year",
             "budget_balance",
@@ -1313,6 +1369,8 @@ fn every_variant_evaluates_in_a_synthetic_state() {
             "body_support",
             "last_race",
             "sponsors_bill",
+            "bill_costs",
+            "plant",
         ] {
             seen.insert(k.into());
         }

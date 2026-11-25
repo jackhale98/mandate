@@ -87,7 +87,9 @@ fn the_graph_is_checked() {
     refused(
         FLOOD,
         r#"{ "type": "approval", "area": "hood", "delta": 0.03 },
-            { "when": [ { "type": "arc_mark", "mark": "wall" } ], "type": "record", "delta": 0.08 },
+            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "meeting_won" }, { "type": "arc_mark", "mark": "meeting_split" } ] } ],
+              "type": "approval", "area": "hood", "delta": 0.01 },
+            { "when": [ { "type": "arc_mark", "mark": "tabled" } ], "type": "record", "delta": 0.08 },
             { "when": [ { "type": "arc_mark", "mark": "at_hall" } ], "type": "opinion", "role": "organiser", "delta": 6 } ] } },"#,
         "] } },",
         "arc-exit-no-effects",
@@ -120,8 +122,8 @@ fn marks_roles_and_text_are_checked() {
     // A mark an edge reads and nothing sets.
     refused(
         FLOOD,
-        r#""date": { "sets": "dated","#,
-        r#""date": { "sets": "promised","#,
+        r#""id": "date", "type": "talk", "with": "organiser", "sets": "dated","#,
+        r#""id": "date", "type": "talk", "with": "organiser", "sets": "a_date","#,
         "mark `dated` is read and never set",
     );
     // A beat that names a role the arc lacks.
@@ -169,9 +171,9 @@ fn marks_roles_and_text_are_checked() {
     // A decision whose option the dilemma lacks; an ask that is not the arc's.
     refused(
         FLOOD,
-        r#""honest": { "heat": -0.15 },"#,
-        r#""frank": { "heat": -0.15 },"#,
-        "has no option `frank`",
+        r#""now": { "sets": "paid_first","#,
+        r#""soon": { "sets": "paid_first","#,
+        "has no option `soon`",
     );
     refused(
         FLOOD,
