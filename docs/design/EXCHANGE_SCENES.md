@@ -789,6 +789,13 @@ The lab's bots (`mandate-cli/src/bots`) play scenes by the same command, knowing
 
 ## 9. Keeping it honest and fresh
 
+**Not a checklist (owner, 2026-11-25; DEC-091's principle).** A scene must not reward visiting every ward and person beforehand to collect lines. So, binding on the build (X1) and the content (X4):
+- a line that knowledge opens is a different line with its own cost and its own audience, never the plain line made stronger for everyone;
+- each such line can be had by more than one route (going there, someone who knows, the paper or the figures, a backer's briefing), and second-hand knowledge gives the line with its risk shown, not no line;
+- the unprepared player's lines (the record, owning it, an offer, the safe one) can still carry a room: preparation changes how the scene is played, and is not the price of entry;
+- the locked line of §3 names a route ("someone who knows Upper Hill could tell you"), at most one a round, and never lists what was missed;
+- the grader reports a stand-in that prepares everything against one that prepares what its plan needs: the first must not win the room more often by a clear margin.
+
 ### 9.1 What stops one dominant line
 
 The balance principle (DEC-097): the winning way to play must be the engaging one, and no rote routine may be the best.

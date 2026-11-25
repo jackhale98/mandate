@@ -12,7 +12,7 @@ Numbers are tuned once, at the end of M6, before the tester checkpoint (owner, 2
 
 | Item | Target | Measured | Since | Gate |
 |---|---|---|---|---|
-| `knowledge_matters`: knowing the town helps | omniscient play at least 3.0 points above blind | +0.5 (16 seeds), +0.1 (32) | 2026-11-20 | reported, not enforced |
+| `knowledge_matters`: knowing the town helps | omniscient play at least 3.0 points above blind | +0.5 (16 seeds), +0.1 (32) | 2026-11-20 | reported, not enforced | Read with DEC-091's principle (owner, 2026-11-25): pass it by making knowledge change which choice is best, never by making it a requirement; and add the measure that learning everything first does not beat learning what a plan needs. |
 | `skill_gap` on wins: informed play out-wins rote play | a clear margin in win rate | +0.00 (16), +0.06 (32); passes on share | 2026-11-20 | reported, not enforced |
 | One-party towns | few towns never change party | 41.1% never change (38.5% before the laws fix) | 2026-11-24 | none yet |
 | Pacing: a chapter's turn is put to the player | asked at climax weight in 95% of sessions, in office or out | reached in 84 of 84 chapters; in office asked 12 of 12 and 16 of 16; out of office 2 of 60 and 3 of 56 | 2026-11-25 | test asserts reached ≥ 95% and asked-in-office ≥ 95%; out of office is printed. Needs a beat for a player without a vote (content, A6), not numbers |
