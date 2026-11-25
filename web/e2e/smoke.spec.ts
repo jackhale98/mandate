@@ -1,14 +1,14 @@
 import { expect, test } from "./csp";
 import type { Page } from "@playwright/test";
-import { openPocket, showPlaces } from "./pocket";
+import { openAgenda, openPocket, pocketMenu, showPlaces } from "./pocket";
 
 // The town is the main screen (DEC-088: its street, full screen); the pocket
-// (a drawer from the bottom bar, with tabs) holds the agenda, the town card,
+// (a drawer from the bottom bar: Today and the Notebook, DEC-113) holds the agenda, the town card,
 // every place, and links to the national views.
 
 const stateHash = async (page: Page) => {
-  const pocket = await openPocket(page);
-  await pocket.getByRole("button", { name: "Overview", exact: true }).click();
+  const menu = await pocketMenu(page);
+  await menu.getByRole("button", { name: "Overview", exact: true }).click();
   return page.getByText(/state [0-9a-f]{16}/).textContent();
 };
 
@@ -23,8 +23,8 @@ test("new game, end turn, save, resume offline", async ({ page, context }) => {
   await page.getByRole("button", { name: "End turn" }).click();
   await expect(page.getByText("Turn 1")).toBeVisible();
   const hash = await stateHash(page);
-  const pocket = await openPocket(page);
-  await pocket.getByRole("button", { name: "Save & quit" }).click();
+  const menu = await pocketMenu(page);
+  await menu.getByRole("button", { name: "Save & quit" }).click();
   await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
 
   await page.evaluate(async () => {
@@ -48,8 +48,7 @@ test("map renders and a town can be inspected from the list", async ({ page }) =
   await page.goto("./");
   await page.getByPlaceholder("e.g. 20260").fill("777");
   await page.getByRole("button", { name: "Begin" }).click();
-  let pocket = await openPocket(page);
-  await pocket.getByRole("button", { name: "Map", exact: true }).click();
+  await (await pocketMenu(page)).getByRole("button", { name: "Map", exact: true }).click();
   const canvas = page.getByRole("img", { name: /Drag to pan/ });
   await expect(canvas).toBeVisible();
   const box = await canvas.boundingBox();
@@ -58,8 +57,7 @@ test("map renders and a town can be inspected from the list", async ({ page }) =
   await expect(page.getByTestId("map-scope-country")).toHaveAttribute("aria-selected", "true");
   await page.getByTestId("town-map-close").click();
   await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
-  pocket = await openPocket(page);
-  await pocket.getByRole("button", { name: "Overview", exact: true }).click();
+  await (await pocketMenu(page)).getByRole("button", { name: "Overview", exact: true }).click();
   await page.locator(".region-accordion > li > .row-btn").first().click();
   await page.locator(".town-list .row-btn").first().click();
   await expect(page.getByRole("heading", { name: "Resources" })).toBeVisible();
@@ -143,7 +141,7 @@ test("a full local election", async ({ page }) => {
   await expect(page.getByTestId("my-race")).toBeVisible();
   await expect(page.getByText("Campaign season", { exact: true })).toBeVisible();
   // Campaign: one canvass from the agenda (it walks to the streets), then let the weeks run.
-  const agenda = (await openPocket(page)).getByTestId("agenda");
+  const agenda = await openAgenda(page);
   await agenda.getByText("Canvass a neighbourhood", { exact: true }).click();
   await expect(agenda.getByTestId("route")).toContainText("Streets of");
   const route = (await agenda.getByTestId("route").textContent()) ?? "";

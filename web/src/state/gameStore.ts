@@ -22,6 +22,8 @@ import type { LocationView } from "../engine/protocol/LocationView";
 import type { DateView } from "../engine/protocol/DateView";
 import type { QueryDto } from "../engine/protocol/QueryDto";
 import type { NotebookView } from "../engine/protocol/NotebookView";
+import type { PeopleView } from "../engine/protocol/PeopleView";
+import type { ArcView } from "../engine/protocol/ArcView";
 import { freshKeys } from "../components/notebook/notebookModel";
 import type { TalkView } from "../engine/protocol/TalkView";
 import type { ExchangeView } from "../engine/protocol/ExchangeView";
@@ -43,9 +45,9 @@ import { EMPTY_TRANSLATOR, Translator } from "../i18n/fluent";
 import { saveStore } from "../persistence/indexedDbStore";
 import { deviceId, randomHex, type RunSummary } from "../persistence/saveStore";
 import { noteCommand, recordError } from "./reportStore";
-import { isWide, readMapScope, readPocketDocked, readPocketTab, writeMapScope, writePocketDocked, writePocketTab, type MapScope, type PocketTab } from "./devicePrefs";
+import { isWide, placeTab, readFolds, readMapScope, readNotebookTab, readPocketDocked, readPocketTab, writeFolds, writeMapScope, writeNotebookTab, writePocketDocked, writePocketTab, type MapScope, type NotebookTab, type PocketSide, type PocketTab } from "./devicePrefs";
 
-export type { MapScope, PocketTab } from "./devicePrefs";
+export type { MapScope, NotebookTab, PocketSide, PocketTab } from "./devicePrefs";
 
 type Screen = "title" | "game";
 /** Main view of the game screen: the town (places), or the pocket's country views. */
@@ -145,6 +147,14 @@ interface GameState {
    * as new (`notebook_seen`), so the badge clears and stays clear.
    */
   notebookFresh: string[];
+  /** Everyone the player has heard of (DEC-113: one query for the People tab), while the Notebook is shown. */
+  people: PeopleView | null;
+  /** The search typed in the Notebook (null: the search field is closed). */
+  notebookQuery: string | null;
+  /** The arc sheet (A3), when open: one arc as the player knows it. */
+  arc: ArcView | null;
+  /** Folds the player opened (or closed) this session, by key: `true` open, `false` closed (DEC-113 §3.5). */
+  folds: Record<string, boolean>;
   /** The talk panel (DEC-093): whom the player is talking to, as the engine offers it. */
   talk: TalkView | null;
   /** Whom the talk panel is for: someone stored, or a passer-by here (met as the talk starts). */
@@ -160,8 +170,10 @@ interface GameState {
   /** The latest exchange in the talk panel (what was said, what was learned). */
   exchange: ExchangeView | null;
   pocketOpen: boolean;
-  /** The pocket's open tab (DEC-088 main screen), remembered per device. */
-  pocketTab: PocketTab;
+  /** The pocket's open side (DEC-113: Today or the Notebook), remembered per device. */
+  pocketTab: PocketSide;
+  /** The Notebook's open tab, remembered per device. */
+  notebookTab: NotebookTab;
   /** Wide screens: the pocket stays open beside the town (remembered per device). */
   pocketDocked: boolean;
   /** Bumped to move the keyboard into the pocket's open tab (the "Skip to Places" link). */
@@ -282,9 +294,17 @@ interface GameState {
   streetWalks: boolean;
   setStreetWalks(on: boolean): void;
   setPocketOpen(open: boolean): void;
-  /** Open the pocket on a tab; `focus` moves the keyboard into it. */
+  /** Open the pocket on a side or a Notebook tab; `focus` moves the keyboard into it. */
   openPocket(tab?: PocketTab, focus?: boolean): void;
+  /** Wide screens: show the Notebook beside Today, closing what lies over it on the left (a place, a person, a decision, the story, an arc, a conversation). */
+  uncoverNotebook(): void;
+  /** Show a side, or the Notebook on a tab. */
   setPocketTab(tab: PocketTab): void;
+  /** Open (or close, with null) an arc's sheet; a refused query is no such arc (the sheet stays shut). */
+  openArc(id: number | null): Promise<void>;
+  /** Open or close a fold for the session. */
+  setFold(key: string, open: boolean): void;
+  setNotebookQuery(q: string | null): void;
   setPocketDocked(docked: boolean): void;
   setTownMapOpen(open: boolean): void;
   setMapScope(scope: MapScope): void;
@@ -320,8 +340,8 @@ let heldToast: { key: string; args: Record<string, string> } | null = null;
 /** How long an action's walk on the street may take before the result shows anyway (the walk is brisk, about 2.5 s; a stuck route never hides the result). */
 export const STREET_WALK_MAX_MS = 4_000;
 
-/** Going somewhere or opening a sheet closes the pocket, unless it is docked open beside the town. */
-const pocketAfterMove = (s: { pocketOpen: boolean; pocketDocked: boolean }) => ({ pocketOpen: s.pocketOpen && s.pocketDocked && isWide() });
+/** Going somewhere or opening a sheet closes the pocket, unless it is docked open beside the town; an arc's sheet closes either way (it opened over the pocket). */
+const pocketAfterMove = (s: { pocketOpen: boolean; pocketDocked: boolean }) => ({ pocketOpen: s.pocketOpen && s.pocketDocked && isWide(), arc: null });
 let passageCount = 0;
 let interiorCount = 0;
 
@@ -383,6 +403,10 @@ export const useGame = create<GameState>((set, get) => {
     promiseMenu: null,
     notebook: null,
     notebookFresh: [],
+    people: null,
+    notebookQuery: null,
+    arc: null,
+    folds: readFolds(),
     talk: null,
     talkTo: null,
     talkLate: false,
@@ -393,6 +417,7 @@ export const useGame = create<GameState>((set, get) => {
     exchange: null,
     pocketOpen: false,
     pocketTab: readPocketTab(),
+    notebookTab: readNotebookTab(),
     pocketDocked: readPocketDocked(),
     pocketFocus: 0,
     townMapOpen: false,
@@ -464,7 +489,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: localKnowledge ?? false } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -493,9 +518,13 @@ export const useGame = create<GameState>((set, get) => {
         const character = who ? expectKind(await q({ type: "character", id: who.id }), "character") : null;
         const open_decision = get().decision;
         const decision = open_decision ? expectKind(await q({ type: "decision", id: open_decision.id }), "decision") : null;
-        // The notebook follows what is learned while its tab is open.
-        const reading = get().pocketOpen && get().pocketTab === "notebook";
+        // The notebook follows what is learned while it is shown (on wide screens it sits beside Today).
+        const reading = get().pocketOpen && (get().pocketTab === "notebook" || isWide());
         const notebook = reading ? expectKind(await q({ type: "notebook" }), "notebook") : get().notebook;
+        const people = reading ? expectKind(await q({ type: "people" }), "people") : get().people;
+        // The arc sheet follows the arc; refused (the player knows nothing of it), it closes.
+        const openArc = get().arc;
+        const arc = openArc ? await q({ type: "arc", id: openArc.id }).then((b) => expectKind(b, "arc"), () => null) : null;
         const talking = get().talkTo;
         // A passer-by met elsewhere (or gone with the period) is no longer there to talk to: the panel closes.
         const talk = talking ? await q({ type: "talk", to: talking, late_night: get().talkLate }).then((b) => expectKind(b, "talk"), () => null) : null;
@@ -508,6 +537,8 @@ export const useGame = create<GameState>((set, get) => {
           interior: stays ? inside : null,
           interiorPlace,
           notebook,
+          people,
+          arc,
           talkTo: talk ? talking : null,
           character,
           decision,
@@ -891,7 +922,9 @@ export const useGame = create<GameState>((set, get) => {
 
     async loadNotebook() {
       try {
-        set({ notebook: expectKind(await engine().request({ kind: "query", payload: { type: "notebook" } }), "notebook") });
+        const q = (payload: QueryDto) => engine().request({ kind: "query", payload });
+        const [notebook, people] = await Promise.all([q({ type: "notebook" }), q({ type: "people" })]);
+        set({ notebook: expectKind(notebook, "notebook"), people: expectKind(people, "people") });
       } catch (e) {
         set({ error: errText(e) });
       }
@@ -923,12 +956,55 @@ export const useGame = create<GameState>((set, get) => {
 
     openPocket(tab, focus = false) {
       if (tab) get().setPocketTab(tab);
+      // Asked for, the Notebook on a wide screen comes back from under whatever covers it on the left.
+      if (tab && placeTab(tab).side === "notebook" && isWide()) get().uncoverNotebook();
       set((s) => ({ pocketOpen: true, pocketFocus: focus ? s.pocketFocus + 1 : s.pocketFocus }));
     },
 
     setPocketTab(tab) {
-      writePocketTab(tab);
-      set({ pocketTab: tab });
+      const { side, book } = placeTab(tab);
+      writePocketTab(side);
+      if (book) writeNotebookTab(book);
+      set(book ? { pocketTab: side, notebookTab: book, notebookQuery: null } : { pocketTab: side });
+    },
+
+    async openArc(id) {
+      if (id === null) {
+        set({ arc: null });
+        return;
+      }
+      try {
+        // Over the pocket, as a decision is (on wide screens, on the left beside it).
+        set({ arc: expectKind(await engine().request({ kind: "query", payload: { type: "arc", id } }), "arc") });
+      } catch {
+        // Refused: the player knows nothing of it, so there is no such arc to show.
+        set({ arc: null });
+      }
+    },
+
+    setFold(key, open) {
+      const folds = { ...get().folds, [key]: open };
+      writeFolds(folds);
+      set({ folds });
+    },
+
+    uncoverNotebook() {
+      const s = get();
+      if (s.folds["pocket-book-shut"]) s.setFold("pocket-book-shut", false);
+      if (s.openPlace) void s.openPanel(null);
+      if (s.character) void s.openCharacter(null);
+      if (s.decision) void s.openDecision(null);
+      if (s.story) void s.openStory(false);
+      if (s.arc) void s.openArc(null);
+      if (s.talk) void s.openTalk(null);
+      if (s.termReview) void s.openTermReview(false);
+      if (s.legacy) void s.openLegacy(false);
+      if (s.promiseMenu) void s.openPromises(false);
+      if (s.skipSummary) s.closeSkipSummary();
+    },
+
+    setNotebookQuery(q) {
+      set({ notebookQuery: q });
     },
 
     setPocketDocked(docked) {
@@ -1019,7 +1095,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, arc: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -1034,7 +1110,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });

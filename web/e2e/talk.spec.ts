@@ -158,8 +158,9 @@ test("talk from the Notebook's People: over a portrait; someone elsewhere is gon
     await shot(page, "portrait-reply-360", isMobile);
     if (vp) await page.setViewportSize(vp);
   }
-  // The half slot left: the next conversation uses it.
-  await expect(dlg.getByTestId("talk-cost")).toHaveText(/^½ slot · \d*½ left/);
+  // The half slot left: the next conversation uses it. A miss (they could not help) costs no time (M6 note 26).
+  const missed = /It cost you no time\./.test((await dlg.getByTestId("talk-outcome").textContent()) ?? "");
+  await expect(dlg.getByTestId("talk-cost")).toHaveText(missed ? /^½ slot · \d+ left/ : /^½ slot · \d*½ left/);
   // Goodbye closes it.
   await choiceIn(dlg.getByTestId("talk-goodbye")).click();
   await expect(dlg).toHaveCount(0);
@@ -190,7 +191,7 @@ test("talk to someone at a place, from the place panel's people: what was learne
   // Tapping it leaves the conversation for the notebook.
   await noted.getByTestId("talk-noted-open").click();
   await expect(dlg).toHaveCount(0);
-  await expect(page.getByTestId("pocket").getByTestId("pocket-tab-notebook")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("pocket").getByTestId("pocket-tab-notebook")).toHaveAttribute("data-on", "true");
 });
 
 test("walk up to someone in the street and talk (a tap on them; Enter beside them on desktop): the street frames the two, a bubble over the person", async ({ page, isMobile }) => {

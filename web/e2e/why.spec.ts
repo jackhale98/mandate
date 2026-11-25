@@ -1,6 +1,6 @@
 import { expect, test } from "./csp";
 import type { Locator, Page } from "@playwright/test";
-import { openPocket, showPlaces } from "./pocket";
+import { pocketMenu, showPlaces } from "./pocket";
 import { seedFor } from "./seeds";
 import { useWideFont } from "./wide-font";
 
@@ -35,7 +35,7 @@ const endTurn = async (page: Page) => {
 
 /** The overview (from the pocket): the country's recent events. */
 const openOverview = async (page: Page) => {
-  if ((await page.locator(".viewbar").count()) === 0) await (await openPocket(page)).getByRole("button", { name: "Overview", exact: true }).click();
+  if ((await page.locator(".viewbar").count()) === 0) await (await pocketMenu(page)).getByRole("button", { name: "Overview", exact: true }).click();
   // On a phone the pocket covers the list: put it away.
   if ((await page.getByTestId("pocket").count()) > 0 && (page.viewportSize()?.width ?? 0) < 900) {
     await page.keyboard.press("Escape");

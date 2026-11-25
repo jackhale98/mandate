@@ -13,6 +13,7 @@ import { PlacePanel } from "./PlacePanel";
 import { CharacterSheet } from "../components/CharacterSheet";
 import { DecisionSheet } from "../components/DecisionSheet";
 import { StorySheet } from "../components/StorySheet";
+import { ArcSheet } from "../components/ArcSheet";
 import { RunBanner } from "../components/Newspaper";
 import { TalkSheet } from "../components/talk/TalkSheet";
 import { TermReview } from "../components/act/TermReview";
@@ -143,10 +144,12 @@ export function Game() {
 
   const cls = ["game", panelOpen && view === "town" ? "with-panel" : "", pocketOpen ? "with-pocket" : "", pocketOpen && docked ? "with-pocket-docked" : ""].filter(Boolean).join(" ");
   const notebookNew = pocket?.notebook_new ?? 0;
+  // The bar's two counts (DEC-113, owner's answer 5): what needs you (the engine's count) and what is new in the notebook.
+  const needs = pocket?.needs_count ?? 0;
   return (
     <div className={cls}>
       <a
-        href="#pocket-panel-places"
+        href="#notebook-panel-places"
         className="skip-link"
         data-testid="skip-to-places"
         onClick={(e) => {
@@ -173,6 +176,7 @@ export function Game() {
       <PlacePanel />
       <Pocket />
       <StorySheet />
+      <ArcSheet />
       <DecisionSheet />
       <CharacterSheet />
       <TalkSheet />
@@ -232,9 +236,7 @@ export function Game() {
         <button type="button" className="btn pocket-btn" aria-expanded={pocketOpen} onClick={() => setPocketOpen(!pocketOpen)} data-testid="pocket-button">
           <span aria-hidden="true">📒</span>
           <span className="gamebar-label">{tr.t("ui-pocket")}</span>
-          {pocket && pocket.decisions.length > 0 && <Badge icon="❗" n={pocket.decisions.length} text={tr.t("ui-decision-count", { n: pocket.decisions.length })} cls="badge-decisions" testId="decision-badge" />}
-          {pocket && pocket.asks_due_soon > 0 && <Badge icon="🤝" n={pocket.asks_due_soon} text={tr.t("ui-ask-count", { n: pocket.asks_due_soon })} cls="badge-asks" testId="asks-badge" />}
-          {pocket && pocket.alerts.length > 0 && <Badge icon="🔔" n={pocket.alerts.length} text={tr.t("ui-alert-count", { n: pocket.alerts.length })} cls="badge-alerts" testId="alert-badge" />}
+          {needs > 0 && <Badge icon="❗" n={needs} text={tr.t("ui-needs-count", { n: needs })} cls="badge-decisions" testId="needs-badge" />}
           {notebookNew > 0 && <Badge icon="✎" n={notebookNew} text={tr.t("ui-notebook-new-count", { n: notebookNew })} cls="badge-notebook" testId="notebook-badge" />}
         </button>
         {overview.act?.ended_key ? (

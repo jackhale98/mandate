@@ -10,6 +10,7 @@ export function StorySheet() {
   const story = useGame((s) => s.story);
   const open = useGame((s) => s.openStory);
   const openDecision = useGame((s) => s.openDecision);
+  const openArc = useGame((s) => s.openArc);
   const [closing, requestClose, sheetRef] = useSheetClose(() => void open(false));
   if (!story) return null;
   const ch = story.chapter;
@@ -44,8 +45,13 @@ export function StorySheet() {
             <section className="card">
               <h3 className="sub">{tr.t("ui-storylines")}</h3>
               {story.storylines.map((s, i) => (
-                <div key={i} className="storyline">
-                  <h4 className="sub">{tr.t(s.title_key)}</h4>
+                <div key={i} className="storyline" data-testid="story-arc" data-arc={s.arc}>
+                  <h4 className="sub">
+                    {/* Each arc reopens its sheet (A3), running or ended; one the player knows nothing of opens nothing. */}
+                    <button type="button" className="link-btn" onClick={() => void openArc(s.arc)} data-testid="story-open-arc">
+                      {tr.t(s.title_key)}
+                    </button>
+                  </h4>
                   <ol className="events small">
                     {s.stages.map((e, j) => (
                       <li key={j}>

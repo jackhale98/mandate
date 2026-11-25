@@ -1,5 +1,6 @@
 import { expect, test } from "./csp";
 import type { Page } from "@playwright/test";
+import { pocketMenu } from "./pocket";
 
 // The title screen lists saved games first, each with the player's name, post and home (the pocket
 // header's words), and the new career below. A run imported from a file (which carries no names)
@@ -9,12 +10,10 @@ const noShare = () => {
   Object.defineProperty(Navigator.prototype, "canShare", { value: undefined, configurable: true });
 };
 
-/** The pocket header's line for the player: "Name · Post · Home". */
+/** The pocket's line for the player, at the top of its ⋯ menu: "Name · Post · Home". */
 async function pocketWho(page: Page): Promise<string> {
-  if ((await page.getByTestId("pocket").count()) === 0) await page.getByTestId("pocket-button").click();
-  const pocket = page.getByTestId("pocket");
-  await expect(pocket).toBeVisible();
-  return ((await pocket.locator(".pocket-head p.muted").first().textContent()) ?? "").trim();
+  const menu = await pocketMenu(page);
+  return ((await menu.locator("p.muted").first().textContent()) ?? "").trim();
 }
 
 test("after a saved game the title screen lists it first, with the player's name, post and home; an imported run gains them", async ({ page, browser, baseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor }, testInfo) => {
@@ -32,7 +31,7 @@ test("after a saved game the title screen lists it first, with the player's name
   await expect(page.getByText("Turn 1")).toBeVisible();
   const who = await pocketWho(page);
   expect(who.split(" · ")).toHaveLength(3);
-  await page.getByTestId("pocket").getByRole("button", { name: "Save & quit" }).click();
+  await (await pocketMenu(page)).getByRole("button", { name: "Save & quit" }).click();
 
   // Saved runs first, the new career below; Continue is the primary action, Begin is not.
   const rows = page.getByTestId("run-row");

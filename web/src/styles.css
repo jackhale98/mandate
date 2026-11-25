@@ -225,8 +225,14 @@ h2 { font-size: 1.1rem; }
 .progress { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 0.9rem; color: var(--muted); }
 .progress progress { width: 100%; accent-color: var(--accent); }
 
-/* Game screen fills the viewport; content areas scroll internally. */
+/* Game screen fills the viewport; content areas scroll internally. The page itself never scrolls while the game
+   is shown (owner, 2026-11-25: on a phone, a drag at the bottom of the screen or on a short sheet scrolled the whole
+   game like a web page): the document is locked, and a scroll that reaches the end of a sheet or list stops there
+   instead of passing to the page. The title screen and the landing page still scroll. */
+html:has(.game), html:has(.game) body { overflow: hidden; overscroll-behavior: none; }
 .game { height: 100vh; height: 100dvh; min-height: 0; }
+.sheet, .game-body, .pocket-body, .sheet-body { overscroll-behavior: contain; }
+.sheet-scrim { touch-action: none; }
 .game-body { overflow-y: auto; min-height: 0; }
 .map-body { min-height: 0; }
 .map-wrap { min-height: 0; }
@@ -374,31 +380,10 @@ h2 { font-size: 1.1rem; }
 .badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: var(--accent); color: var(--accent-ink); }
 
 .viewbar { display: flex; align-items: center; gap: 10px; padding: 4px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
-.town-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
-@media (min-width: 700px) { .town-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1100px) { .town-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.hood {
-  border: 1px dashed var(--border); border-radius: var(--radius); padding: 12px;
-  background: repeating-linear-gradient(45deg, var(--surface), var(--surface) 10px, color-mix(in srgb, var(--surface-2) 55%, var(--surface)) 10px, color-mix(in srgb, var(--surface-2) 55%, var(--surface)) 20px);
-}
-.hood-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-bottom: 10px; }
-.hood-head h2, .hood-head h3 { margin: 0; font-size: 1rem; }
-.spots { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.spot {
-  width: 100%; height: 100%; min-height: 64px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  padding: 10px; border-radius: 10px; border: 1px solid var(--border); border-bottom-width: 3px;
-  background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; position: relative;
-}
-.spot:hover { border-color: var(--accent); }
-.spot:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+/* A place in the Notebook's Places tab is a row (DEC-113); "you are here" is a word on a pill, not colour alone. */
 .spot:disabled { cursor: progress; }
-.spot-here { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
-.spot-icon { font-size: 1.4rem; line-height: 1; }
-.spot-text { display: flex; flex-direction: column; min-width: 0; width: 100%; }
-.spot-name { font-size: 0.92rem; overflow-wrap: anywhere; }
-.spot-what { color: var(--muted); line-height: 1.3; }
-.spot-marker { margin-top: 4px; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
-.hood-quiet { margin: 8px 0 0; }
+.spot-marker { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); white-space: nowrap; }
+.nb-places { display: flex; flex-direction: column; gap: 8px; }
 .sheet-tools { display: flex; gap: 8px; align-items: center; }
 .place-body, .pocket-body { gap: 12px; }
 .pocket { z-index: 6; }
@@ -406,8 +391,6 @@ h2 { font-size: 1.1rem; }
 @media (min-width: 900px) {
   .pocket { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--border); }
 }
-.pocket-links { display: flex; flex-wrap: wrap; gap: 8px; }
-.pocket-links .btn { flex: 1 1 120px; }
 .plain-list { list-style: none; margin: 0; padding: 0; }
 .pocket-bill { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .alerts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -432,6 +415,8 @@ h2 { font-size: 1.1rem; }
 @media (prefers-reduced-motion: reduce) { .walking-dot { animation: none; left: 70%; } }
 .sheet-head { position: sticky; top: -16px; z-index: 1; background: var(--surface); margin: -16px -16px 8px; padding: 16px 16px 8px; border-bottom: 1px solid var(--border); }
 .pocket { max-height: 85vh; }
+/* On a phone the pocket keeps one height (DEC-113): switching sides or tabs never makes it jump, and its menu has room. */
+@media (max-width: 899px) { .sheet.pocket { height: 85vh; } }
 @media (min-width: 900px) {
   .pocket, .place-panel { max-height: none; }
   .with-panel .game-body { padding-left: 416px; max-width: none; }
@@ -481,11 +466,16 @@ h2 { font-size: 1.1rem; }
 .decision-scrim { z-index: 6; }
 .sheet.decision-sheet { z-index: 6; }
 .sheet.story-sheet { z-index: 6; }
+/* The arc sheet (A3) opens over the pocket on phones (the same height), and on the left on wide screens. */
+.arc-scrim { z-index: 6; }
+.sheet.arc-sheet { z-index: 6; }
 /* Scrolling something into view (keyboard focus, links) keeps it clear of the sticky
    head and the bottom bar. Decisions get more of the screen on phones. */
 .sheet { scroll-padding-top: 30%; scroll-padding-bottom: 96px; }
-@media (max-width: 899px) { .sheet.decision-sheet { max-height: 85vh; } }
+@media (max-width: 899px) { .sheet.decision-sheet, .sheet.arc-sheet { max-height: 85vh; } }
 @media (min-width: 900px) {
+  .arc-scrim { display: none; }
+  .arc-sheet { max-height: none; }
   .decision-scrim { display: block; background: transparent; }
   .decision-sheet, .story-sheet { max-height: none; }
 }
@@ -548,6 +538,10 @@ h2 { font-size: 1.1rem; }
 @media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
   .sheet.pocket { animation-name: sheet-from-right; }
   .sheet.pocket.sheet-closing { animation-name: sheet-to-right; }
+}
+/* With the Notebook open beside it, the pocket appears in place (a slide would carry the Notebook's panel along). */
+@media (min-width: 900px) {
+  .sheet.pocket.pocket-with-book, .sheet.pocket.pocket-with-book.sheet-closing { animation: none; }
 }
 /* The player's town in lists and under the map: a flag and "You", not colour alone (DEC-051). */
 .you-chip { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--accent); color: var(--accent-ink); vertical-align: 1px; }
@@ -704,38 +698,39 @@ h2 { font-size: 1.1rem; }
 }
 .skip-link:focus, .skip-link:focus-visible { transform: none; outline: 3px solid var(--info); outline-offset: 2px; }
 
-/* The pocket's tabs (DEC-088): at the top of the sheet, in its sticky head. */
-.sheet-head.pocket-head { flex-direction: column; align-items: stretch; gap: 4px; padding-bottom: 0; }
-.pocket-head-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-.pocket-head h2 { margin-bottom: 2px; }
+/* The pocket's head (DEC-113 B): the switch (Today, Notebook), the ⋯ menu, dock and Close in one row,
+   then on a phone the Notebook's tab row; it stays at the top of the sheet while the side scrolls. */
+.sheet-head.pocket-head { flex-direction: column; align-items: stretch; gap: 0; padding-bottom: 0; z-index: 10; }
+/* The head is sticky (z-index 1 for every sheet), which bounds the ⋯ menu inside it: raised, the menu stays above
+   the rows that scroll beneath it (a row's 📍 caught the tap on a phone, CI 2026-11-25). */
+.pocket-head-row { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; }
 .pocket-head p { margin: 0 0 4px; }
-.pocket-tabs { margin: 0 -16px; padding: 0 8px; background: none; border-bottom: 0; }
-.pocket-tab { position: relative; flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 0 8px; }
-.pocket-tab-badge { padding: 1px 6px; }
-/* Phones (360–480 px): the four tabs share the width, the icon over the label and the count on the
-   icon's shoulder, so every label and badge shows whole. Tabs size to their labels (a longer label,
-   "Notebook", takes a little more room) and the type steps down a touch on the narrowest phones, so
-   no label is cut short whatever the system font's widths. */
-@media (max-width: 480px) {
-  .pocket-tabs { gap: 2px; padding: 0 4px; }
-  .pocket-tab { flex: 1 1 auto; flex-direction: column; gap: 1px; min-height: 52px; padding: 4px 2px 2px; font-size: 0.8rem; }
-  .pocket-tab-icon { font-size: 1.15rem; line-height: 1.15; }
-  .pocket-tab-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-  .pocket-tab-badge { position: absolute; top: 2px; left: calc(50% + 9px); padding: 0 5px; font-size: 0.68rem; line-height: 1.45; }
+.pocket-switch { flex: 1; display: flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); min-width: 0; }
+.pocket-sw {
+  position: relative; flex: 1 1 auto; min-width: 0; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 5px;
+  border: 0; border-radius: 9px; background: none; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
-@media (max-width: 380px) {
-  .pocket-tabs { gap: 0; padding: 0 2px; }
-  .pocket-tab { padding: 4px 1px 2px; font-size: 0.74rem; letter-spacing: -0.01em; }
+.pocket-sw[data-on="true"] { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 2px var(--accent); }
+.pocket-sw:focus-visible { outline: 3px solid var(--info); outline-offset: 1px; }
+.pocket-sw .badge { flex: none; padding: 0 6px; font-size: 0.7rem; line-height: 1.5; }
+.pocket-sw-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pocket-icon { flex: none; min-width: 44px; min-height: 44px; padding: 0; font-size: 1.1rem; }
+.pocket-more { position: relative; flex: none; }
+.pocket-menu {
+  position: absolute; right: -52px; top: calc(100% + 6px); z-index: 5; width: 250px; max-width: calc(100vw - 24px); padding: 6px; border-radius: 12px;
+  border: 1px solid var(--sheet-border); background: var(--sheet); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column;
+}
+.pocket-menu .btn { justify-content: flex-start; min-height: 44px; border-color: transparent; background: none; text-align: left; font-weight: 600; }
+.pocket-menu .btn:hover:not(:disabled) { background: var(--surface-2); }
+.pocket-menu-who { margin: 2px 10px 6px; }
+@media (max-width: 400px) {
+  .pocket-head-row { gap: 4px; }
+  .pocket-sw { gap: 4px; padding: 0 4px; font-size: 0.92rem; }
 }
 .pocket-panel { display: flex; flex-direction: column; gap: 12px; }
 .pocket-panel:focus { outline: none; }
 .pocket-panel:focus-visible { outline: 3px solid var(--info); outline-offset: 4px; }
 .pocket-tab-title { margin: 0; font-size: 1.05rem; }
-.pocket .town-grid { grid-template-columns: 1fr; }
-.places-help { margin: 0; }
-.town-hoods li { padding: 8px 0; border-bottom: 1px solid var(--border); }
-.town-hoods li:last-child { border-bottom: 0; }
-.town-hood-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .town-rival-plan { display: block; margin-top: 2px; }
 .pocket-dock { display: none; }
 @media (min-width: 900px) {

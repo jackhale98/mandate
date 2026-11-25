@@ -49,6 +49,15 @@ export function subjectGroups(tr: Translator, list: readonly AboutChoiceView[], 
   return out;
 }
 
+/**
+ * A topic's subjects as the engine orders them: those the person could be
+ * expected to know (`likely`, listed first), and the rest (for "Something
+ * else…"). The order within each is the engine's.
+ */
+export function subjectSplit(list: readonly AboutChoiceView[]): { likely: AboutChoiceView[]; others: AboutChoiceView[] } {
+  return { likely: list.filter((c) => c.likely), others: list.filter((c) => !c.likely) };
+}
+
 /** A subject step longer than this gets a search box. */
 export const SEARCH_FROM = 8;
 

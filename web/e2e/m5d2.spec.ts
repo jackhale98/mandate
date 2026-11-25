@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openPocket, showPlaces } from "./pocket";
+import { pocketMenu, showPlaces } from "./pocket";
 
 // M5d part 2: the storyteller is chosen at new game and shown in the run
 // metadata (DEC-033); the catalogue's sliders ask the engine for the cost
@@ -38,8 +38,7 @@ test("storyteller at new game, and sliders that move the engine's estimate", asy
   await expect(cost).not.toHaveText(high ?? "");
   if (shots) await body.screenshot({ path: `${shots}/slider-level1-${info.project.name}.png` });
 
-  const pocket = await openPocket(page);
-  await pocket.getByRole("button", { name: "Save & quit" }).click();
+  await (await pocketMenu(page)).getByRole("button", { name: "Save & quit" }).click();
   await expect(page.getByText("Steady storyteller").first()).toBeVisible();
 });
 

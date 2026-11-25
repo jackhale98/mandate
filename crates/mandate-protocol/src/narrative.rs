@@ -122,6 +122,9 @@ pub struct ChapterView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct StorylineView {
+    /// The arc run (`QueryDto::Arc`): its sheet reopens from the story so
+    /// far (DEC-113, A3).
+    pub arc: u32,
     pub title_key: String,
     /// The stages reached, as story lines (Fluent keys with the cast).
     pub stages: Vec<EventView>,
@@ -1228,6 +1231,7 @@ fn arc_stories(engine: &Engine) -> Vec<StorylineView> {
                 .collect();
             let args = stages.last().map(|e| e.args.clone()).unwrap_or_default();
             Some(StorylineView {
+                arc: id.0,
                 title_key: def.title_key.clone(),
                 stages,
                 ended: exit.map(|x| {

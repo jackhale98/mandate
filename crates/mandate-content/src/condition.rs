@@ -262,11 +262,14 @@ pub enum Condition {
     // --- A person in a slot (tier-generic unless noted) -----------------------------
     /// The person in the slot has one of these roles: occupation ids, or
     /// role words of the constitution's posts (a body's `member_key`, an
-    /// office's id; DEC-098).
+    /// office's id; DEC-098). With `is: false` it holds when they have none
+    /// of these roles (so a general line can leave a role to its own lines).
     Occupation {
         #[serde(alias = "role")]
         slot: String,
         occupations: Vec<ContentKey>,
+        #[serde(default = "yes", skip_serializing_if = "is_yes")]
+        is: bool,
     },
     /// The person in the slot has one of these traits.
     Trait {
@@ -322,7 +325,7 @@ pub enum Condition {
         slot: String,
         #[serde(default)]
         owed_to_player: bool,
-        #[serde(default = "yes", skip_serializing_if = "is_true")]
+        #[serde(default = "yes", skip_serializing_if = "is_yes")]
         is: bool,
     },
     /// The person in the slot sponsors a bill the player can still vote on,
@@ -599,7 +602,7 @@ fn yes() -> bool {
     true
 }
 
-fn is_true(b: &bool) -> bool {
+fn is_yes(b: &bool) -> bool {
     *b
 }
 

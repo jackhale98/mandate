@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openPocket, showPlaces } from "./pocket";
+import { openPocket, pocketMenu, showPlaces } from "./pocket";
 
 // DEC-086, DEC-088 main screen: the town map is a full-screen overlay over the
 // street, drawn from the versioned layout; tapping a place there closes the
@@ -129,13 +129,15 @@ test("the Places tab has the same places as the map, and the last tab survives a
   await page.getByRole("button", { name: "Continue" }).first().click();
   await expect(page.getByTestId("town")).toBeVisible();
   await page.getByTestId("pocket-button").click();
-  await expect(page.getByTestId("pocket-tab-places")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("pocket-tab-notebook")).toHaveAttribute("data-on", "true");
+  await expect(page.getByTestId("notebook-tab-places")).toHaveAttribute("aria-selected", "true");
+  // The neighbourhoods opened this session stay open.
   await expect(page.getByTestId("spot-town_hall")).toBeVisible();
   await openPocket(page, "today");
   await page.reload();
   await page.getByRole("button", { name: "Continue" }).first().click();
   await page.getByTestId("pocket-button").click();
-  await expect(page.getByTestId("pocket-tab-today")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("pocket-panel-today")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -266,8 +268,7 @@ test("the map overlay: Town | Country at its top; the country map, its layers an
   await page.getByTestId("town-map-button").click();
   await page.getByTestId("map-scope-town").click();
   await page.getByTestId("town-map-close").click();
-  const pocket = await openPocket(page);
-  await pocket.getByTestId("pocket-country-map").click();
+  await (await pocketMenu(page)).getByTestId("pocket-country-map").click();
   await expect(page.getByTestId("map-scope-country")).toHaveAttribute("aria-selected", "true");
   expect(errors).toEqual([]);
 });

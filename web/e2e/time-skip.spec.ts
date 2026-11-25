@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openPocket } from "./pocket";
+import { pocketMenu } from "./pocket";
 
 // Time skips (DEC-012, M6): Term in review from the pocket: set directives,
 // pick a point the engine offers, Skip; progress with Cancel; then the
@@ -21,8 +21,7 @@ test("set directives, skip ahead, and read what happened while away", async ({ p
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled({ timeout: 20_000 });
   const before = await page.locator(".gamebar-date strong").textContent();
 
-  const pocket = await openPocket(page, "today");
-  await pocket.getByTestId("open-term-review").click();
+  await (await pocketMenu(page)).getByTestId("open-term-review").click();
   const review = page.getByTestId("term-review");
   await expect(review).toBeVisible();
   await expect(review.getByRole("heading", { name: "Term in review" })).toBeVisible();
@@ -54,14 +53,12 @@ test("set directives, skip ahead, and read what happened while away", async ({ p
   await expect(page.locator(".gamebar-date strong")).not.toHaveText(before ?? "");
 
   // Directives are kept for the next skip.
-  const again = await openPocket(page, "today");
-  await again.getByTestId("open-term-review").click();
+  await (await pocketMenu(page)).getByTestId("open-term-review").click();
   await expect(page.getByTestId("term-review").getByTestId("directive-directive.ground").locator("select")).toHaveValue("lots");
   await page.getByTestId("term-review").getByRole("button", { name: "Close" }).click();
 
   // The Legacy record so far.
-  const p = await openPocket(page, "today");
-  await p.getByTestId("open-legacy").click();
+  await (await pocketMenu(page)).getByTestId("open-legacy").click();
   const legacy = page.getByTestId("epilogue");
   await expect(legacy).toBeVisible();
   await expect(legacy.getByRole("heading", { name: "Legacy" }).first()).toBeVisible();
@@ -72,8 +69,7 @@ test("a skip can be cancelled between turns", async ({ page }) => {
   await start(page, "2028");
   await page.getByRole("button", { name: "End turn" }).click();
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled({ timeout: 20_000 });
-  const pocket = await openPocket(page, "today");
-  await pocket.getByTestId("open-term-review").click();
+  await (await pocketMenu(page)).getByTestId("open-term-review").click();
   const review = page.getByTestId("term-review");
   await review.getByTestId("skip-target-end_of_term").check();
   await review.getByTestId("skip-go").click();
