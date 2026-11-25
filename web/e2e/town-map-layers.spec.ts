@@ -111,8 +111,9 @@ test("the town map's layers: districts, people and worries, a member's card, and
   await expect(page.locator("[data-testid=town-map-area][data-yours=true], [data-testid=town-map-area][data-home=true]")).toHaveCount(1);
   await expect(page.getByTestId("town-map-legend")).toHaveAccessibleName("Legend: Wards");
   await expectNoRawKeys(page, "districts");
-  // A member's portrait, from the keyboard: their card, with the way to them.
-  const member = page.locator("[data-testid=town-map-person][data-member=true]").nth(1);
+  // A member's portrait (not the player's own, which offers no way to oneself), from the keyboard: their card,
+  // with the way to them.
+  const member = page.locator("[data-testid=town-map-person][data-member=true]:not([data-you=true])").first();
   await expect(member).toHaveAttribute("aria-label", /.+, Councillor/);
   await member.focus();
   await page.keyboard.press("Enter");
@@ -212,7 +213,7 @@ test("Go to them walks the player to where the person is", async ({ page }) => {
   await start(page, "31337");
   await openMap(page);
   await choose(page, "districts");
-  const member = page.locator("[data-testid=town-map-person][data-member=true]").nth(1);
+  const member = page.locator("[data-testid=town-map-person][data-member=true]:not([data-you=true])").first();
   await member.focus();
   await page.keyboard.press("Enter");
   await page.getByTestId("town-map-person-go").click();
@@ -284,7 +285,7 @@ test("screenshots of each layer", async ({ browser, baseURL }, info) => {
     await phone.page.screenshot({ path: `${dir}/town-${key}-390.png` });
   }
   await choose(phone.page, "districts");
-  await phone.page.locator("[data-testid=town-map-person][data-member=true]").nth(1).focus();
+  await phone.page.locator("[data-testid=town-map-person][data-member=true]:not([data-you=true])").first().focus();
   await phone.page.keyboard.press("Enter");
   await phone.page.waitForTimeout(600);
   await phone.page.screenshot({ path: `${dir}/town-districts-card-390.png` });

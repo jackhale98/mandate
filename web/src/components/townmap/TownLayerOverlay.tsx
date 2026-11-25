@@ -218,6 +218,7 @@ export function TownLayerOverlay({ tr, map, scene, view, layer, option, filter, 
       data-testid="town-map-person"
       data-person={m.person.id ?? undefined}
       data-member={m.seat ? "true" : undefined}
+      data-you={m.is_player ? "true" : undefined}
       aria-label={tr.t("ui-town-map-person", { name: markerName(tr, m), role: roleText(tr, m.person) })}
       onClick={() => onPerson(m)}
     >
