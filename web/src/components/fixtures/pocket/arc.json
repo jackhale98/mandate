@@ -1,0 +1,480 @@
+{
+  "at": {
+    "id": 8,
+    "kind": "municipality",
+    "name": "Halobridge",
+    "name_key": "jurisdiction-municipality",
+    "tier": "local"
+  },
+  "beats": [
+    {
+      "ask": 2,
+      "available": true,
+      "beat": "shelter",
+      "blocked_key": null,
+      "days_left": 9,
+      "decision": null,
+      "due": {
+        "day": 21,
+        "day_number": 737351,
+        "month": 2,
+        "year": 2020
+      },
+      "kind": "ask",
+      "label": {
+        "args": {
+          "asker": "Sana Vargawell",
+          "asker_hood": "Orchardfield",
+          "asker_occupation": "shopkeeper",
+          "asker_role_key": "occupation-shopkeeper",
+          "crisis_key": "ask-crisis-disaster_recovery",
+          "days": "9",
+          "history": "none",
+          "official": "Bettina Zeller",
+          "official_role_key": "role-mayor",
+          "player": "Osric Gold",
+          "town": "Halobridge"
+        },
+        "key": "ask-flood-shelter"
+      },
+      "needs": {
+        "halves": 0,
+        "person": {
+          "ambient_slot": null,
+          "can_talk": false,
+          "has_news": true,
+          "id": 1027,
+          "level": "known",
+          "name": "Bettina Zeller",
+          "role_key": "role-mayor",
+          "rumoured": false,
+          "tier": "principal"
+        },
+        "place": {
+          "kind_key": "town_hall",
+          "location": {
+            "place": 132,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        },
+        "power": null
+      },
+      "route": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "town_hall",
+          "location": {
+            "place": 132,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "stage": "struck",
+      "topic": null,
+      "verb": null
+    },
+    {
+      "ask": null,
+      "available": true,
+      "beat": "money",
+      "blocked_key": null,
+      "days_left": 10,
+      "decision": 0,
+      "due": {
+        "day": 22,
+        "day_number": 737352,
+        "month": 2,
+        "year": 2020
+      },
+      "kind": "decision",
+      "label": {
+        "args": {
+          "crisis_key": "crisis-disaster_recovery",
+          "hood": "Orchardfield",
+          "official": "Bettina Zeller",
+          "official_role_key": "role-mayor",
+          "organiser": "Sana Vargawell",
+          "organiser_role_key": "occupation-shopkeeper",
+          "player": "Osric Gold",
+          "town": "Halobridge"
+        },
+        "key": "dilemma-flood-money"
+      },
+      "needs": {
+        "halves": 0,
+        "person": null,
+        "place": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 101,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
+        },
+        "power": "office"
+      },
+      "route": null,
+      "stage": "struck",
+      "topic": null,
+      "verb": null
+    },
+    {
+      "ask": null,
+      "available": true,
+      "beat": "box",
+      "blocked_key": null,
+      "days_left": 20,
+      "decision": null,
+      "due": {
+        "day": 4,
+        "day_number": 737362,
+        "month": 3,
+        "year": 2020
+      },
+      "kind": "visit",
+      "label": {
+        "args": {
+          "above": "Loreshire",
+          "away": "379",
+          "clock_day": "4",
+          "clock_month_key": "month-3",
+          "crisis_key": "crisis-disaster_recovery",
+          "day": "1",
+          "hall": "Bridgegate",
+          "homes": "270",
+          "hood": "Orchardfield",
+          "month_key": "month-2",
+          "official": "Bettina Zeller",
+          "official_role_key": "role-mayor",
+          "organiser": "Sana Vargawell",
+          "organiser_role_key": "occupation-shopkeeper",
+          "place": "Halobridge",
+          "player": "Osric Gold",
+          "repaired": "0",
+          "town": "Halobridge",
+          "weeks": "1",
+          "year": "2020"
+        },
+        "key": "visit-arc-flood-box"
+      },
+      "needs": {
+        "halves": 2,
+        "person": null,
+        "place": {
+          "kind_key": "community_centre",
+          "location": {
+            "place": 139,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
+        },
+        "power": null
+      },
+      "route": {
+        "action": "visit",
+        "here": true,
+        "late_night": false,
+        "neighborhood": 104,
+        "to": {
+          "kind_key": "community_centre",
+          "location": {
+            "place": 139,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
+        }
+      },
+      "stage": "struck",
+      "topic": null,
+      "verb": "arc.0.struck.box"
+    }
+  ],
+  "began": {
+    "day": 1,
+    "day_number": 737331,
+    "month": 2,
+    "year": 2020
+  },
+  "cast": [
+    {
+      "at": {
+        "kind_key": "streets",
+        "location": {
+          "neighborhood": 101,
+          "type": "street"
+        },
+        "name": "",
+        "neighborhood": 101,
+        "neighborhood_name": "Orchardfield"
+      },
+      "kind": "area",
+      "name": "Orchardfield",
+      "person": null,
+      "role": "hood"
+    },
+    {
+      "at": null,
+      "kind": "person",
+      "name": "Sana Vargawell",
+      "person": {
+        "ambient_slot": null,
+        "can_talk": false,
+        "has_news": true,
+        "id": 1409,
+        "level": "heard",
+        "name": "Sana Vargawell",
+        "role_key": "occupation-shopkeeper",
+        "rumoured": false,
+        "tier": "named"
+      },
+      "role": "organiser"
+    },
+    {
+      "at": {
+        "kind_key": "community_centre",
+        "location": {
+          "place": 139,
+          "type": "place"
+        },
+        "name": "",
+        "neighborhood": 104,
+        "neighborhood_name": "Bridgegate"
+      },
+      "kind": "place",
+      "name": "Bridgegate",
+      "person": null,
+      "role": "hall"
+    },
+    {
+      "at": null,
+      "kind": "person",
+      "name": "Bettina Zeller",
+      "person": {
+        "ambient_slot": null,
+        "can_talk": false,
+        "has_news": true,
+        "id": 1027,
+        "level": "known",
+        "name": "Bettina Zeller",
+        "role_key": "role-mayor",
+        "rumoured": false,
+        "tier": "principal"
+      },
+      "role": "official"
+    },
+    {
+      "at": null,
+      "kind": "jurisdiction",
+      "name": "Loreshire",
+      "person": null,
+      "role": "above"
+    }
+  ],
+  "clock": {
+    "days_left": 20,
+    "due": {
+      "day": 4,
+      "day_number": 737362,
+      "month": 3,
+      "year": 2020
+    },
+    "text": {
+      "args": {
+        "days": "20"
+      },
+      "key": "now-clock-days"
+    }
+  },
+  "days": 11,
+  "ended": null,
+  "headline": {
+    "args": {
+      "above": "Loreshire",
+      "away": "379",
+      "clock_day": "4",
+      "clock_month_key": "month-3",
+      "crisis_key": "crisis-disaster_recovery",
+      "day": "1",
+      "hall": "Bridgegate",
+      "homes": "270",
+      "hood": "Orchardfield",
+      "month_key": "month-2",
+      "official": "Bettina Zeller",
+      "official_role_key": "role-mayor",
+      "ok": "yes",
+      "organiser": "Sana Vargawell",
+      "organiser_role_key": "occupation-shopkeeper",
+      "place": "Halobridge",
+      "player": "Osric Gold",
+      "repaired": "0",
+      "town": "Halobridge",
+      "weeks": "1",
+      "year": "2020"
+    },
+    "date": {
+      "day": 8,
+      "day_number": 737338,
+      "month": 2,
+      "year": 2020
+    },
+    "id": 1841,
+    "text_key": "headline-arc-flood-struck"
+  },
+  "history": [
+    {
+      "args": {
+        "above": "Loreshire",
+        "away": "379",
+        "clock_day": "4",
+        "clock_month_key": "month-3",
+        "crisis_key": "crisis-disaster_recovery",
+        "day": "1",
+        "hall": "Bridgegate",
+        "homes": "270",
+        "hood": "Orchardfield",
+        "month_key": "month-2",
+        "official": "Bettina Zeller",
+        "official_role_key": "role-mayor",
+        "ok": "yes",
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "place": "Halobridge",
+        "player": "Osric Gold",
+        "repaired": "0",
+        "town": "Halobridge",
+        "weeks": "1",
+        "year": "2020"
+      },
+      "date": {
+        "day": 8,
+        "day_number": 737338,
+        "month": 2,
+        "year": 2020
+      },
+      "id": 1841,
+      "text_key": "headline-arc-flood-struck"
+    },
+    {
+      "args": {
+        "above": "Loreshire",
+        "away": "379",
+        "clock_day": "4",
+        "clock_month_key": "month-3",
+        "crisis_key": "crisis-disaster_recovery",
+        "day": "1",
+        "hall": "Bridgegate",
+        "homes": "270",
+        "hood": "Orchardfield",
+        "month_key": "month-2",
+        "official": "Bettina Zeller",
+        "official_role_key": "role-mayor",
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "place": "Halobridge",
+        "player": "Osric Gold",
+        "repaired": "0",
+        "town": "Halobridge",
+        "weeks": "1",
+        "year": "2020"
+      },
+      "date": {
+        "day": 8,
+        "day_number": 737338,
+        "month": 2,
+        "year": 2020
+      },
+      "id": 1840,
+      "text_key": "arc-flood-struck"
+    }
+  ],
+  "id": 0,
+  "lead": null,
+  "level": "known",
+  "stage": {
+    "event": 1840,
+    "id": "struck",
+    "since": {
+      "day": 8,
+      "day_number": 737338,
+      "month": 2,
+      "year": 2020
+    },
+    "text": {
+      "args": {
+        "above": "Loreshire",
+        "away": "379",
+        "clock_day": "4",
+        "clock_month_key": "month-3",
+        "crisis_key": "crisis-disaster_recovery",
+        "day": "1",
+        "hall": "Bridgegate",
+        "homes": "270",
+        "hood": "Orchardfield",
+        "month_key": "month-2",
+        "official": "Bettina Zeller",
+        "official_role_key": "role-mayor",
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "place": "Halobridge",
+        "player": "Osric Gold",
+        "repaired": "0",
+        "town": "Halobridge",
+        "weeks": "1",
+        "year": "2020"
+      },
+      "key": "arc-flood-struck"
+    }
+  },
+  "title": {
+    "args": {
+      "above": "Loreshire",
+      "away": "379",
+      "clock_day": "4",
+      "clock_month_key": "month-3",
+      "crisis_key": "crisis-disaster_recovery",
+      "day": "1",
+      "hall": "Bridgegate",
+      "homes": "270",
+      "hood": "Orchardfield",
+      "month_key": "month-2",
+      "official": "Bettina Zeller",
+      "official_role_key": "role-mayor",
+      "organiser": "Sana Vargawell",
+      "organiser_role_key": "occupation-shopkeeper",
+      "place": "Halobridge",
+      "player": "Osric Gold",
+      "repaired": "0",
+      "town": "Halobridge",
+      "weeks": "1",
+      "year": "2020"
+    },
+    "key": "arc-flood"
+  },
+  "turn": {
+    "on": null,
+    "state": "ahead"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "at": null,
+  "beats": [],
+  "began": null,
+  "cast": [],
+  "clock": null,
+  "days": null,
+  "ended": null,
+  "headline": null,
+  "history": [],
+  "id": 0,
+  "lead": {
+    "arc": 0,
+    "route": {
+      "action": "go",
+      "here": false,
+      "late_night": false,
+      "neighborhood": 101,
+      "to": {
+        "kind_key": "streets",
+        "location": {
+          "neighborhood": 101,
+          "type": "street"
+        },
+        "name": "",
+        "neighborhood": 101,
+        "neighborhood_name": "Orchardfield"
+      }
+    },
+    "since": {
+      "day": 8,
+      "day_number": 737338,
+      "month": 2,
+      "year": 2020
+    },
+    "text": {
+      "args": {
+        "where": "Orchardfield"
+      },
+      "key": "know-arc-lead"
+    },
+    "to": {
+      "kind_key": "streets",
+      "location": {
+        "neighborhood": 101,
+        "type": "street"
+      },
+      "name": "",
+      "neighborhood": 101,
+      "neighborhood_name": "Orchardfield"
+    }
+  },
+  "level": "heard",
+  "stage": null,
+  "title": null,
+  "turn": null
+}

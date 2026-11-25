@@ -1,0 +1,1496 @@
+{
+  "arc_leads": [
+    {
+      "arc": 0,
+      "route": {
+        "action": "go",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 101,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 101,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
+        }
+      },
+      "since": {
+        "day": 8,
+        "day_number": 737338,
+        "month": 2,
+        "year": 2020
+      },
+      "text": {
+        "args": {
+          "where": "Orchardfield"
+        },
+        "key": "know-arc-lead"
+      },
+      "to": {
+        "kind_key": "streets",
+        "location": {
+          "neighborhood": 101,
+          "type": "street"
+        },
+        "name": "",
+        "neighborhood": 101,
+        "neighborhood_name": "Orchardfield"
+      }
+    }
+  ],
+  "gaps": [
+    {
+      "args": {
+        "town": "Halobridge"
+      },
+      "lead": {
+        "args": {
+          "to_kind_key": "place-diner",
+          "town": "Halobridge"
+        },
+        "key": "lead-notebook-worries",
+        "level": "heard",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "diner",
+            "location": {
+              "place": 135,
+              "type": "place"
+            },
+            "name": "Rolf's",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "town": 8,
+          "type": "town_concerns"
+        },
+        "to": {
+          "kind_key": "diner",
+          "location": {
+            "place": 135,
+            "type": "place"
+          },
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "neighbourhoods",
+      "subject": {
+        "town": 8,
+        "type": "town_concerns"
+      },
+      "title_key": "notebook-town-concerns"
+    },
+    {
+      "args": {
+        "centre_town": "Halobridge",
+        "hood": "Halobridge",
+        "hood_key": "ui-hood-centre"
+      },
+      "lead": {
+        "args": {
+          "centre_town": "Halobridge",
+          "hood": "Halobridge",
+          "hood_key": "ui-hood-centre",
+          "to_hood": "Halobridge",
+          "to_hood_key": "ui-hood-centre"
+        },
+        "key": "lead-notebook-canvass",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "streets",
+            "location": {
+              "neighborhood": 100,
+              "type": "street"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "hood": 100,
+          "type": "hood_concerns"
+        },
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 100,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "neighbourhoods",
+      "subject": {
+        "hood": 100,
+        "type": "hood_concerns"
+      },
+      "title_key": "notebook-hood-concerns"
+    },
+    {
+      "args": {
+        "hood": "Orchardfield"
+      },
+      "lead": {
+        "args": {
+          "hood": "Orchardfield",
+          "to_hood": "Orchardfield"
+        },
+        "key": "lead-notebook-canvass",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 101,
+          "to": {
+            "kind_key": "streets",
+            "location": {
+              "neighborhood": 101,
+              "type": "street"
+            },
+            "name": "",
+            "neighborhood": 101,
+            "neighborhood_name": "Orchardfield"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "hood": 101,
+          "type": "hood_concerns"
+        },
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 101,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
+        }
+      },
+      "section": "neighbourhoods",
+      "subject": {
+        "hood": 101,
+        "type": "hood_concerns"
+      },
+      "title_key": "notebook-hood-concerns"
+    },
+    {
+      "args": {
+        "hood": "Abbey Green"
+      },
+      "lead": {
+        "args": {
+          "hood": "Abbey Green",
+          "to_hood": "Abbey Green"
+        },
+        "key": "lead-notebook-canvass",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 102,
+          "to": {
+            "kind_key": "streets",
+            "location": {
+              "neighborhood": 102,
+              "type": "street"
+            },
+            "name": "",
+            "neighborhood": 102,
+            "neighborhood_name": "Abbey Green"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "hood": 102,
+          "type": "hood_concerns"
+        },
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 102,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 102,
+          "neighborhood_name": "Abbey Green"
+        }
+      },
+      "section": "neighbourhoods",
+      "subject": {
+        "hood": 102,
+        "type": "hood_concerns"
+      },
+      "title_key": "notebook-hood-concerns"
+    },
+    {
+      "args": {
+        "hood": "Wharfvale"
+      },
+      "lead": {
+        "args": {
+          "hood": "Wharfvale",
+          "to_hood": "Wharfvale"
+        },
+        "key": "lead-notebook-canvass",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 103,
+          "to": {
+            "kind_key": "streets",
+            "location": {
+              "neighborhood": 103,
+              "type": "street"
+            },
+            "name": "",
+            "neighborhood": 103,
+            "neighborhood_name": "Wharfvale"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "hood": 103,
+          "type": "hood_concerns"
+        },
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 103,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 103,
+          "neighborhood_name": "Wharfvale"
+        }
+      },
+      "section": "neighbourhoods",
+      "subject": {
+        "hood": 103,
+        "type": "hood_concerns"
+      },
+      "title_key": "notebook-hood-concerns"
+    },
+    {
+      "args": {
+        "hood": "Churchfield"
+      },
+      "lead": {
+        "args": {
+          "hood": "Churchfield",
+          "to_hood": "Churchfield"
+        },
+        "key": "lead-notebook-canvass",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 105,
+          "to": {
+            "kind_key": "streets",
+            "location": {
+              "neighborhood": 105,
+              "type": "street"
+            },
+            "name": "",
+            "neighborhood": 105,
+            "neighborhood_name": "Churchfield"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "hood": 105,
+          "type": "hood_concerns"
+        },
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 105,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 105,
+          "neighborhood_name": "Churchfield"
+        }
+      },
+      "section": "neighbourhoods",
+      "subject": {
+        "hood": 105,
+        "type": "hood_concerns"
+      },
+      "title_key": "notebook-hood-concerns"
+    },
+    {
+      "args": {
+        "town": "Halobridge"
+      },
+      "lead": {
+        "args": {
+          "to_kind_key": "place-diner",
+          "town": "Halobridge"
+        },
+        "key": "lead-ask-diner",
+        "level": "heard",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "diner",
+            "location": {
+              "place": 135,
+              "type": "place"
+            },
+            "name": "Rolf's",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "town": 8,
+          "type": "broker"
+        },
+        "to": {
+          "kind_key": "diner",
+          "location": {
+            "place": 135,
+            "type": "place"
+          },
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "power",
+      "subject": {
+        "town": 8,
+        "type": "broker"
+      },
+      "title_key": "notebook-broker"
+    },
+    {
+      "args": {
+        "rival": "Aurel Garrowby",
+        "town": "Halobridge"
+      },
+      "lead": {
+        "args": {
+          "rival": "Aurel Garrowby",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office",
+          "town": "Halobridge"
+        },
+        "key": "lead-notebook-rival",
+        "level": "heard",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "town": 8,
+          "type": "rival_plans"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "rival",
+      "subject": {
+        "town": 8,
+        "type": "rival_plans"
+      },
+      "title_key": "notebook-rival-plans"
+    },
+    {
+      "args": {
+        "band_key": "support-band-divisive",
+        "policy_key": "policy-affordable-housing"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-divisive",
+          "policy_key": "policy-affordable-housing",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.affordable_housing",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.affordable_housing",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    },
+    {
+      "args": {
+        "band_key": "support-band-divisive",
+        "policy_key": "policy-flood"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-divisive",
+          "policy_key": "policy-flood",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.flood_defenses",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.flood_defenses",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    },
+    {
+      "args": {
+        "band_key": "support-band-divisive",
+        "policy_key": "policy-hardship"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-divisive",
+          "policy_key": "policy-hardship",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.hardship_fund",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.hardship_fund",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    },
+    {
+      "args": {
+        "band_key": "support-band-divisive",
+        "policy_key": "policy-wage-floor"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-divisive",
+          "policy_key": "policy-wage-floor",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.local_wage_floor",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.local_wage_floor",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    },
+    {
+      "args": {
+        "band_key": "support-band-popular",
+        "policy_key": "policy-parks"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-popular",
+          "policy_key": "policy-parks",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.parks",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.parks",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    },
+    {
+      "args": {
+        "band_key": "support-band-unpopular",
+        "policy_key": "policy-police"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-unpopular",
+          "policy_key": "policy-police",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.police_staffing",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.police_staffing",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    },
+    {
+      "args": {
+        "band_key": "support-band-divisive",
+        "policy_key": "policy-property-tax"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-divisive",
+          "policy_key": "policy-property-tax",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.property_tax",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.property_tax",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    },
+    {
+      "args": {
+        "band_key": "support-band-divisive",
+        "policy_key": "policy-small-business"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-divisive",
+          "policy_key": "policy-small-business",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.small_business_grants",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.small_business_grants",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    },
+    {
+      "args": {
+        "band_key": "support-band-popular",
+        "policy_key": "policy-tech-incubator"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-popular",
+          "policy_key": "policy-tech-incubator",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.tech_incubator",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.tech_incubator",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    },
+    {
+      "args": {
+        "band_key": "support-band-popular",
+        "policy_key": "policy-transit"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-popular",
+          "policy_key": "policy-transit",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.transit_frequency",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.transit_frequency",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    },
+    {
+      "args": {
+        "band_key": "support-band-divisive",
+        "policy_key": "policy-upzoning"
+      },
+      "lead": {
+        "args": {
+          "band_key": "support-band-divisive",
+          "policy_key": "policy-upzoning",
+          "to_kind_key": "place-party_office",
+          "to_place_key": "talk-place-party_office"
+        },
+        "key": "lead-notebook-polls",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 100,
+          "to": {
+            "kind_key": "party_office",
+            "location": {
+              "place": 134,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 100,
+            "neighborhood_args": {
+              "centre_town": "Halobridge"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Halobridge"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "policy": {
+            "template": "policy.upzoning",
+            "type": "template"
+          },
+          "town": 8,
+          "type": "policy_support"
+        },
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 134,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "section": "support",
+      "subject": {
+        "policy": {
+          "template": "policy.upzoning",
+          "type": "template"
+        },
+        "town": 8,
+        "type": "policy_support"
+      },
+      "title_key": "notebook-policy-support"
+    }
+  ],
+  "leads": [],
+  "origin": "profile",
+  "sections": [
+    {
+      "entries": [
+        {
+          "args": {
+            "name": "Delphine Harrow",
+            "role_key": "occupation-organiser"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {
+                "kind_key": "place-community_centre",
+                "place": ""
+              },
+              "exchange": null,
+              "key": "learned-visit",
+              "level": "heard",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
+            }
+          ],
+          "lead": null,
+          "level": "heard",
+          "new_this_turn": true,
+          "note": {
+            "args": {},
+            "key": "know-person-name-only"
+          },
+          "seen": {
+            "args": {
+              "kind_key": "place-community_centre",
+              "part_key": "day-part-morning",
+              "place_key": "talk-place-community_centre"
+            },
+            "at": {
+              "kind_key": "community_centre",
+              "location": {
+                "place": 139,
+                "type": "place"
+              },
+              "name": "",
+              "neighborhood": 104,
+              "neighborhood_name": "Bridgegate"
+            },
+            "key": "seen-last",
+            "on": {
+              "day": 12,
+              "day_number": 737342,
+              "month": 2,
+              "year": 2020
+            },
+            "part": "morning",
+            "part_key": "day-part-morning"
+          },
+          "stale": false,
+          "subject": {
+            "person": 1411,
+            "type": "person"
+          },
+          "title_key": "notebook-person"
+        }
+      ],
+      "key": "people"
+    },
+    {
+      "entries": [
+        {
+          "args": {
+            "concern_key": "concern-housing",
+            "hood": "Bridgegate"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {
+                "kind_key": "place-community_centre",
+                "place": ""
+              },
+              "exchange": null,
+              "key": "learned-visit",
+              "level": "heard",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
+            }
+          ],
+          "lead": {
+            "args": {
+              "concern_key": "concern-housing",
+              "hood": "Bridgegate",
+              "to_hood": "Bridgegate"
+            },
+            "key": "lead-notebook-canvass",
+            "level": "known",
+            "route": {
+              "action": "go",
+              "here": false,
+              "late_night": false,
+              "neighborhood": 104,
+              "to": {
+                "kind_key": "streets",
+                "location": {
+                  "neighborhood": 104,
+                  "type": "street"
+                },
+                "name": "",
+                "neighborhood": 104,
+                "neighborhood_name": "Bridgegate"
+              }
+            },
+            "since": {
+              "day": 12,
+              "day_number": 737342,
+              "month": 2,
+              "year": 2020
+            },
+            "subject": {
+              "hood": 104,
+              "type": "hood_concerns"
+            },
+            "to": {
+              "kind_key": "streets",
+              "location": {
+                "neighborhood": 104,
+                "type": "street"
+              },
+              "name": "",
+              "neighborhood": 104,
+              "neighborhood_name": "Bridgegate"
+            }
+          },
+          "level": "heard",
+          "new_this_turn": true,
+          "stale": false,
+          "subject": {
+            "hood": 104,
+            "type": "hood_concerns"
+          },
+          "title_key": "notebook-hood-concerns"
+        }
+      ],
+      "key": "neighbourhoods"
+    }
+  ],
+  "zone": "Halobridge"
+}

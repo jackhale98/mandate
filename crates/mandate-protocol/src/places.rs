@@ -117,6 +117,11 @@ pub struct PocketBillView {
     /// The player may (and has not yet) declared a vote on it.
     pub can_vote: bool,
     pub my_vote: Option<String>,
+    /// Knowledge in words (DEC-113): one sentence, only where a gap or an
+    /// old reading bears on this bill (`crate::notebook`).
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<crate::pocket::TextView>,
 }
 
 /// Headline numbers in coarse form: rounded, as of the last monthly update.
@@ -186,6 +191,19 @@ pub struct PocketView {
     pub asks_recent: Vec<crate::asks::AskView>,
     /// A campaign promise can be made now (`QueryDto::PromiseMenu`).
     pub can_promise: bool,
+    /// What waits on the player, soonest first (DEC-113; Today's "Needs
+    /// you"): decisions, asks to answer, votes to cast, asks due within
+    /// the turn, and a known arc's beats in their last turn. The engine
+    /// orders it; the UI sorts and counts nothing.
+    pub needs_you: Vec<crate::pocket::NeedView>,
+    /// The bar's "needs you" count: `needs_you.len()`.
+    pub needs_count: u32,
+    /// The running arcs the player knows, as rows (Today's "Under way"):
+    /// the soonest clock first.
+    pub arcs: Vec<crate::arcs::ArcSummaryView>,
+    /// The next dated thing ahead (the empty state: "Nothing is waiting on
+    /// you. Next: …"); none when nothing is dated.
+    pub next_up: Option<crate::pocket::NextUpView>,
 }
 
 /// One location on the town schematic, with what it offers.
@@ -200,6 +218,25 @@ pub struct SpotView {
     /// purpose; `PlacePanelView.verbs` has the details).
     pub verbs: Vec<String>,
     pub here: bool,
+    /// Why the place matters now, strongest first (DEC-113): a decision's
+    /// scene is here, an ask's next need is done here, a known arc's beat
+    /// is here, the player is here. Empty when nothing does. (Always
+    /// sent; optional in the generated type so that older hand-built
+    /// spots still type-check.)
+    #[serde(default)]
+    #[ts(as = "Option<Vec<crate::pocket::NowReasonView>>", optional)]
+    pub now: Vec<crate::pocket::NowReasonView>,
+    /// Its order among the town's places (0 first): those that matter
+    /// now, then the rest as the town lists them. The UI sorts by nothing
+    /// else. (Always sent; optional in the generated type, as `now`.)
+    #[serde(default)]
+    #[ts(as = "Option<u32>", optional)]
+    pub rank: u32,
+    /// Knowledge in words: one sentence, only where a fact changes what
+    /// can be done here (`crate::notebook`).
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<crate::pocket::TextView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -229,6 +266,12 @@ pub struct TownHoodView {
     /// concern overlay).
     pub top_concern_key: Option<String>,
     pub concern_knowledge: crate::knowledge::KnowledgeView,
+    /// Knowledge in words (DEC-113): one sentence, only where not knowing
+    /// its worries, or knowing them from an old reading, bears on
+    /// something in hand (`crate::notebook`).
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<crate::pocket::TextView>,
 }
 
 /// The player's town as places, grouped by neighbourhood.
@@ -648,6 +691,7 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
             sponsor_is_player: b.sponsor_is_player,
             can_vote: b.can_vote,
             my_vote: b.my_vote,
+            note: b.note,
         })
         .collect();
     bills.sort_by_key(|b| (!b.sponsor_is_player, std::cmp::Reverse(b.id)));
@@ -731,6 +775,7 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
         2,
     );
     let c5 = |v: f64| coarse(v, 0.05);
+    let needs_you = crate::pocket::needs_you(engine);
     Some(PocketView {
         date: DateView::of(st.calendar.date),
         turn: st.calendar.turn,
@@ -777,6 +822,10 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
         asks_due_soon: crate::asks::asks_due_soon(engine),
         asks_recent: crate::asks::recent_outcomes(engine, 28, 3),
         can_promise: crate::asks::can_promise(engine),
+        needs_count: needs_you.len() as u32,
+        needs_you,
+        arcs: crate::arcs::arc_summaries(engine),
+        next_up: crate::pocket::next_up(engine),
     })
 }
 
@@ -811,6 +860,10 @@ fn spot(engine: &Engine, loc: Location) -> SpotView {
             )
             .collect(),
         here: st.player.as_ref().is_some_and(|p| p.location == loc),
+        // Filled for the whole town at once (`pocket::rank_spots`).
+        now: Vec::new(),
+        rank: 0,
+        note: None,
     }
 }
 
@@ -884,7 +937,7 @@ pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
     let mu = st.world.municipalities.get(pl.municipality.index())?;
     let home = places::home_neighborhood(st);
     let ward: Vec<usize> = mandate_sim::policy::ward_hoods(&st.world, pl.ward);
-    let neighborhoods = mu
+    let mut neighborhoods: Vec<TownHoodView> = mu
         .neighborhoods
         .iter()
         .filter_map(|h| st.world.neighborhoods.get(h.index()))
@@ -940,9 +993,12 @@ pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
                 spots,
                 top_concern_key,
                 concern_knowledge: gate.view(&concern_subject),
+                note: None,
             }
         })
         .collect();
+    // Why each place matters now, its order, and the notes (DEC-113).
+    crate::pocket::rank_spots(engine, &mut neighborhoods);
     Some(TownPlacesView {
         municipality: mu.name.clone(),
         location: LocationDto::of(pl.location),

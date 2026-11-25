@@ -5,6 +5,7 @@ import type { LeadView } from "./LeadView";
 import type { LearnedView } from "./LearnedView";
 import type { SeenView } from "./SeenView";
 import type { SubjectDto } from "./SubjectDto";
+import type { TextView } from "./TextView";
 
 export type NotebookEntryView = { subject: SubjectDto, level: KnowledgeLevelDto, 
 /**
@@ -30,4 +31,10 @@ lead: LeadView | null,
 /**
  * A person: where the player last saw them (S1).
  */
-seen?: SeenView, };
+seen?: SeenView, 
+/**
+ * Knowledge in words (DEC-113; DEC-091: knowledge is not a
+ * checklist): one sentence, only where a gap or an old reading
+ * changes something the player could do (`crate::notebook`).
+ */
+note?: TextView, };
