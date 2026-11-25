@@ -13,11 +13,11 @@ No stand-in or bot plays a scene yet (task X3): every graded meeting and debate 
 
 ## Evidence
 
-`mandate-cli arcs grade --seeds 16`. Before: this branch with X1 merged (d2d44b5 + the exchange core). After: aa5e308 with `claude/bold-brown-shyeug` merged.
+`mandate-cli arcs grade --seeds 16`. Before: this branch with X1 merged (d2d44b5 + the exchange core). After: ed96b16 (`claude/bold-brown-shyeug` merged).
 
 | Arc | Worlds | Median agency | Exits differ (passive, engaged) | Coverage | Engaged exits |
 |---|---|---|---|---|---|
-| rival | 16 → 16 | 0.601 → 0.601 | 0.75 → 0.75 | `cooled` listed → same | won 0.75, lost 0.25 (passive: lost 1.0) |
+| rival | 16 → 16 | 0.601 → 0.601 | 0.75 → 0.69 | `cooled` listed → same (`pact` visited) | won 0.69, lost 0.31 (passive: lost 1.0) |
 | favour debt | 0 (cast fails: no debt) → 16 (debt planted) | none → 0.004 | none → 0.31 | none → complete but `deferred` (listed) | repaid 0.25, burned 0.06, settled 0.69 (passive: settled 1.0); the call came in 1 of 16 |
 | plant closure | 13 → 14 | 0.007 → 0.005 | 0.23 → 0.14 | complete → complete | reprieved 0.14, answered 0.21, closed 0.21, scare 0.43 (passive: answered 0.29, closed 0.29, scare 0.43) |
 | flood | 16 → 16 | 0.606 → 0.606 | 0.75 → 0.75 | complete → complete | defended 0.81, rebuilt 0.19 (passive: hollowed 0.75) |
@@ -28,3 +28,5 @@ No stand-in or bot plays a scene yet (task X3): every graded meeting and debate 
 - The favour debt starts in every planted world; its turn needs a bill a yes would cost, which came once in 16 (the bind is read from live state, so a cost-free bill is paid by an ordinary vote and the run ends at *repaid* with no turn).
 - The plant's levers reach the plant: in the middling worlds the steward's and the manager's relief lifts some notices the passive player meets closed; the grave ones close whatever is done, as the design intends; the mild ones end in *scare* for everyone.
 - The flood's and the rival's figures are where they were: their engaged stand-ins already took the levers that decide their exits, and the turn itself is an empty chair for every stand-in until X3.
+
+**`mandate-cli bots --seeds 16`** (first election; win rate, mean share; before is X1's "after" in its balance entry): idle 0.00/0.315, media 0.19/0.373, canvass 0.50/0.439, asks_only 0.75 → 0.69 /0.571, proxy 0.75/0.571, directed 0.88/0.624, corrupt 0.94/0.696, legislator 0.94/0.706, mixed 0.94/0.714, explorer 0.94/0.733. Every enforced gate passes (`idle_cap`, `effort_matters`, `exploring_alone_never_wins`, `ladder_rote`, `ladder_learned`, `corrupt_not_dominant`, `proxy_not_optimal`); none was made report-only.
