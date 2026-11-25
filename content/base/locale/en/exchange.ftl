@@ -47,7 +47,7 @@ exchange-locked-proof = Show them: you would need something in your hand.
 
 ## Costs, risks and notes. Always shown, always exact.
 exchange-cost-promise = A promise, { $n } of { $of } this campaign. Breaking it costs more than keeping it gains.
-exchange-cost-remembers = { $other } will remember it.
+exchange-cost-remembers = It sours { $other } on you, past tonight.
 exchange-cost-aired = Once said, it is out. The paper will make a story of it.
 exchange-cost-draft = A draft goes in under your name.
 exchange-cost-retires = They cannot use it against you again tonight.
