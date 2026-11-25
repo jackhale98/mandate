@@ -469,14 +469,31 @@ fn the_player_is_told_one_ranking_of_the_towns_worries() {
         );
         let by_level: Vec<String> = measured.iter().map(|id| name_key(&c, id)).collect();
         differ += usize::from(by_level[0] != list[0]);
-        // The town card is the same for anyone who looks at the map.
-        let card: Vec<String> = municipality_view(&base, town.0)
-            .unwrap()
-            .top_concerns
-            .into_iter()
-            .map(|x| x.name_key)
-            .collect();
-        assert_eq!(card, list[..3], "seed {seed}: the town card");
+        // The town card on the map follows the ledger, as the notebook does
+        // (M6 note 22): a town the player has learned nothing of shows none.
+        let card = |e: &Engine, town: MunicipalityId| -> Vec<String> {
+            municipality_view(e, town.0)
+                .unwrap()
+                .top_concerns
+                .into_iter()
+                .map(|x| x.name_key)
+                .collect()
+        };
+        let elsewhere = st
+            .world
+            .municipalities
+            .iter()
+            .map(|m| m.id)
+            .find(|m| {
+                mandate_sim::player::knowledge::knows(st, &Subject::TownConcerns { town: *m })
+                    == Level::Unknown
+                    && !concerns_for(st, &c, Scope::town(*m)).is_empty()
+            })
+            .unwrap();
+        assert!(
+            card(&base, elsewhere).is_empty(),
+            "seed {seed}: the card of a town not learned of"
+        );
         for (level, n) in [
             (Level::Heard, 1),
             (Level::Known, 3),
@@ -526,9 +543,9 @@ fn the_player_is_told_one_ranking_of_the_towns_worries() {
                 .map(|x| x.name_key)
                 .collect();
             assert_eq!(character, cut(3), "{tag}: the town's character");
-            // Whatever the player knows, the town card's first worries are
-            // the ones every other view names.
-            assert_eq!(card[..cut(3).len()], cut(3)[..], "{tag}: the town card");
+            // The town card shows what the notebook shows: the first one at
+            // `heard`, three from `known`, of the one list.
+            assert_eq!(card(&e, town), cut(3), "{tag}: the town card");
         }
         // A reply about the whole town names the first of the list, and the
         // notebook then says the same.
@@ -545,7 +562,12 @@ fn the_player_is_told_one_ranking_of_the_towns_worries() {
                 Some(&said),
                 "seed {seed}: the notebook after it"
             );
-            assert_eq!(card[0], said, "seed {seed}: the town card");
+            // Having heard it, the town card names it too.
+            assert_eq!(
+                card(&e, town).first(),
+                Some(&said),
+                "seed {seed}: the town card after it"
+            );
             spoken += 1;
         }
     }

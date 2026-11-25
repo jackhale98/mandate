@@ -18,6 +18,7 @@ pub mod places;
 pub mod post;
 pub mod talk;
 pub mod town;
+pub mod town_layers;
 pub mod views;
 pub mod why;
 
@@ -36,6 +37,7 @@ pub use post::*;
 use serde::{Deserialize, Serialize};
 pub use talk::*;
 pub use town::*;
+pub use town_layers::*;
 use ts_rs::TS;
 pub use views::*;
 pub use why::*;
@@ -333,6 +335,10 @@ pub enum QueryDto {
     Pocket,
     /// The player's town as places, grouped by neighbourhood.
     Town,
+    /// The town map's layers (DEC-086, M6 note 11): for the player's home
+    /// town, each registry layer with what it shows, as far as the player
+    /// knows it. Small; refresh after each command.
+    TownMapLayers,
     /// A place panel: what can be done and learned at a location.
     Place {
         location: LocationDto,
@@ -472,6 +478,7 @@ pub enum ResponseBody {
     Municipality(MunicipalityView),
     Pocket(PocketView),
     Town(TownPlacesView),
+    TownMapLayers(TownMapLayersView),
     Place(PlacePanelView),
     Character(CharacterView),
     Decision(DecisionView),

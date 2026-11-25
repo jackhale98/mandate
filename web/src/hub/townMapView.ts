@@ -33,6 +33,8 @@ export interface TownMapViewOptions {
   /** Strength of the time-of-day grade (default 0.5: subtle, never at the cost of legibility). */
   gradeStrength?: number;
   reducedMotion?: boolean;
+  /** After every frame drawn (the camera may have moved): layers over the map follow it (../components/townmap). */
+  onFrame?: () => void;
 }
 
 interface Placed {
@@ -577,6 +579,7 @@ export class TownMapView {
       markers,
     });
     this.placeElements();
+    this.opts.onFrame?.();
   }
 
   /**

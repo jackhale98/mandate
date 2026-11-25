@@ -359,6 +359,30 @@ The content-only path, for example a fishing quay:
 
 When the base entries change, refresh the client's fixture (`MANDATE_UPDATE_FIXTURES=1 cargo test -p mandate-protocol layout` rewrites `web/src/hub/layoutV2/registry/base.json`) and run the web tests: the pinned plan and dress hashes in `web/src/hub/layoutV2/__snapshots__` show which committed towns moved. A new street pattern, terrain generator, placement predicate, geography condition or connector behaviour is code (TOWN_GENERATION.md §6.5): the client function, the name in the closed list in `layout.rs`, and a test.
 
+### Adding a town map layer (DEC-086, M6 note 11)
+
+The town map's picker lists a registry (`town_map_layers`, base: `content/base/town_map_layers.jsonc`; types: `crates/mandate-content/src/town_map_layers.rs`). Like the country map's layers (`map_layers`, DEC-089) it is presentation data: validated on load, never read by the simulation. The engine serves every entry for the player's home town as `TownMapLayersView` (query `town_map_layers`, `crates/mandate-protocol/src/town_layers.rs`), as far as the player knows it (DEC-091); the client paints what it is given and lists the same data as text (DEC-051).
+
+| Field | Meaning | Validation |
+|---|---|---|
+| `id` | `town_map_layer.<name>`; the picker lists layers in load order | The prefix; unique |
+| `label_key`, `unit_key`, optional `note_key` | The layer's name, the legend's line and a note. Each is given `$tier` (the town's tier), so a name can follow the constitution's words | The keys exist in the English locale |
+| `kind` | `boundaries` (outlined areas, each labelled, with whoever holds it), `markers` (people at places, clustered where they would overlap) or `shaded` (every neighbourhood filled by its class) | Must be the kind its source is drawn as |
+| `source` | What the engine serves, an object with a `type`: `districts`, `people`, `worries` (`top`: also offer each neighbourhood's top worry) | An unknown `type`, a bare name or a setting the source does not have fails to load |
+| `scale` | `party` (the app's party colours) or `sequential` (one hue, light to dark) | Must be the scale its source needs |
+| `filters` | Markers only: `body`, `party`, `met`, in the order offered | No repeats; markers layers only |
+| `legend.categories` | Shaded only: how many categories get a colour of their own where a choice names one per neighbourhood (1–3, then Other; default 3) | Range; shaded layers only |
+
+The content-only path is a second entry over an existing source (a worries layer without the "top worry" choice, a people layer with other filters), with its Fluent lines in your pack; `cargo run -p mandate-cli -- content validate` checks it.
+
+A new source is code, in three places, and nothing else changes (not the registry's shape, the views or the client, which draws any layer of the three kinds):
+
+1. A variant of `TownLayerSource` (an object, so it can carry settings), with its `key`, `kind` and `scale`, and its `param` if the viewer chooses something within it (a new `TownLayerParam` if it is not a worry).
+2. One function in `town_layers.rs`, called from `layer_view`, that returns the kind's data. For a shaded source that is one `TownShadeOptionView` per choice of the parameter (its id, its name, its legend bins and a class and label per neighbourhood), with no class for a neighbourhood the player's knowledge cannot place: unknown is never drawn as the lowest class. A bill's impact by neighbourhood would be a `bill_impact` source whose parameter is the bill: one option per bill before the body.
+3. Fluent lines for what it names (bins, the parameter's label), a registry entry, and a test in `crates/mandate-wasm/tests/town_map_layers.rs` that it shows nothing the ledger does not hold. A query never writes the ledger.
+
+Rules a layer keeps: districts, offices and bodies come from the constitution by id (DEC-098), and a district is named by `ui-post-seat`, as the "where you are" chip names it; colour never carries identity alone (every area is labelled and the legend is always shown); magnitude is one hue from light to dark.
+
 ### Lab overrides (DEC-078 decision 2)
 
 `mandate-cli sweep` and `mandate-cli bots` take `--set <path>=<value>` (repeatable) and up to two `--grid <path>=<v1>,<v2>,…`. Overrides are applied to the content sources before loading, so schema and range validation run on the result, and the content hash changes with them.

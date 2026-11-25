@@ -144,7 +144,9 @@ test("the keyboard moves between places on the map and Enter walks there", async
   const errors = watchErrors(page);
   await start(page, "4040");
   await openMap(page);
-  // From the close button, Tab enters the map at its first place (the list's order); arrows move between places.
+  // From the close button, Tab reaches the layer picker above the map, then enters the map at its first place (the list's order); arrows move between places.
+  await page.keyboard.press("Tab");
+  await expect(page.getByTestId("town-map-layer")).toBeFocused();
   await page.keyboard.press("Tab");
   const focused = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.hotspot ?? null);
   const first = await focused();
@@ -181,8 +183,9 @@ test("pinch and wheel zoom about the fingers, and zooming out frames the town", 
   const box = await page.locator(".town-map-wrap").boundingBox();
   if (!box) throw new Error("no map");
   const fit = await page.evaluate(() => window.__townMap?.view?.fitZoom ?? 0);
-  // Zoom in about a point: the town point under the cursor stays under it.
-  const p = { x: box.width * 0.3, y: box.height * 0.4 };
+  // Zoom in about a point: the town point under the cursor stays under it (a point far enough in that the
+  // zoomed view stays inside the town; at its edge the camera eases back, which moves the point).
+  const p = { x: box.width * 0.4, y: box.height * 0.4 };
   const before = await page.evaluate((q) => window.__townMap?.view?.camera.screenToWorld(q), p);
   await page.mouse.move(box.x + p.x, box.y + p.y);
   await page.mouse.wheel(0, -400);

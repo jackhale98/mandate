@@ -247,7 +247,10 @@ pub struct MunicipalityView {
     /// Communities with adults here, in registry order (DEC-075). The base
     /// game has one, which the UI does not show.
     pub communities: Vec<CommunityShareView>,
-    /// The town's strongest concerns, strongest first (at most three; DEC-078).
+    /// The town's strongest concerns, strongest first (at most three;
+    /// DEC-078), as far as the player knows them (DEC-091, M6 note 22): none
+    /// until heard of, the top one at `heard`, three from `known`, as the
+    /// notebook shows them. Unweighted below `known`.
     pub top_concerns: Vec<crate::office::ConcernView>,
 }
 
@@ -466,7 +469,13 @@ pub fn municipality_view(engine: &Engine, id: u32) -> Option<MunicipalityView> {
             }
         }),
         communities: community_shares(engine, MunicipalityId(id)),
-        top_concerns: crate::office::town_concerns(engine, MunicipalityId(id), 3),
+        // One ranking, cut to what the ledger allows (a query never writes it).
+        top_concerns: crate::knowledge::gate_concerns(
+            crate::knowledge::Gate::of(engine).town_concerns(MunicipalityId(id)),
+            crate::office::town_concerns(engine, MunicipalityId(id), usize::MAX),
+            false,
+            3,
+        ),
     })
 }
 
