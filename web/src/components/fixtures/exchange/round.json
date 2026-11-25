@@ -141,7 +141,7 @@
   },
   "days_left": 14,
   "other": {
-    "id": 758,
+    "id": 759,
     "ambient_slot": null,
     "name": "Rolf Wareer",
     "role_key": "role-candidate",
@@ -152,7 +152,7 @@
     "has_news": true
   },
   "chair": {
-    "id": 1270,
+    "id": 1272,
     "ambient_slot": null,
     "name": "Hector Birchby",
     "role_key": "occupation-editor",
@@ -163,7 +163,7 @@
     "has_news": true
   },
   "second": {
-    "id": 1273,
+    "id": 1275,
     "ambient_slot": null,
     "name": "Flora Achter",
     "role_key": "occupation-union_steward",
@@ -191,7 +191,7 @@
       "size": 3,
       "lean": {
         "step": 0,
-        "points": 3,
+        "points": 4,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",
@@ -215,7 +215,7 @@
       "size": 3,
       "lean": {
         "step": 0,
-        "points": 3,
+        "points": 4,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",
@@ -239,7 +239,7 @@
       "size": 2,
       "lean": {
         "step": 0,
-        "points": 3,
+        "points": 4,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",
@@ -251,7 +251,7 @@
   "rounds": 3,
   "prompt": {
     "speaker": {
-      "id": 758,
+      "id": 759,
       "ambient_slot": null,
       "name": "Rolf Wareer",
       "role_key": "role-candidate",
@@ -363,7 +363,7 @@
         {
           "group": "hood.100.c0",
           "lo": -15,
-          "hi": -12,
+          "hi": -11,
           "exact": false,
           "lo_steps": -2,
           "hi_steps": -2
@@ -371,7 +371,7 @@
         {
           "group": "hood.100.c1",
           "lo": -15,
-          "hi": -12,
+          "hi": -11,
           "exact": false,
           "lo_steps": -2,
           "hi_steps": -2
@@ -379,7 +379,7 @@
         {
           "group": "hood.100.c2",
           "lo": -15,
-          "hi": -12,
+          "hi": -11,
           "exact": false,
           "lo_steps": -2,
           "hi_steps": -2
@@ -415,7 +415,7 @@
         {
           "group": "hood.100.c0",
           "lo": -15,
-          "hi": -12,
+          "hi": -11,
           "exact": false,
           "lo_steps": -2,
           "hi_steps": -2
@@ -423,7 +423,7 @@
         {
           "group": "hood.100.c1",
           "lo": -15,
-          "hi": -12,
+          "hi": -11,
           "exact": false,
           "lo_steps": -2,
           "hi_steps": -2
@@ -431,7 +431,7 @@
         {
           "group": "hood.100.c2",
           "lo": -15,
-          "hi": -12,
+          "hi": -11,
           "exact": false,
           "lo_steps": -2,
           "hi_steps": -2
