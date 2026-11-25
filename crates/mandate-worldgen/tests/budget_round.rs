@@ -624,8 +624,10 @@ fn a_flood_runs_beside_the_round_and_leads_the_chapter() {
     let c = base();
     let flood_def = c.arc("arc.flood").unwrap();
     // A world where the flood's turn comes before the round's (seed 7 before
-    // industries, 99 after: one of eleven tried).
-    let mut e = engine(&c, 99);
+    // industries, 99 after: one of eleven tried; 106 since the power broker
+    // leans on votes, M6 note 27, which puts flood defences in force in
+    // seed 99's town before the flood, so its arc has no meeting).
+    let mut e = engine(&c, 106);
     plant_flood(&mut e);
     let mut together = false;
     let mut flood_led = false;

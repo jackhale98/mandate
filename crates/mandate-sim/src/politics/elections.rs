@@ -274,6 +274,7 @@ pub fn daily(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
             .days_until(today);
         if since.is_multiple_of(7) {
             campaign_week(st, r, out);
+            broker_backing(st, r, out);
         }
         if since.is_multiple_of(params.polls.every_days.max(1) as u32) && since > 0 {
             publish_polls(st, r, out, day);
@@ -1020,6 +1021,108 @@ fn campaign_week(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     contact(c, i, params, 1.0);
                 }
             }
+        }
+    }
+}
+
+/// Whom the power broker of a race's jurisdiction backs (M6 note 27): the
+/// candidate they regard most (their opinion of them plus
+/// `characters.broker.back_values` × shared views), at least
+/// `back_min_opinion`; ties go to the earlier candidate. Nobody when the
+/// broker is standing themselves. Read from live state each week, so
+/// nothing is stored: (the broker, the candidate's index in the race).
+pub fn backed(
+    pol: &PoliticsState,
+    world: &World,
+    pop: &PopulationState,
+    content: &ContentBundle,
+    race: &Race,
+) -> Option<(crate::characters::CharacterId, usize)> {
+    let broker = crate::characters::town::broker_of(pol, world, pop, race.seat.at())?;
+    let k = &content.characters.broker;
+    let char_of = |p: PoliticianId| pol.get(p).map(|x| x.character);
+    if race
+        .candidates
+        .iter()
+        .any(|c| char_of(c.politician) == Some(broker))
+    {
+        return None;
+    }
+    let views: Vec<f64> = crate::characters::profile(pol, world, broker)?
+        .values
+        .iter()
+        .map(|v| *v as f64)
+        .collect();
+    let mut best: Option<(usize, f64)> = None;
+    for (i, c) in race.candidates.iter().enumerate() {
+        let Some(p) = pol.get(c.politician) else {
+            continue;
+        };
+        let opinion = pol
+            .characters
+            .edge(broker, p.character)
+            .map(|e| e.opinion as f64)
+            .unwrap_or(0.0);
+        let regard = opinion + k.back_values * super::alignment(&views, &p.attitudes);
+        if regard >= k.back_min_opinion && best.is_none_or(|b| regard > b.1) {
+            best = Some((i, regard));
+        }
+    }
+    best.map(|(i, _)| (broker, i))
+}
+
+/// The broker's backing, weekly (M6 note 27): money for the candidate they
+/// favour (`back_money`; the player's through an effect request) and their
+/// organisation's door-knocking (`back_contacts` canvass-equivalents, each
+/// where the candidate is least known among the most people, as an NPC
+/// campaign spends its own). Draws nothing.
+fn broker_backing(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
+    let k = &r.content.characters.broker;
+    let params = &r.content.politics.campaign;
+    let pop = r.population();
+    let player = r.player.map(|p| p.politician);
+    for ri in 0..st.elections.races.len() {
+        let Some((broker, ci)) = backed(st, r.world, pop, r.content, &st.elections.races[ri])
+        else {
+            continue;
+        };
+        let race = &mut st.elections.races[ri];
+        let Some(c) = race.candidates.get_mut(ci) else {
+            continue;
+        };
+        for _ in 0..k.back_contacts {
+            let best = race
+                .hoods
+                .iter()
+                .enumerate()
+                .map(|(i, h)| {
+                    let adults = pop.hoods.get(*h as usize).map_or(0, |x| x.adults()) as f64;
+                    (
+                        i,
+                        adults * (1.05 - c.awareness[i] as f64) / (1.0 + c.contacts[i] as f64),
+                    )
+                })
+                .fold(None::<(usize, f64)>, |b, x| match b {
+                    Some(b) if b.1 >= x.1 => Some(b),
+                    _ => Some(x),
+                });
+            if let Some((i, _)) = best {
+                contact(c, i, params, 1.0);
+            }
+        }
+        let who = c.politician;
+        if Some(who) == player {
+            out.effects.push(
+                crate::scheduler::Effect::PlayerTrack {
+                    standing: 0.0,
+                    viability: 0.0,
+                    money: k.back_money,
+                    legal_floor: None,
+                },
+                Cause::Actor(broker),
+            );
+        } else if let Some(p) = st.get_mut(who) {
+            p.funds += k.back_money;
         }
     }
 }

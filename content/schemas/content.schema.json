@@ -2433,6 +2433,130 @@
       ],
       "type": "object"
     },
+    "BrokerParams": {
+      "additionalProperties": false,
+      "description": "What the power broker does (M6 note 27): leans on votes in their\ninterest, backs a candidate, and what knowing them opens to the player.",
+      "properties": {
+        "back_contacts": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "back_min_opinion": {
+          "description": "The broker backs no one they think less of than this.",
+          "format": "double",
+          "type": "number"
+        },
+        "back_money": {
+          "description": "Campaign backing: money a week to the candidate the broker favours,\nand the organisation's contacts (canvass-equivalents) a week.",
+          "format": "double",
+          "type": "number"
+        },
+        "back_values": {
+          "description": "How much the broker thinks of a candidate: their opinion of them,\nplus this × how far the candidate's views match theirs (−1..1).",
+          "format": "double",
+          "type": "number"
+        },
+        "cooldown_days": {
+          "description": "A stand against them (opposing, exposing) is not offered again\nwithin this many days of the last.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expose_gaffe_approval": {
+          "format": "double",
+          "type": "number"
+        },
+        "expose_member_opinion": {
+          "description": "Exposing them through the press (the press's gaffe risk applies):\non success each member's opinion of the broker and approval among\nthose who resent them; either way their opinion of the player; on a\ngaffe, approval among everyone (× room).",
+          "format": "double",
+          "type": "number"
+        },
+        "expose_opinion": {
+          "format": "double",
+          "type": "number"
+        },
+        "expose_resent_approval": {
+          "format": "double",
+          "type": "number"
+        },
+        "favour_opinion": {
+          "description": "Doing them a favour: their opinion of the player, and approval among\nthose who resent them (× room; usually negative).",
+          "format": "double",
+          "type": "number"
+        },
+        "favour_resent_approval": {
+          "format": "double",
+          "type": "number"
+        },
+        "lobby_min_opinion": {
+          "format": "double",
+          "type": "number"
+        },
+        "lobby_sway": {
+          "description": "Lobbying the broker: sway on each member of the bill's body, × how\nfar they go along with the broker. The broker refuses below\n`lobby_min_opinion` of the player.",
+          "format": "double",
+          "type": "number"
+        },
+        "officeholder_influence": {
+          "description": "The influence of a broker with no organisation (an officeholder),\nin place of an occupation's `influence`.",
+          "format": "double",
+          "type": "number"
+        },
+        "oppose_ally_opinion": {
+          "format": "double",
+          "type": "number"
+        },
+        "oppose_depend_approval": {
+          "format": "double",
+          "type": "number"
+        },
+        "oppose_opinion": {
+          "format": "double",
+          "type": "number"
+        },
+        "oppose_resent_approval": {
+          "description": "Opposing them openly: approval among those who resent them and those\nwho depend on them; their opinion of the player; and the opinion of\nthe player of each member who likes them (× their liking, 0..1).",
+          "format": "double",
+          "type": "number"
+        },
+        "press_occupations": {
+          "description": "Who an exposé is told to (occupation ids: the press).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "vote_pull": {
+          "description": "The vote model's `broker` term: the pull on a member's lean on a\nbill in the broker's interest, × the broker's influence × how far\nthe member goes along with them (0 when they loathe the broker, 1\nwhen they admire them; ½ when indifferent).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "vote_pull",
+        "officeholder_influence",
+        "back_money",
+        "back_contacts",
+        "back_values",
+        "back_min_opinion",
+        "lobby_sway",
+        "lobby_min_opinion",
+        "favour_opinion",
+        "favour_resent_approval",
+        "oppose_resent_approval",
+        "oppose_depend_approval",
+        "oppose_opinion",
+        "oppose_ally_opinion",
+        "expose_member_opinion",
+        "expose_resent_approval",
+        "expose_opinion",
+        "expose_gaffe_approval",
+        "cooldown_days",
+        "press_occupations"
+      ],
+      "type": "object"
+    },
     "BudgetCategory": {
       "description": "Budget categories (mirror the finance domain's categories).",
       "enum": [
@@ -3210,6 +3334,9 @@
         "bonds": {
           "$ref": "#/$defs/BondParams"
         },
+        "broker": {
+          "$ref": "#/$defs/BrokerParams"
+        },
         "generation": {
           "$ref": "#/$defs/CharacterGenParams"
         },
@@ -3234,7 +3361,8 @@
         "bonds",
         "ai",
         "ambient",
-        "town"
+        "town",
+        "broker"
       ],
       "type": "object"
     },

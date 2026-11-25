@@ -152,7 +152,12 @@ fn state_shape_matches_format_version() {
     // moves because a v31 save may hold them and a v30 build cannot read
     // them. Migration: `exchange_scenes` (a challenge waiting as a
     // decision lapses).
-    const EXPECTED: (u16, &str) = (31, "04a127111f358b05");
+    // 04a127111f358b05 -> 8e30e5a8b2465cf8 (v31): the power broker leans on
+    // votes and backs candidates (M6 note 27), recorded with the
+    // conversations work and the exchange scenes merged. No serialized
+    // struct changed in this task; the sample game's contents did, so the
+    // version stays 31.
+    const EXPECTED: (u16, &str) = (31, "8e30e5a8b2465cf8");
     let c = content();
     let mut e = generate(
         &WorldConfig {

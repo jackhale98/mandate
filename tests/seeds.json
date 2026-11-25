@@ -24,7 +24,7 @@
     "needs": "a planted flood raises the arc, still running at month 3, and the idle game lets it exit by month 12"
   },
   "fresh_colleague_and_bill_before_council": {
-    "seed": 45,
+    "seed": 48,
     "needs": "a council colleague with no edge to the player, and a bill before the council"
   },
   "introduction_ask_offered_early": {
@@ -36,7 +36,7 @@
     "needs": "a small idle world where, within six turns, the overview lists a law passed or voted down and the town's paper a story, each with what led to it"
   },
   "law_lapses_in_first_skip": {
-    "seed": 27,
+    "seed": 28,
     "needs": "the first NextSession skip lists a lapsed law, with its policy named"
   },
   "notebook_talk_reply_has_an_outcome": {
@@ -56,7 +56,7 @@
     "needs": "a medium world with a bill before the player's body at the start that the executive must sign, where filing for the executive office puts the player in its race within 30 turns"
   },
   "promises_reachable_by_skipping": {
-    "seed": 9,
+    "seed": 10,
     "needs": "a small world where the campaign promise picker opens within six rounds of skips"
   },
   "regional_capital_medium": {

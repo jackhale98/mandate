@@ -75,7 +75,11 @@ pub struct Hook {
 }
 
 /// Every registered hook, in listing order.
-pub const HOOKS: &[Hook] = &[crate::asks::hook::HOOK, crate::arcs::beats::HOOK];
+pub const HOOKS: &[Hook] = &[
+    crate::asks::hook::HOOK,
+    crate::arcs::beats::HOOK,
+    crate::actions::broker::HOOK,
+];
 
 /// Whether a `Talk` topic is a hook's choice.
 pub fn is_choice(topic: &str) -> bool {

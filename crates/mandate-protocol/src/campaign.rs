@@ -31,6 +31,11 @@ pub struct CandidateView {
     pub party: Option<u32>,
     pub is_player: bool,
     pub is_incumbent: bool,
+    /// The power broker puts money and their organisation behind them
+    /// (M6 note 27): shown once the player knows who the broker is.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backed_by_broker: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -541,6 +546,7 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
             .cloned()
             .unwrap_or_default()
     };
+    let known_broker = mandate_sim::player::knowledge::Knowing::of(engine).broker();
     let mut races: Vec<(u8, RaceView)> = el
         .races_in(town)
         .map(|(ri, r)| {
@@ -548,6 +554,9 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
                 .candidates
                 .iter()
                 .position(|c| c.politician == pl.politician);
+            let st = engine.state();
+            let backing =
+                elections::backed(&st.politics, &st.world, &st.population, engine.content(), r);
             let polls = el
                 .polls
                 .iter()
@@ -576,12 +585,16 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
                     candidates: r
                         .candidates
                         .iter()
-                        .map(|c| CandidateView {
+                        .enumerate()
+                        .map(|(ci, c)| CandidateView {
                             politician: c.politician.0,
                             name: name_of(engine, c.politician),
                             party: c.party.map(|p| p.0),
                             is_player: c.politician == pl.politician,
                             is_incumbent: r.incumbent == Some(c.politician),
+                            backed_by_broker: backing
+                                .is_some_and(|(b, i)| i == ci && known_broker == Some(b))
+                                .then_some(true),
                         })
                         .collect(),
                     polls,

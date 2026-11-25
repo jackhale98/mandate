@@ -696,6 +696,46 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
         0.0,
         10.0,
     );
+    // The power broker (M6 note 27): signed amounts within their sign.
+    let k = &ch.broker;
+    for (name, v, lo, hi) in [
+        ("vote_pull", k.vote_pull, 0.0, 2.0),
+        ("officeholder_influence", k.officeholder_influence, 0.0, 1.0),
+        ("back_money", k.back_money, 0.0, 1.0e6),
+        ("back_contacts", k.back_contacts.into(), 0.0, 20.0),
+        ("back_values", k.back_values, 0.0, 100.0),
+        ("back_min_opinion", k.back_min_opinion, -100.0, 100.0),
+        ("lobby_sway", k.lobby_sway, 0.0, 2.0),
+        ("lobby_min_opinion", k.lobby_min_opinion, -100.0, 100.0),
+        ("favour_opinion", k.favour_opinion, 0.0, 50.0),
+        (
+            "favour_resent_approval",
+            k.favour_resent_approval,
+            -0.5,
+            0.0,
+        ),
+        ("oppose_resent_approval", k.oppose_resent_approval, 0.0, 0.5),
+        (
+            "oppose_depend_approval",
+            k.oppose_depend_approval,
+            -0.5,
+            0.0,
+        ),
+        ("oppose_opinion", k.oppose_opinion, -100.0, 0.0),
+        ("oppose_ally_opinion", k.oppose_ally_opinion, -50.0, 0.0),
+        (
+            "expose_member_opinion",
+            k.expose_member_opinion,
+            -100.0,
+            0.0,
+        ),
+        ("expose_resent_approval", k.expose_resent_approval, 0.0, 0.5),
+        ("expose_opinion", k.expose_opinion, -100.0, 0.0),
+        ("expose_gaffe_approval", k.expose_gaffe_approval, -0.5, 0.0),
+        ("cooldown_days", k.cooldown_days.into(), 1.0, 3650.0),
+    ] {
+        r(&format!("characters.broker.{name}"), v, lo, hi);
+    }
     crate::narrative::director_ranges(&b.director, &mut out);
     crate::media::param_ranges(b, &mut |n, v, lo, hi| out.push((n.to_string(), v, lo, hi)));
     crate::knowledge::param_ranges(b, &mut |n, v, lo, hi| out.push((n.to_string(), v, lo, hi)));
