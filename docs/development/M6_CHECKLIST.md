@@ -356,6 +356,14 @@ On hold until then:
 
 28. **The engine's download size** (2026-11-25). The WASM engine went from 8.43 MB (2.02 MB gzipped) on 2026-11-24 to 9.9 to 10.5 MB (about 2.4 MB gzipped) after industries, the impact estimate, the grader and the exchange scenes, and broke the build's offline-cache limit; the limit is now 14 MiB as a guard. Due before the tester checkpoint: find what the size is made of (the lab and the grader's code should not ship in the game's build), strip it, and set the guard back close to the measured size.
 
+29. **Lobbying is a conversation** (owner, 2026-11-25: "Do we make it too easy to whip votes? … Should we have users actually need to talk to the npcs for it?"; decided: "Lobbying as a conversation"). Today the whip panel's one-tap "Lobby" (and the late-night meeting) is a slot spent for a roll that ignores who the member is, while conversations have "Pitch a bill", "Ask for support" and "Ask a favour" as a longer road to the same end.
+    - **The whip panel is the count:** for, against, undecided, and why as far as the player knows; each member's row offers "Talk to them" in place of "Lobby".
+    - **The conversation opens on the bill,** and what the player can argue comes from what they know: the member's ward's worries, their party's line, a favour owed or offered, a promise made, the broker. Each option shows its chance and cost before it is chosen; a member the player knows nothing of still gets the plain pitch (DEC-091: knowledge opens other options, never the only way through).
+    - **A late-night meeting is a choice inside it** ("meet after hours"): stronger offers, the legal risk shown.
+    - **No forced walking:** from the list the conversation opens without a walk (DEC-051).
+    - **Against tedium:** two exchanges a member; an ally, the party whip or the broker can bring several votes at once; a member already committed shows as settled.
+    - **When:** after the broker task (note 27), which works in the same lobbying code; one mid task on the conversations work (note 26).
+
 ## M6 or M7 split (owner, 2026-11-21)
 - **M6 (needed for the tester checkpoint):**
   - the play notes;
