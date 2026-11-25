@@ -272,32 +272,32 @@ fn digests(
 /// without. The kind-by-kind counts above are from the recording before
 /// that merge.
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
-    (2026, "idle", 96, "db4a45eefc6312b5", "65704038b74a59b9"), // 1431 events
-    (2026, "mixed", 96, "f3d0cbaa5d125b16", "f45a8bd9793036f8"), // 2747 events
-    (7, "idle", 96, "26202bd27c008026", "4373426f7a3e7ebe"),    // 1281 events
-    (7, "corrupt", 96, "568dfa2e4a263b09", "350404c01dc8fa5a"), // 1986 events
-    (31, "idle", 96, "e17bb185adb876dd", "1555747daaf8b1a5"),   // 1472 events
+    (2026, "idle", 96, "2fd25c51e3adf5b9", "840b300c978e982d"), // 1434 events
+    (2026, "mixed", 96, "a2b28ec8838962da", "97c57826c62198ab"), // 2611 events
+    (7, "idle", 96, "81202894527d4d0f", "405d44aa2b9b54bc"),    // 1277 events
+    (7, "corrupt", 96, "7ba6daed6341e842", "d52c807ece04007b"), // 2513 events
+    (31, "idle", 96, "49f053ffb36497b5", "70d6c85ab9e13a30"),   // 1512 events
     (
         31,
         "explorer_legislator",
         96,
-        "58d175d4624bc413",
-        "d1307716de352c5a",
-    ), // 3339 events
+        "04c886a8549160ec",
+        "41b7bae4211afc1c",
+    ), // 3356 events
     (
         2026,
         "mixed+prison",
         96,
-        "6789b99ac3b1f601",
-        "e1e9f30e1aa5a394",
-    ), // 1983 events
+        "d0c8e9077dad147c",
+        "cc4dec6f07d295e8",
+    ), // 1989 events
     (
         2026,
         "idle+six_years",
         120,
-        "baba310250663b6d",
-        "bf24a763188dd13c",
-    ), // 1679 events
+        "076c5c942e64fcca",
+        "ad4e3c73175d281a",
+    ), // 1690 events
 ];
 
 #[test]
@@ -370,32 +370,32 @@ fn the_spine_changes_no_outcome() {
 /// `SPINE_PROOF_NO_ARCS=all` plays and checks all eight, `=print` prints
 /// them.
 const BEFORE_ARCS: [(u64, &str, u32, &str, &str); 8] = [
-    (2026, "idle", 96, "23d41f0ec32968cf", "930ded985f6691a7"), // 1323 events
-    (2026, "mixed", 96, "197b51ac00bd9a89", "e24ba25c9a623e76"), // 2563 events
-    (7, "idle", 96, "fba156944bac08ca", "9da32cdae8b1c4c6"),    // 1191 events
-    (7, "corrupt", 96, "115912e8c185af36", "93771afdafac1a39"), // 1875 events
-    (31, "idle", 96, "fbb6c26624859076", "7f1928e275450184"),   // 1353 events
+    (2026, "idle", 96, "544bc8b2812ca226", "05fad90e5de70038"), // 1334 events
+    (2026, "mixed", 96, "9a2ed9ee238fdf39", "e9c8896d28b195d2"), // 2514 events
+    (7, "idle", 96, "17d3d695b978af15", "1824c730616cb9ac"),    // 1183 events
+    (7, "corrupt", 96, "d5e443d3f5926d0b", "3b6bc2104a9c6095"), // 2333 events
+    (31, "idle", 96, "5f13f30a19e1292e", "ef2c65c04c943fbd"),   // 1393 events
     (
         31,
         "explorer_legislator",
         96,
-        "919ff22701f6c522",
-        "39cf9bcc5eb62d37",
-    ), // 3205 events
+        "f2ed62b19a6d5297",
+        "61dd5e59891fac53",
+    ), // 3202 events
     (
         2026,
         "mixed+prison",
         96,
-        "e5befeacea0f9312",
-        "58c04ff7ac771da3",
-    ), // 1873 events
+        "3d0cff9372ec3a3b",
+        "e3578b4c629c45bd",
+    ), // 1851 events
     (
         2026,
         "idle+six_years",
         120,
-        "816c50253c229b4a",
-        "c182dd1bc6af9e74",
-    ), // 1558 events
+        "94ee0717e5cd07ca",
+        "43da10a836c6a939",
+    ), // 1580 events
 ];
 
 #[test]
