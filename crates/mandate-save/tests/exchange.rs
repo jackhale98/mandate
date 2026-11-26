@@ -276,6 +276,9 @@ struct Built {
     /// It has a cost or a side effect of its own.
     costs: bool,
     landing: exchange::landing::Landing,
+    /// What the round does to each group with no line at all: the
+    /// prompt's bite, which is the same whatever the player says.
+    unanswered: Vec<f64>,
 }
 
 fn built(e: &Engine, d: &Debate) -> Vec<Built> {
@@ -295,6 +298,7 @@ fn built(e: &Engine, d: &Debate) -> Vec<Built> {
             let (kr, kl) = exchange::landing::known(&r, &o.line);
             Built {
                 landing: exchange::landing::land(&sc.params, &kr, &kl),
+                unanswered: exchange::landing::unanswered(&sc.params, &kr),
                 id: o.id,
                 kind: o.kind,
                 target: o.target,
@@ -863,8 +867,18 @@ fn knowledge_opens_a_different_line_never_a_stronger_one() {
             assert!(k.target.is_some() || k.costs, "{}", k.id);
             if let (MoveKind::Heard, Some(g)) = (k.kind, k.target) {
                 // Its own audience: the others hear less of it.
+                // What a group hears of a line is what the line changes
+                // there over the round left unanswered; the prompt's own
+                // bite differs by group and is not the line's (owner,
+                // 2026-11-26: compare the line's own change, strictly).
                 let l = &k.landing.stands;
-                assert!((0..l.len()).all(|x| x == g || l[x] <= l[g]), "{}", k.id);
+                let heard = |x: usize| l[x] - k.unanswered[x];
+                assert!(
+                    (0..l.len()).all(|x| x == g || heard(x) < heard(g)),
+                    "seed {seed}: `{}` heard {:?}",
+                    k.id,
+                    (0..l.len()).map(heard).collect::<Vec<_>>()
+                );
             }
         }
     }
