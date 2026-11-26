@@ -3,8 +3,8 @@
   "can_vote": false,
   "clauses": [],
   "end_reason": null,
-  "est_annual_cost": 1787808.1070373289,
-  "expected_yes": 6.0,
+  "est_annual_cost": 1795983.0451320026,
+  "expected_yes": 5.0,
   "family": {
     "area": [],
     "args": {
@@ -42,7 +42,7 @@
       "key": "impact-cost",
       "paid_from": "rates",
       "paid_key": "impact-paid-rates",
-      "yearly": 1787808.1070373289
+      "yearly": 1795983.0451320026
     },
     "groups": [
       {
@@ -648,7 +648,7 @@
     }
   ],
   "signer": {
-    "lean": "sign",
+    "lean": "lean_veto",
     "office": {
       "at": {
         "id": 8,
@@ -665,7 +665,7 @@
     }
   },
   "sponsor_is_player": true,
-  "sponsor_name": "Ines Rook",
+  "sponsor_name": "Petra Bakr",
   "status": "draft",
   "support": {
     "band": "popular",

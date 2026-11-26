@@ -385,10 +385,13 @@ fn moved_key(steps: i8) -> String {
 
 fn change(group: &str, s: &Span, margin: f64) -> SceneChangeView {
     let exact = s.exact();
+    // Rounded from the f32 the result is kept in (`moved`), so a change at a
+    // half point shows as it will read (−0.475 is −47 there, not −48).
+    let (slo, shi) = (f64::from(s.lo as f32), f64::from(s.hi as f32));
     let (lo, hi) = if exact {
-        (points(s.lo), points(s.lo))
+        (points(slo), points(slo))
     } else {
-        ((s.lo * 100.0).floor() as i32, (s.hi * 100.0).ceil() as i32)
+        ((slo * 100.0).floor() as i32, (shi * 100.0).ceil() as i32)
     };
     SceneChangeView {
         group: group.to_string(),

@@ -1,7 +1,7 @@
 {
   "available": true,
-  "budget_share": 0.0010605517382968825,
-  "est_annual_cost": 446952.0267593322,
+  "budget_share": 0.0010511979837668462,
+  "est_annual_cost": 448995.76128300064,
   "family": {
     "axes": [
       {
@@ -11,10 +11,10 @@
         "options": [
           {
             "available": true,
-            "budget_share": 0.0010605517382968825,
+            "budget_share": 0.0010511979837668462,
             "chosen": true,
             "desc_key": "opt-wage-everyone-desc",
-            "est_annual_cost": 446952.0267593322,
+            "est_annual_cost": 448995.76128300064,
             "id": "everyone",
             "impact": {
               "at": {
@@ -32,7 +32,7 @@
                 "key": "impact-cost",
                 "paid_from": "rates",
                 "paid_key": "impact-paid-rates",
-                "yearly": 446952.0267593322
+                "yearly": 448995.76128300064
               },
               "groups": [
                 {
@@ -77,12 +77,12 @@
                   },
                   "direction": "down",
                   "form": "range",
-                  "hi": 1300.0,
+                  "hi": 1200.0,
                   "horizon_months": 12,
                   "in_time": false,
                   "key": "impact-jobs-down",
                   "lead": true,
-                  "lo": 750.0,
+                  "lo": 730.0,
                   "outcome": "jobs",
                   "tradeoff": true,
                   "unit": "count"
@@ -636,10 +636,10 @@
           },
           {
             "available": true,
-            "budget_share": 0.00424220695318753,
+            "budget_share": 0.004204791935067385,
             "chosen": false,
             "desc_key": "opt-wage-council-desc",
-            "est_annual_cost": 1787808.1070373289,
+            "est_annual_cost": 1795983.0451320026,
             "id": "council",
             "impact": {
               "at": {
@@ -657,7 +657,7 @@
                 "key": "impact-cost",
                 "paid_from": "rates",
                 "paid_key": "impact-paid-rates",
-                "yearly": 1787808.1070373289
+                "yearly": 1795983.0451320026
               },
               "groups": [
                 {
@@ -702,12 +702,12 @@
                   },
                   "direction": "down",
                   "form": "range",
-                  "hi": 670.0,
+                  "hi": 650.0,
                   "horizon_months": 12,
                   "in_time": false,
                   "key": "impact-jobs-down",
                   "lead": true,
-                  "lo": 240.0,
+                  "lo": 230.0,
                   "outcome": "jobs",
                   "tradeoff": true,
                   "unit": "count"
@@ -1261,10 +1261,10 @@
         "options": [
           {
             "available": true,
-            "budget_share": 0.0010605517382968825,
+            "budget_share": 0.0010511979837668462,
             "chosen": true,
             "desc_key": "opt-wage-at-once-desc",
-            "est_annual_cost": 446952.0267593322,
+            "est_annual_cost": 448995.76128300064,
             "id": "at_once",
             "impact": {
               "at": {
@@ -1282,7 +1282,7 @@
                 "key": "impact-cost",
                 "paid_from": "rates",
                 "paid_key": "impact-paid-rates",
-                "yearly": 446952.0267593322
+                "yearly": 448995.76128300064
               },
               "groups": [
                 {
@@ -1327,12 +1327,12 @@
                   },
                   "direction": "down",
                   "form": "range",
-                  "hi": 1300.0,
+                  "hi": 1200.0,
                   "horizon_months": 12,
                   "in_time": false,
                   "key": "impact-jobs-down",
                   "lead": true,
-                  "lo": 750.0,
+                  "lo": 730.0,
                   "outcome": "jobs",
                   "tradeoff": true,
                   "unit": "count"
@@ -1886,10 +1886,10 @@
           },
           {
             "available": true,
-            "budget_share": 0.0010605517382968825,
+            "budget_share": 0.0010511979837668462,
             "chosen": false,
             "desc_key": "opt-wage-phased-desc",
-            "est_annual_cost": 446952.0267593322,
+            "est_annual_cost": 448995.76128300064,
             "id": "phased",
             "impact": {
               "at": {
@@ -1907,7 +1907,7 @@
                 "key": "impact-cost",
                 "paid_from": "rates",
                 "paid_key": "impact-paid-rates",
-                "yearly": 446952.0267593322
+                "yearly": 448995.76128300064
               },
               "groups": [
                 {
@@ -1952,12 +1952,12 @@
                   },
                   "direction": "down",
                   "form": "range",
-                  "hi": 910.0,
+                  "hi": 890.0,
                   "horizon_months": 12,
                   "in_time": false,
                   "key": "impact-jobs-down",
                   "lead": true,
-                  "lo": 470.0,
+                  "lo": 450.0,
                   "outcome": "jobs",
                   "tradeoff": true,
                   "unit": "count"
@@ -2552,7 +2552,7 @@
             "ambient_slot": null,
             "can_talk": false,
             "has_news": true,
-            "id": 1294,
+            "id": 1331,
             "level": "unknown",
             "name": "Cosmo Stone",
             "role_key": "occupation-union_steward",
@@ -2570,7 +2570,7 @@
             "ambient_slot": null,
             "can_talk": false,
             "has_news": true,
-            "id": 1293,
+            "id": 1330,
             "level": "unknown",
             "name": "Wilma Hale",
             "role_key": "occupation-business_leader",
@@ -2584,7 +2584,7 @@
       "can_draft": true,
       "category": "administration",
       "desc_key": "family-living-wage-desc",
-      "est_annual_cost": 446952.0267593322,
+      "est_annual_cost": 448995.76128300064,
       "family": "family.living_wage_deal",
       "id": 0,
       "knowledge": {
@@ -2643,7 +2643,7 @@
             "ambient_slot": null,
             "can_talk": false,
             "has_news": true,
-            "id": 1294,
+            "id": 1331,
             "level": "unknown",
             "name": "Cosmo Stone",
             "role_key": "occupation-union_steward",
@@ -2658,7 +2658,7 @@
             "ambient_slot": null,
             "can_talk": false,
             "has_news": true,
-            "id": 1293,
+            "id": 1330,
             "level": "unknown",
             "name": "Wilma Hale",
             "role_key": "occupation-business_leader",
@@ -2684,7 +2684,7 @@
           "ambient_slot": null,
           "can_talk": false,
           "has_news": true,
-          "id": 1294,
+          "id": 1331,
           "level": "unknown",
           "name": "Cosmo Stone",
           "role_key": "occupation-union_steward",
@@ -2727,7 +2727,7 @@
           "ambient_slot": null,
           "can_talk": false,
           "has_news": true,
-          "id": 1293,
+          "id": 1330,
           "level": "unknown",
           "name": "Wilma Hale",
           "role_key": "occupation-business_leader",
@@ -2776,7 +2776,7 @@
       "key": "impact-cost",
       "paid_from": "rates",
       "paid_key": "impact-paid-rates",
-      "yearly": 446952.0267593322
+      "yearly": 448995.76128300064
     },
     "groups": [
       {
@@ -2821,12 +2821,12 @@
         },
         "direction": "down",
         "form": "range",
-        "hi": 1300.0,
+        "hi": 1200.0,
         "horizon_months": 12,
         "in_time": false,
         "key": "impact-jobs-down",
         "lead": true,
-        "lo": 750.0,
+        "lo": 730.0,
         "outcome": "jobs",
         "tradeoff": true,
         "unit": "count"

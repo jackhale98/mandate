@@ -131,7 +131,8 @@ test("report a problem: the file holds the run, and it replays to the same hashe
   expect(types).toContain("act");
   expect(types).toContain("talk");
   expect(types.filter((t) => t === "end_turn")).toHaveLength(3);
-  expect(report.log.checkpoints.map((c) => c.turn)).toEqual([0, 1, 2, 3]);
+  // One a turn, and one at the state reported (after any command since the turn's end).
+  expect([...new Set(report.log.checkpoints.map((c) => c.turn))]).toEqual([0, 1, 2, 3]);
   expect(report.log.checkpoints.at(-1)?.hash).toBe(report.state_hash);
   expect(report.save.source).toBe("live");
   expect(report.save.length).toBeGreaterThan(1000);
@@ -148,7 +149,7 @@ test("report a problem: the file holds the run, and it replays to the same hashe
   const ok = replayWasm(saved);
   expect(ok.divergence).toBeNull();
   expect(ok.commands_applied).toBe(report.log.commands.length);
-  expect(ok.checkpoints).toHaveLength(4);
+  expect(ok.checkpoints).toHaveLength(report.log.checkpoints.length);
   expect(ok.checkpoints.every((c) => c.expected === c.actual)).toBe(true);
   expect(ok.state_hash).toBe(report.state_hash);
 

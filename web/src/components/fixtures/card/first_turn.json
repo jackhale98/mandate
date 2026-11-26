@@ -1,7 +1,7 @@
 {
   "unfinished": true,
-  "name": "Vera Flinter",
-  "party": "Heritage Alliance",
+  "name": "Tariq Rowe",
+  "party": "New Dawn League",
   "town": "Belenmouth",
   "world": {
     "size": "small",
@@ -28,14 +28,14 @@
         "name": "Belenmouth",
         "name_key": "jurisdiction-municipality"
       },
-      "constituency_number": 5,
+      "constituency_number": 7,
       "label_key": "body-council",
       "role_key": "role-councillor"
     },
     "rating": {
       "plays": 4,
-      "wins": 0,
-      "win_pm": 0,
+      "wins": 4,
+      "win_pm": 1000,
       "on_ballot": 4,
       "rated_on": {
         "day_number": 737300,
@@ -47,17 +47,17 @@
         {
           "factor": "record",
           "key": "factor-record",
-          "margin_pm": -421
-        },
-        {
-          "factor": "issues",
-          "key": "factor-issues",
-          "margin_pm": -91
+          "margin_pm": 595
         },
         {
           "factor": "party",
           "key": "factor-party",
-          "margin_pm": 20
+          "margin_pm": -590
+        },
+        {
+          "factor": "valence",
+          "key": "factor-valence",
+          "margin_pm": 142
         }
       ]
     }
@@ -73,7 +73,7 @@
       "name": "Belenmouth",
       "name_key": "jurisdiction-municipality"
     },
-    "constituency_number": 5,
+    "constituency_number": 7,
     "label_key": "body-council",
     "role_key": "role-councillor"
   },
@@ -144,7 +144,7 @@
         "name": "Belenmouth",
         "name_key": "jurisdiction-municipality"
       },
-      "constituency_number": 5,
+      "constituency_number": 7,
       "label_key": "body-council",
       "role_key": "role-councillor"
     }
@@ -155,6 +155,6 @@
     "expected_pm": 0,
     "over_pm": 0
   },
-  "code": "M1.3.S0.-.B2GE.BR43.-.65R9K.49H",
-  "build": "0.1.0 · 36132508"
+  "code": "M1.3.S0.-.B2GE.BR43.-.VWWLR.Y83",
+  "build": "0.1.0 · 6f0b65de"
 }

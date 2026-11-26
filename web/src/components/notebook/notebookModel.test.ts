@@ -35,7 +35,9 @@ describe("the notebook's arrangement (DEC-113)", () => {
     expect(g.gaps.length).toBeGreaterThan(0);
     // The town's worries under Town; a neighbourhood's under Places, by name.
     expect(g.town[0]?.subject.type).toBe("town_concerns");
-    expect(g.places.filter((i) => i.subject.type === "hood_concerns").length).toBe(2);
+    const hoods = v.sections.flatMap((s) => s.entries).filter((e) => e.subject.type === "hood_concerns").length;
+    expect(hoods).toBeGreaterThan(0);
+    expect(g.places.filter((i) => i.subject.type === "hood_concerns").length).toBe(hoods);
   });
 
   it("marks what the engine says is new, and keeps the marks it is given while the player looks", () => {

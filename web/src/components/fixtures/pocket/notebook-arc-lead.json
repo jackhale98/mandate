@@ -1147,35 +1147,13 @@
           "lead": null,
           "level": "heard",
           "new_this_turn": true,
-          "seen": {
-            "args": {
-              "kind_key": "place-community_centre",
-              "part_key": "day-part-morning",
-              "place_key": "talk-place-community_centre"
-            },
-            "at": {
-              "kind_key": "community_centre",
-              "location": {
-                "place": 139,
-                "type": "place"
-              },
-              "name": "",
-              "neighborhood": 104,
-              "neighborhood_name": "Bridgegate"
-            },
-            "key": "seen-last",
-            "on": {
-              "day": 12,
-              "day_number": 737342,
-              "month": 2,
-              "year": 2020
-            },
-            "part": "morning",
-            "part_key": "day-part-morning"
+          "note": {
+            "args": {},
+            "key": "know-person-name-only"
           },
           "stale": false,
           "subject": {
-            "person": 1412,
+            "person": 1400,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1187,7 +1165,7 @@
       "entries": [
         {
           "args": {
-            "concern_key": "concern-housing",
+            "concern_key": "concern-development",
             "hood": "Bridgegate"
           },
           "as_of": null,
@@ -1210,7 +1188,7 @@
           ],
           "lead": {
             "args": {
-              "concern_key": "concern-housing",
+              "concern_key": "concern-development",
               "hood": "Bridgegate",
               "to_hood": "Bridgegate"
             },

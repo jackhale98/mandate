@@ -47,17 +47,17 @@
         {
           "factor": "record",
           "key": "factor-record",
-          "margin_pm": 474
+          "margin_pm": 576
         },
         {
           "factor": "valence",
           "key": "factor-valence",
-          "margin_pm": 42
+          "margin_pm": 28
         },
         {
           "factor": "campaign",
           "key": "factor-campaign",
-          "margin_pm": 31
+          "margin_pm": 18
         }
       ]
     }
@@ -99,7 +99,7 @@
           {
             "factor": "record",
             "key": "factor-record",
-            "margin_pm": 452
+            "margin_pm": 477
           },
           {
             "factor": "campaign",
@@ -109,7 +109,7 @@
           {
             "factor": "shock",
             "key": "factor-shock",
-            "margin_pm": 49
+            "margin_pm": 47
           }
         ]
       },
@@ -144,9 +144,9 @@
           "clock_day": "9",
           "clock_month_key": "month-8",
           "day": "26",
-          "gap": "5",
+          "gap": "10",
           "hall": "Norton",
-          "hood": "Norton",
+          "hood": "Foundryside",
           "member": "Karim Wareley",
           "member_role_key": "role-councillor",
           "members": "6",
@@ -168,9 +168,9 @@
           "clock_day": "9",
           "clock_month_key": "month-8",
           "day": "26",
-          "gap": "5",
+          "gap": "10",
           "hall": "Norton",
-          "hood": "Norton",
+          "hood": "Foundryside",
           "member": "Karim Wareley",
           "member_role_key": "role-councillor",
           "members": "6",
@@ -213,7 +213,7 @@
           "rival": "Rolf Wareer",
           "rival_role_key": "role-candidate",
           "town": "Norton",
-          "ward": "Norton",
+          "ward": "Foundryside",
           "weeks": "3",
           "year": "2020"
         }
@@ -238,7 +238,7 @@
           "rival": "Rolf Wareer",
           "rival_role_key": "role-candidate",
           "town": "Norton",
-          "ward": "Norton",
+          "ward": "Foundryside",
           "weeks": "3",
           "year": "2020"
         }
@@ -326,6 +326,6 @@
     "expected_pm": 0,
     "over_pm": 0
   },
-  "code": "M1.39U.S0.-.B2GE.BR43.-.65R9K.TTA",
-  "build": "0.1.0 · 36132508"
+  "code": "M1.39U.S0.-.B2GE.BR43.-.VWWLR.O4B",
+  "build": "0.1.0 · 6f0b65de"
 }

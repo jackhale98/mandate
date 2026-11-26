@@ -185,7 +185,8 @@ test("a plant in trouble names what weighed on it", async ({ page }, info) => {
   const line = await playUntilListed(page, trouble, 8);
   await line.getByTestId("why-button").click();
   const panel = page.getByTestId("why-panel");
-  await expectReadable(panel, 2);
+  // Short time is one step with its pressure beneath it; a notice is more.
+  await expectReadable(panel, 1);
   const steps = panel.getByTestId("why-step");
   await expect(steps.first().locator(".why-text")).toHaveText(trouble);
   // What weighed on the works is named somewhere in the chain, in words.

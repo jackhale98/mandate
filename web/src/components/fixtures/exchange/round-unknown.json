@@ -25,7 +25,7 @@
       "rival_role_key": "role-candidate",
       "second": "Flora Achter",
       "town": "Norton",
-      "ward": "Norton",
+      "ward": "Foundryside",
       "weeks": "3",
       "year": "2020"
     }
@@ -52,7 +52,7 @@
       "rival_role_key": "role-candidate",
       "second": "Flora Achter",
       "town": "Norton",
-      "ward": "Norton",
+      "ward": "Foundryside",
       "weeks": "3",
       "year": "2020"
     }
@@ -79,7 +79,7 @@
       "rival_role_key": "role-candidate",
       "second": "Flora Achter",
       "town": "Norton",
-      "ward": "Norton",
+      "ward": "Foundryside",
       "weeks": "3",
       "year": "2020"
     }
@@ -104,7 +104,7 @@
     "rival_role_key": "role-candidate",
     "second": "Flora Achter",
     "town": "Norton",
-    "ward": "Norton",
+    "ward": "Foundryside",
     "weeks": "3",
     "year": "2020"
   },
@@ -145,7 +145,7 @@
   },
   "days_left": 14,
   "other": {
-    "id": 756,
+    "id": 757,
     "ambient_slot": null,
     "name": "Rolf Wareer",
     "role_key": "role-candidate",
@@ -156,7 +156,7 @@
     "has_news": true
   },
   "chair": {
-    "id": 1264,
+    "id": 1259,
     "ambient_slot": null,
     "name": "Hector Birchby",
     "role_key": "occupation-editor",
@@ -167,7 +167,7 @@
     "has_news": true
   },
   "second": {
-    "id": 1267,
+    "id": 1262,
     "ambient_slot": null,
     "name": "Flora Achter",
     "role_key": "occupation-union_steward",
@@ -243,7 +243,7 @@
   "rounds": 3,
   "prompt": {
     "speaker": {
-      "id": 756,
+      "id": 757,
       "ambient_slot": null,
       "name": "Rolf Wareer",
       "role_key": "role-candidate",
@@ -278,9 +278,9 @@
         "second": "Flora Achter",
         "size": "30",
         "town": "Norton",
-        "ward": "Norton",
+        "ward": "Foundryside",
         "weeks": "3",
-        "worry_key": "talk-concern-taxes",
+        "worry_key": "talk-concern-young-leaving",
         "year": "2020"
       }
     },
@@ -340,7 +340,7 @@
           "rival_role_key": "role-candidate",
           "second": "Flora Achter",
           "town": "Norton",
-          "ward": "Norton",
+          "ward": "Foundryside",
           "weeks": "3",
           "worry_key": "talk-concern-taxes",
           "year": "2020"
@@ -349,134 +349,6 @@
       "args": {
         "promise_key": "promise-no-tax-rise",
         "worry_key": "talk-concern-taxes"
-      },
-      "answers": true,
-      "safe": false,
-      "prep": false,
-      "target": null,
-      "chance": null,
-      "stands": [
-        {
-          "group": "hood.100.c0",
-          "lo": -6,
-          "hi": 15,
-          "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 2
-        },
-        {
-          "group": "hood.100.c1",
-          "lo": -6,
-          "hi": 15,
-          "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 2
-        },
-        {
-          "group": "hood.100.c2",
-          "lo": -6,
-          "hi": 15,
-          "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 2
-        }
-      ],
-      "fails": [],
-      "tags": [
-        {
-          "group": "hood.100.c0",
-          "lo": -6,
-          "hi": 15,
-          "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 2
-        },
-        {
-          "group": "hood.100.c1",
-          "lo": -6,
-          "hi": 15,
-          "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 2
-        },
-        {
-          "group": "hood.100.c2",
-          "lo": -6,
-          "hi": 15,
-          "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 2
-        }
-      ],
-      "notes": [
-        {
-          "key": "exchange-cost-promise",
-          "args": {
-            "ally": "Kerstin Everwell",
-            "ally_role_key": "occupation-party_chair",
-            "backer": "Flora Achter",
-            "backer_role_key": "occupation-union_steward",
-            "chair": "Hector Birchby",
-            "chair_role_key": "occupation-editor",
-            "clock_day": "23",
-            "clock_month_key": "month-10",
-            "day": "13",
-            "hall": "Foundryside",
-            "month_key": "month-9",
-            "n": "2",
-            "of": "3",
-            "other": "Rolf Wareer",
-            "paper": "The Norton Post",
-            "place": "Norton",
-            "player": "Aurel Achter",
-            "rival": "Rolf Wareer",
-            "rival_role_key": "role-candidate",
-            "second": "Flora Achter",
-            "town": "Norton",
-            "ward": "Norton",
-            "weeks": "3",
-            "year": "2020"
-          }
-        }
-      ],
-      "answer": "maybe",
-      "answer_key": "exchange-answer-maybe"
-    },
-    {
-      "id": "promise:promise.services",
-      "kind": "promise",
-      "label": {
-        "key": "exchange-label-promise",
-        "args": {
-          "ally": "Kerstin Everwell",
-          "ally_role_key": "occupation-party_chair",
-          "backer": "Flora Achter",
-          "backer_role_key": "occupation-union_steward",
-          "chair": "Hector Birchby",
-          "chair_role_key": "occupation-editor",
-          "clock_day": "23",
-          "clock_month_key": "month-10",
-          "day": "13",
-          "hall": "Foundryside",
-          "month_key": "month-9",
-          "other": "Rolf Wareer",
-          "paper": "The Norton Post",
-          "place": "Norton",
-          "player": "Aurel Achter",
-          "promise_key": "promise-services",
-          "rival": "Rolf Wareer",
-          "rival_role_key": "role-candidate",
-          "second": "Flora Achter",
-          "town": "Norton",
-          "ward": "Norton",
-          "weeks": "3",
-          "worry_key": "talk-concern-services",
-          "year": "2020"
-        }
-      },
-      "args": {
-        "promise_key": "promise-services",
-        "worry_key": "talk-concern-services"
       },
       "answers": false,
       "safe": false,
@@ -561,7 +433,7 @@
             "rival_role_key": "role-candidate",
             "second": "Flora Achter",
             "town": "Norton",
-            "ward": "Norton",
+            "ward": "Foundryside",
             "weeks": "3",
             "year": "2020"
           }
@@ -596,7 +468,7 @@
           "rival_role_key": "role-candidate",
           "second": "Flora Achter",
           "town": "Norton",
-          "ward": "Norton",
+          "ward": "Foundryside",
           "weeks": "3",
           "worry_key": "",
           "year": "2020"
@@ -689,7 +561,7 @@
             "rival_role_key": "role-candidate",
             "second": "Flora Achter",
             "town": "Norton",
-            "ward": "Norton",
+            "ward": "Foundryside",
             "weeks": "3",
             "year": "2020"
           }
@@ -723,7 +595,7 @@
           "rival_role_key": "role-candidate",
           "second": "Flora Achter",
           "town": "Norton",
-          "ward": "Norton",
+          "ward": "Foundryside",
           "weeks": "3",
           "year": "2020"
         }
@@ -817,7 +689,7 @@
         "rival_role_key": "role-candidate",
         "second": "Flora Achter",
         "town": "Norton",
-        "ward": "Norton",
+        "ward": "Foundryside",
         "weeks": "3",
         "year": "2020"
       }
@@ -826,12 +698,12 @@
   "played": [
     {
       "round": 1,
-      "prompt_key": "exchange-debate-prompt-thin_record-3",
+      "prompt_key": "exchange-debate-prompt-failed_law-3",
       "said_key": "exchange-debate-say-promise-1",
       "option": "promise:promise.clean_politics",
       "kind": "promise",
       "reply_key": null,
-      "room_key": "exchange-room-flat",
+      "room_key": "exchange-room-badly",
       "stood": true,
       "moved": [
         {
@@ -850,7 +722,7 @@
           "points": null
         }
       ],
-      "event": 2177
+      "event": 2418
     }
   ],
   "result": null

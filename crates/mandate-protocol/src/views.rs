@@ -235,7 +235,12 @@ fn arc_event(e: &DomainEvent, engine: &Engine) -> Option<(String, BTreeMap<Strin
             args.insert("ok".into(), if *ok { "yes" } else { "no" }.into());
             let b = content.arc(template)?.stage(stage)?.beat(beat)?;
             let key = match &b.kind {
-                BeatKind::Press { headline_key } => headline_key.clone(),
+                // The story as a sentence ("The paper ran …"): the headline
+                // itself is the paper's, not a line of the chain.
+                BeatKind::Press { headline_key } => {
+                    args.insert("headline_key".into(), headline_key.clone());
+                    "event-arc-press".into()
+                }
                 BeatKind::Move { line_key, .. } => line_key.clone(),
                 BeatKind::Visit { outcome_key, .. } => outcome_key.clone(),
                 BeatKind::Talk { with, .. } => {

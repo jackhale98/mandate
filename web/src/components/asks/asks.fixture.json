@@ -21,7 +21,7 @@
       "asker": {
         "type": "person",
         "person": {
-          "id": 1277,
+          "id": 1306,
           "ambient_slot": null,
           "name": "Ada Dace",
           "role_key": "occupation-party_chair",
@@ -157,7 +157,7 @@
       "asker": {
         "type": "person",
         "person": {
-          "id": 1277,
+          "id": 1306,
           "ambient_slot": null,
           "name": "Ada Dace",
           "role_key": "occupation-party_chair",
@@ -281,7 +281,7 @@
       "asker": {
         "type": "person",
         "person": {
-          "id": 1277,
+          "id": 1306,
           "ambient_slot": null,
           "name": "Ada Dace",
           "role_key": "occupation-party_chair",
@@ -541,7 +541,7 @@
         "asker": {
           "type": "person",
           "person": {
-            "id": 1277,
+            "id": 1306,
             "ambient_slot": null,
             "name": "Ada Dace",
             "role_key": "occupation-party_chair",
@@ -677,7 +677,7 @@
         "asker": {
           "type": "person",
           "person": {
-            "id": 1277,
+            "id": 1306,
             "ambient_slot": null,
             "name": "Ada Dace",
             "role_key": "occupation-party_chair",
@@ -801,7 +801,7 @@
         "asker": {
           "type": "person",
           "person": {
-            "id": 1277,
+            "id": 1306,
             "ambient_slot": null,
             "name": "Ada Dace",
             "role_key": "occupation-party_chair",
@@ -893,11 +893,11 @@
     "tally": {
       "offered": 11,
       "accepted": 0,
-      "declined": 11,
-      "lapsed": 11,
+      "declined": 10,
+      "lapsed": 10,
       "kept": 0,
       "broken": 0,
-      "void": 0,
+      "void": 1,
       "promises_made": 0,
       "promises_kept": 0,
       "promises_broken": 0,

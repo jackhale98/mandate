@@ -709,7 +709,14 @@ impl Session {
         let engine = self.engine.as_ref().ok_or("no game is running")?;
         let st = engine.state();
         let log = match &self.log {
-            Some(l) => l.with_commands(engine),
+            Some(l) => {
+                // A last checkpoint at the state reported, so a replay is
+                // checked to the end (commands after the turn's end, such as
+                // marking the notebook seen, change the state too).
+                let mut l = l.with_commands(engine);
+                l.checkpoint(engine);
+                l
+            }
             None => RunLog::unreplayable(engine, "no run log was kept"),
         };
         let core = ReportCore {

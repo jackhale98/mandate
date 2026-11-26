@@ -180,7 +180,7 @@ fn state_shape_matches_format_version() {
     // log gained the event `plant_reviewed`. Migration: `plant_review`.
     // v35 -> v36: the first new worries (DEC-106): population flows and
     // class real incomes. Migration: `worry_signals`.
-    const EXPECTED: (u16, &str) = (36, "ae811331e9aea01d");
+    const EXPECTED: (u16, &str) = (36, "693b03a88943bb75");
     let c = content();
     let mut e = generate(
         &WorldConfig {

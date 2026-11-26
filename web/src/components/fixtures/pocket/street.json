@@ -12,7 +12,7 @@
       "action": "town_hall",
       "health": 1.0,
       "late_night": false,
-      "risk": 0.12391331599635513,
+      "risk": 0.14829563711639515,
       "shady": null,
       "slots": 1
     }
@@ -27,7 +27,7 @@
     "doors": [
       {
         "door": 0,
-        "family": "Ferrante",
+        "family": "Brackenley",
         "knocked": false,
         "last": null,
         "number": 1,
@@ -36,7 +36,7 @@
       },
       {
         "door": 1,
-        "family": "Raskuwell",
+        "family": "Northson",
         "knocked": false,
         "last": null,
         "number": 2,
@@ -45,7 +45,7 @@
       },
       {
         "door": 2,
-        "family": "Petrov",
+        "family": "Hale",
         "knocked": false,
         "last": null,
         "number": 3,
@@ -54,7 +54,7 @@
       },
       {
         "door": 3,
-        "family": "Stone",
+        "family": "Hale",
         "knocked": false,
         "last": null,
         "number": 4,
@@ -63,7 +63,7 @@
       },
       {
         "door": 4,
-        "family": "Moreaufield",
+        "family": "Lindqvistwood",
         "knocked": false,
         "last": null,
         "number": 5,
@@ -72,7 +72,7 @@
       },
       {
         "door": 5,
-        "family": "Kell",
+        "family": "Achterwood",
         "knocked": false,
         "last": null,
         "number": 6,
@@ -81,7 +81,7 @@
       },
       {
         "door": 6,
-        "family": "Northson",
+        "family": "Ferranteby",
         "knocked": false,
         "last": null,
         "number": 7,
@@ -90,7 +90,7 @@
       },
       {
         "door": 7,
-        "family": "Dellley",
+        "family": "Sedgeer",
         "knocked": false,
         "last": null,
         "number": 8,
@@ -99,7 +99,7 @@
       },
       {
         "door": 8,
-        "family": "Quintson",
+        "family": "Ardenby",
         "knocked": false,
         "last": null,
         "number": 9,
@@ -108,7 +108,7 @@
       },
       {
         "door": 9,
-        "family": "Wren",
+        "family": "Whiter",
         "knocked": false,
         "last": null,
         "number": 10,
@@ -117,7 +117,7 @@
       },
       {
         "door": 10,
-        "family": "Raskuwood",
+        "family": "Okafor",
         "knocked": false,
         "last": null,
         "number": 11,
@@ -126,7 +126,7 @@
       },
       {
         "door": 11,
-        "family": "Quarry",
+        "family": "Rasku",
         "knocked": false,
         "last": null,
         "number": 12,
@@ -135,7 +135,7 @@
       },
       {
         "door": 12,
-        "family": "Wren",
+        "family": "Rook",
         "knocked": false,
         "last": null,
         "number": 13,
@@ -144,7 +144,7 @@
       },
       {
         "door": 13,
-        "family": "Tallisfield",
+        "family": "Tamsin",
         "knocked": false,
         "last": null,
         "number": 14,
@@ -153,7 +153,7 @@
       },
       {
         "door": 14,
-        "family": "Westwood",
+        "family": "Marsh",
         "knocked": false,
         "last": null,
         "number": 15,
@@ -162,7 +162,7 @@
       },
       {
         "door": 15,
-        "family": "Shawby",
+        "family": "Orme",
         "knocked": false,
         "last": null,
         "number": 16,
@@ -171,7 +171,7 @@
       },
       {
         "door": 16,
-        "family": "Keller",
+        "family": "Kemp",
         "knocked": false,
         "last": null,
         "number": 17,
@@ -180,7 +180,7 @@
       },
       {
         "door": 17,
-        "family": "Tull",
+        "family": "Lark",
         "knocked": false,
         "last": null,
         "number": 18,
@@ -189,16 +189,16 @@
       },
       {
         "door": 18,
-        "family": "Craneson",
+        "family": "Sallow",
         "knocked": false,
         "last": null,
         "number": 19,
         "poster": false,
-        "vacant": false
+        "vacant": true
       },
       {
         "door": 19,
-        "family": "Alderer",
+        "family": "Hart",
         "knocked": false,
         "last": null,
         "number": 20,
@@ -207,7 +207,7 @@
       },
       {
         "door": 20,
-        "family": "Ibarrawell",
+        "family": "Wexler",
         "knocked": false,
         "last": null,
         "number": 21,
@@ -216,7 +216,7 @@
       },
       {
         "door": 21,
-        "family": "Shawley",
+        "family": "Kader",
         "knocked": false,
         "last": null,
         "number": 22,
@@ -225,7 +225,7 @@
       },
       {
         "door": 22,
-        "family": "Flint",
+        "family": "Fenn",
         "knocked": false,
         "last": null,
         "number": 23,
@@ -234,7 +234,7 @@
       },
       {
         "door": 23,
-        "family": "Goldfield",
+        "family": "Harrow",
         "knocked": false,
         "last": null,
         "number": 24,
@@ -243,7 +243,7 @@
       },
       {
         "door": 24,
-        "family": "Dellwell",
+        "family": "Bakr",
         "knocked": false,
         "last": null,
         "number": 25,
@@ -252,7 +252,7 @@
       },
       {
         "door": 25,
-        "family": "Carr",
+        "family": "Achter",
         "knocked": false,
         "last": null,
         "number": 26,
@@ -261,7 +261,7 @@
       },
       {
         "door": 26,
-        "family": "Moreau",
+        "family": "Fairley",
         "knocked": false,
         "last": null,
         "number": 27,
@@ -270,7 +270,7 @@
       },
       {
         "door": 27,
-        "family": "Dunmore",
+        "family": "Janssen",
         "knocked": false,
         "last": null,
         "number": 28,
@@ -279,7 +279,7 @@
       },
       {
         "door": 28,
-        "family": "Oakwood",
+        "family": "Barrow",
         "knocked": false,
         "last": null,
         "number": 29,
@@ -288,16 +288,16 @@
       },
       {
         "door": 29,
-        "family": "Reed",
+        "family": "Mercerwood",
         "knocked": false,
         "last": null,
         "number": 30,
         "poster": false,
-        "vacant": false
+        "vacant": true
       },
       {
         "door": 30,
-        "family": "Lindqvistwood",
+        "family": "Rasku",
         "knocked": false,
         "last": null,
         "number": 31,
@@ -306,7 +306,7 @@
       },
       {
         "door": 31,
-        "family": "Kemp",
+        "family": "Gold",
         "knocked": false,
         "last": null,
         "number": 32,
@@ -315,7 +315,7 @@
       },
       {
         "door": 32,
-        "family": "Yatesson",
+        "family": "Raskuwood",
         "knocked": false,
         "last": null,
         "number": 33,
@@ -324,7 +324,7 @@
       },
       {
         "door": 33,
-        "family": "Mercerwell",
+        "family": "Galloway",
         "knocked": false,
         "last": null,
         "number": 34,
@@ -333,7 +333,7 @@
       },
       {
         "door": 34,
-        "family": "Brookfield",
+        "family": "Vane",
         "knocked": false,
         "last": null,
         "number": 35,
@@ -342,7 +342,7 @@
       },
       {
         "door": 35,
-        "family": "Castell",
+        "family": "Nash",
         "knocked": false,
         "last": null,
         "number": 36,
@@ -351,7 +351,7 @@
       },
       {
         "door": 36,
-        "family": "Wade",
+        "family": "Orme",
         "knocked": false,
         "last": null,
         "number": 37,
@@ -360,7 +360,7 @@
       },
       {
         "door": 37,
-        "family": "Birchfield",
+        "family": "Wade",
         "knocked": false,
         "last": null,
         "number": 38,
@@ -369,16 +369,16 @@
       },
       {
         "door": 38,
-        "family": "Marshson",
+        "family": "Hale",
         "knocked": false,
         "last": null,
         "number": 39,
         "poster": false,
-        "vacant": true
+        "vacant": false
       },
       {
         "door": 39,
-        "family": "Goldson",
+        "family": "Tallisley",
         "knocked": false,
         "last": null,
         "number": 40,
@@ -387,7 +387,7 @@
       },
       {
         "door": 40,
-        "family": "Holliswood",
+        "family": "Ironby",
         "knocked": false,
         "last": null,
         "number": 41,
@@ -396,7 +396,7 @@
       },
       {
         "door": 41,
-        "family": "Everwell",
+        "family": "Yatesfield",
         "knocked": false,
         "last": null,
         "number": 42,
@@ -405,7 +405,7 @@
       },
       {
         "door": 42,
-        "family": "Teaguefield",
+        "family": "Hollisson",
         "knocked": false,
         "last": null,
         "number": 43,
@@ -414,7 +414,7 @@
       },
       {
         "door": 43,
-        "family": "Lark",
+        "family": "Lowe",
         "knocked": false,
         "last": null,
         "number": 44,
@@ -423,7 +423,7 @@
       },
       {
         "door": 44,
-        "family": "Pikewood",
+        "family": "Farrow",
         "knocked": false,
         "last": null,
         "number": 45,
@@ -432,7 +432,7 @@
       },
       {
         "door": 45,
-        "family": "Flint",
+        "family": "Harrow",
         "knocked": false,
         "last": null,
         "number": 46,
@@ -441,7 +441,7 @@
       },
       {
         "door": 46,
-        "family": "Gold",
+        "family": "Pike",
         "knocked": false,
         "last": null,
         "number": 47,
@@ -450,7 +450,7 @@
       },
       {
         "door": 47,
-        "family": "Ware",
+        "family": "Calder",
         "knocked": false,
         "last": null,
         "number": 48,
@@ -459,7 +459,7 @@
       },
       {
         "door": 48,
-        "family": "Zellerby",
+        "family": "Lang",
         "knocked": false,
         "last": null,
         "number": 49,
@@ -468,7 +468,7 @@
       },
       {
         "door": 49,
-        "family": "Iron",
+        "family": "Whit",
         "knocked": false,
         "last": null,
         "number": 50,
@@ -477,7 +477,7 @@
       },
       {
         "door": 50,
-        "family": "Beckley",
+        "family": "Reedwood",
         "knocked": false,
         "last": null,
         "number": 51,
@@ -486,16 +486,16 @@
       },
       {
         "door": 51,
-        "family": "Beckby",
+        "family": "Talliswell",
         "knocked": false,
         "last": null,
         "number": 52,
         "poster": false,
-        "vacant": false
+        "vacant": true
       },
       {
         "door": 52,
-        "family": "Alderson",
+        "family": "Ever",
         "knocked": false,
         "last": null,
         "number": 53,
@@ -504,7 +504,7 @@
       },
       {
         "door": 53,
-        "family": "Varga",
+        "family": "Wester",
         "knocked": false,
         "last": null,
         "number": 54,
@@ -513,7 +513,7 @@
       },
       {
         "door": 54,
-        "family": "Keller",
+        "family": "Ardenwood",
         "knocked": false,
         "last": null,
         "number": 55,
@@ -522,7 +522,7 @@
       },
       {
         "door": 55,
-        "family": "Wexlerer",
+        "family": "Wade",
         "knocked": false,
         "last": null,
         "number": 56,
@@ -531,7 +531,7 @@
       },
       {
         "door": 56,
-        "family": "Kemp",
+        "family": "Kader",
         "knocked": false,
         "last": null,
         "number": 57,
@@ -540,7 +540,7 @@
       },
       {
         "door": 57,
-        "family": "Dace",
+        "family": "Quintwood",
         "knocked": false,
         "last": null,
         "number": 58,
@@ -549,7 +549,7 @@
       },
       {
         "door": 58,
-        "family": "Quintfield",
+        "family": "Barrow",
         "knocked": false,
         "last": null,
         "number": 59,
@@ -558,7 +558,7 @@
       },
       {
         "door": 59,
-        "family": "Quillby",
+        "family": "Blackson",
         "knocked": false,
         "last": null,
         "number": 60,
@@ -566,14 +566,14 @@
         "vacant": false
       }
     ],
-    "neighborhood": 105,
+    "neighborhood": 90,
     "slots": 2,
     "street_doors": 4,
     "suggested": [
-      4,
-      5,
-      6,
-      7
+      50,
+      51,
+      52,
+      53
     ],
     "worries": [
       {
@@ -587,16 +587,16 @@
       {
         "fit": null,
         "fit_band": null,
-        "id": "concern.environment",
-        "name_key": "concern-environment",
+        "id": "concern.young_leaving",
+        "name_key": "concern-young-leaving",
         "source": "town",
         "top": false
       },
       {
         "fit": null,
         "fit_band": null,
-        "id": "concern.housing",
-        "name_key": "concern-housing",
+        "id": "concern.development",
+        "name_key": "concern-development",
         "source": "town",
         "top": false
       }
@@ -605,81 +605,89 @@
   "faults": [
     {
       "args": {
-        "hood": "Churchfield"
-      },
-      "asset": "play_area",
-      "cue": "swing_new",
-      "event": 1958,
-      "fixed_on": {
-        "day": 7,
-        "day_number": 737487,
-        "month": 7,
-        "year": 2020
-      },
-      "here": false,
-      "id": 2,
-      "kind": "fault.swing",
-      "moved_up": false,
-      "name_key": "fault-swing-name",
-      "neighborhood": 105,
-      "next_in_queue": false,
-      "opened": {
-        "day": 1,
-        "day_number": 737451,
-        "month": 6,
-        "year": 2020
-      },
-      "see": {
-        "kind_key": "streets",
-        "location": {
-          "neighborhood": 105,
-          "type": "street"
-        },
-        "name": "",
-        "neighborhood": 105,
-        "neighborhood_name": "Churchfield"
-      },
-      "spot": {
-        "kind": "green",
-        "slot": 1,
-        "slots": 3
-      },
-      "status": "fixed",
-      "what_key": "fault-swing-what"
-    },
-    {
-      "args": {
-        "hood": "Churchfield"
+        "hood": "Belenwick"
       },
       "asset": "drain",
-      "cue": "drain_flooded",
-      "event": 1971,
+      "cue": "drain_new",
+      "event": 2191,
+      "fixed_on": {
+        "day": 8,
+        "day_number": 737366,
+        "month": 3,
+        "year": 2020
+      },
       "here": false,
-      "id": 3,
+      "id": 0,
       "kind": "fault.drain",
       "moved_up": false,
       "name_key": "fault-drain-name",
-      "neighborhood": 105,
-      "next_in_queue": true,
+      "neighborhood": 90,
+      "next_in_queue": false,
       "opened": {
         "day": 1,
-        "day_number": 737512,
-        "month": 8,
+        "day_number": 737331,
+        "month": 2,
         "year": 2020
       },
       "see": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 105,
+          "neighborhood": 90,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 105,
-        "neighborhood_name": "Churchfield"
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
       },
       "spot": {
         "kind": "kerb",
-        "slot": 0,
+        "slot": 2,
+        "slots": 4
+      },
+      "status": "fixed",
+      "what_key": "fault-drain-what"
+    },
+    {
+      "args": {
+        "hood": "Belenwick"
+      },
+      "asset": "drain",
+      "cue": "drain_flooded",
+      "event": 2186,
+      "here": false,
+      "id": 2,
+      "kind": "fault.drain",
+      "moved_up": false,
+      "name_key": "fault-drain-name",
+      "neighborhood": 90,
+      "next_in_queue": true,
+      "opened": {
+        "day": 1,
+        "day_number": 737359,
+        "month": 3,
+        "year": 2020
+      },
+      "see": {
+        "kind_key": "streets",
+        "location": {
+          "neighborhood": 90,
+          "type": "street"
+        },
+        "name": "",
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
+      },
+      "spot": {
+        "kind": "kerb",
+        "slot": 3,
         "slots": 4
       },
       "status": "open",
@@ -687,37 +695,41 @@
     },
     {
       "args": {
-        "hood": "Churchfield"
+        "hood": "Belenwick"
       },
       "asset": "road",
       "cue": "pothole",
-      "event": 1972,
+      "event": 2187,
       "here": false,
-      "id": 4,
+      "id": 3,
       "kind": "fault.pothole",
       "moved_up": false,
       "name_key": "fault-pothole-name",
-      "neighborhood": 105,
+      "neighborhood": 90,
       "next_in_queue": false,
       "opened": {
         "day": 1,
-        "day_number": 737512,
-        "month": 8,
+        "day_number": 737359,
+        "month": 3,
         "year": 2020
       },
       "see": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 105,
+          "neighborhood": 90,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 105,
-        "neighborhood_name": "Churchfield"
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
       },
       "spot": {
         "kind": "road",
-        "slot": 0,
+        "slot": 4,
         "slots": 5
       },
       "status": "open",
@@ -736,12 +748,16 @@
   "location": {
     "kind_key": "streets",
     "location": {
-      "neighborhood": 105,
+      "neighborhood": 90,
       "type": "street"
     },
     "name": "",
-    "neighborhood": 105,
-    "neighborhood_name": "Churchfield"
+    "neighborhood": 90,
+    "neighborhood_args": {
+      "centre_town": "Belenwick"
+    },
+    "neighborhood_key": "ui-hood-centre",
+    "neighborhood_name": "Belenwick"
   },
   "newspaper": null,
   "overheard": null,
@@ -750,10 +766,10 @@
       "ambient_slot": null,
       "can_talk": false,
       "has_news": true,
-      "id": 97,
-      "level": "detailed",
-      "name": "Odile Lindqvist",
-      "role_key": "occupation-park_keeper",
+      "id": 91,
+      "level": "known",
+      "name": "Emeric Bircher",
+      "role_key": "occupation-retiree",
       "rumoured": false,
       "tier": "named"
     },
@@ -761,9 +777,20 @@
       "ambient_slot": null,
       "can_talk": false,
       "has_news": true,
-      "id": 368,
+      "id": 352,
+      "level": "detailed",
+      "name": "Nadia Mercerwood",
+      "role_key": "occupation-shopkeeper",
+      "rumoured": false,
+      "tier": "named"
+    },
+    {
+      "ambient_slot": null,
+      "can_talk": false,
+      "has_news": true,
+      "id": 360,
       "level": "known",
-      "name": "Linus Tallis",
+      "name": "Bodil Sedge",
       "role_key": "role-councillor",
       "rumoured": false,
       "tier": "principal"
@@ -778,21 +805,174 @@
       "role_key": "occupation-retiree",
       "rumoured": false,
       "tier": "ambient"
-    },
-    {
-      "ambient_slot": 1,
-      "can_talk": false,
-      "has_news": false,
-      "id": null,
-      "level": "unknown",
-      "name": "",
-      "role_key": "occupation-retiree",
-      "rumoured": false,
-      "tier": "ambient"
     }
   ],
   "plant": null,
-  "proposals_here": [],
+  "proposals_here": [
+    {
+      "args": {
+        "builders": "Dorian Nasher",
+        "hazard_key": "hazard-text-flood",
+        "hood": "Belenwick",
+        "residents": "Ysolde Wrener"
+      },
+      "at": {
+        "id": 7,
+        "kind": "municipality",
+        "name": "Belenwick",
+        "name_key": "jurisdiction-municipality",
+        "tier": "local"
+      },
+      "bills": [],
+      "bindings": [],
+      "blocked_key": "proposal-blocked-heard",
+      "can_draft": false,
+      "category": "housing",
+      "desc_key": "family-rebuild-desc",
+      "est_annual_cost": null,
+      "family": "family.rebuild",
+      "id": 0,
+      "knowledge": {
+        "as_of": null,
+        "lead": {
+          "args": {
+            "builders": "Dorian Nasher",
+            "centre_town": "Belenwick",
+            "hazard_key": "hazard-text-flood",
+            "hood": "Belenwick",
+            "policy_key": "family-rebuild",
+            "proposal": "0",
+            "residents": "Ysolde Wrener",
+            "to_hood": "Belenwick",
+            "to_hood_key": "ui-hood-centre"
+          },
+          "key": "lead-rebuild",
+          "level": "known",
+          "route": {
+            "action": "go",
+            "here": false,
+            "late_night": false,
+            "neighborhood": 90,
+            "to": {
+              "kind_key": "streets",
+              "location": {
+                "neighborhood": 90,
+                "type": "street"
+              },
+              "name": "",
+              "neighborhood": 90,
+              "neighborhood_args": {
+                "centre_town": "Belenwick"
+              },
+              "neighborhood_key": "ui-hood-centre",
+              "neighborhood_name": "Belenwick"
+            }
+          },
+          "since": {
+            "day": 1,
+            "day_number": 737331,
+            "month": 2,
+            "year": 2020
+          },
+          "subject": {
+            "proposal": 0,
+            "type": "proposal"
+          },
+          "to": {
+            "kind_key": "streets",
+            "location": {
+              "neighborhood": 90,
+              "type": "street"
+            },
+            "name": "",
+            "neighborhood": 90,
+            "neighborhood_args": {
+              "centre_town": "Belenwick"
+            },
+            "neighborhood_key": "ui-hood-centre",
+            "neighborhood_name": "Belenwick"
+          }
+        },
+        "level": "heard",
+        "stale": false
+      },
+      "lapse_reason": null,
+      "level": "heard",
+      "months": null,
+      "name_key": "family-rebuild",
+      "opened": {
+        "day": 1,
+        "day_number": 737331,
+        "month": 2,
+        "year": 2020
+      },
+      "proposers": [
+        {
+          "at": {
+            "id": 7,
+            "kind": "municipality",
+            "name": "Belenwick",
+            "name_key": "jurisdiction-municipality",
+            "tier": "local"
+          },
+          "constituency_number": null,
+          "id": "council",
+          "kind": "seat",
+          "label_key": "body-council",
+          "role_key": "role-councillor"
+        },
+        {
+          "at": {
+            "id": 7,
+            "kind": "municipality",
+            "name": "Belenwick",
+            "name_key": "jurisdiction-municipality",
+            "tier": "local"
+          },
+          "constituency_number": null,
+          "id": "mayor",
+          "kind": "office",
+          "label_key": "office-mayor",
+          "role_key": "role-mayor"
+        }
+      ],
+      "reason_key": "reason-rebuild",
+      "requires": "propose_ordinance",
+      "sponsors": [
+        {
+          "id": "residents",
+          "name_key": "sponsor-residents-version",
+          "person": {
+            "ambient_slot": null,
+            "can_talk": true,
+            "has_news": true,
+            "id": 1408,
+            "level": "known",
+            "name": "Ysolde Wrener",
+            "role_key": "occupation-clergy",
+            "rumoured": false,
+            "tier": "named"
+          }
+        },
+        {
+          "id": "builders",
+          "name_key": "sponsor-builders-version",
+          "person": {
+            "ambient_slot": null,
+            "can_talk": false,
+            "has_news": true,
+            "id": 1410,
+            "level": "heard",
+            "name": "Dorian Nasher",
+            "role_key": "occupation-business_leader",
+            "rumoured": false,
+            "tier": "principal"
+          }
+        }
+      ],
+      "status": "open"
+    }
+  ],
   "services": [],
   "town_data": null,
   "verbs": []

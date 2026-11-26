@@ -10,6 +10,7 @@
 
 ## Every arc
 event-arc-raised = A matter has opened in { $place }: { $title }.
+event-arc-press = The paper ran the story: “{ $headline }”.
 event-arc-talk = { $ok ->
         [yes] You spoke to { $with } about it, and they agreed.
        *[no] You spoke to { $with } about it, and they said no.

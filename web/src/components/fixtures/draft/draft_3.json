@@ -1,26 +1,77 @@
 {
   "openings": [
     {
-      "town": 10,
-      "town_name": "Calermoor",
+      "town": 11,
+      "town_name": "Caladale",
+      "town_class": "town",
+      "template": "arc.plant_closure",
+      "title_key": "arc-plant",
+      "args": {
+        "closes_day": "1",
+        "closes_month_key": "month-8",
+        "closes_year": "2020",
+        "day": "1",
+        "hall": "Greengate",
+        "hood": "Greengate",
+        "industry_key": "industry-vehicles",
+        "jobs": "34",
+        "month_key": "month-3",
+        "owner": "Joss Rook",
+        "place": "Caladale",
+        "plant_key": "plant-name-hood",
+        "product_key": "product-motor_vehicles",
+        "site": "Greengate",
+        "stem": "Greengate",
+        "steward": "Bianca Pryce",
+        "town": "Caladale",
+        "weeks": "0",
+        "works_key": "works-motor_works",
+        "year": "2020"
+      },
+      "live": false,
+      "post": {
+        "kind": "seat",
+        "id": "council",
+        "at": {
+          "kind": "municipality",
+          "tier": "local",
+          "id": 11,
+          "name": "Caladale",
+          "name_key": "jurisdiction-municipality"
+        },
+        "constituency_number": 6,
+        "label_key": "body-council",
+        "role_key": "role-councillor"
+      },
+      "pitch_key": "pitch-plant",
+      "tag": {
+        "template": "arc.plant_closure",
+        "matter": "sector.retail",
+        "post": "councillor",
+        "town_class": "town"
+      }
+    },
+    {
+      "town": 23,
+      "town_name": "Ashgate",
       "town_class": "town",
       "template": "arc.zoning",
       "title_key": "arc-zoning",
       "args": {
-        "clock_day": "31",
-        "clock_month_key": "month-5",
+        "clock_day": "12",
+        "clock_month_key": "month-4",
         "concern_key": "concern-housing",
         "concern_talk_key": "talk-concern-housing",
-        "day": "2",
-        "developer": "Ilse Teaguefield",
-        "hall": "Orchardside",
-        "hood": "Marketside",
-        "member": "Edda Ware",
-        "month_key": "month-5",
-        "neighbour": "Aldo Varga",
-        "organiser": "Edda Quill",
-        "place": "Calermoor",
-        "town": "Calermoor",
+        "day": "3",
+        "developer": "Lorcan Abbotson",
+        "hall": "Quarryheath",
+        "hood": "Greenheath",
+        "member": "Dagny Birch",
+        "month_key": "month-3",
+        "neighbour": "Mina Pryceer",
+        "organiser": "Zia Sallow",
+        "place": "Ashgate",
+        "town": "Ashgate",
         "weeks": "0",
         "year": "2020"
       },
@@ -31,11 +82,11 @@
         "at": {
           "kind": "municipality",
           "tier": "local",
-          "id": 10,
-          "name": "Calermoor",
+          "id": 23,
+          "name": "Ashgate",
           "name_key": "jurisdiction-municipality"
         },
-        "constituency_number": 4,
+        "constituency_number": 1,
         "label_key": "body-council",
         "role_key": "role-councillor"
       },
@@ -48,73 +99,26 @@
       }
     },
     {
-      "town": 8,
-      "town_name": "Belenmouth",
+      "town": 20,
+      "town_name": "Thornridge",
       "town_class": "town",
-      "template": "arc.budget_round",
-      "title_key": "arc-budget",
-      "args": {
-        "backers": "3",
-        "books": "over",
-        "clock_day": "29",
-        "clock_month_key": "month-8",
-        "day": "26",
-        "gap": "6",
-        "hall": "Belenmouth",
-        "hood": "Belenmouth",
-        "member": "Aldo Goldby",
-        "members": "6",
-        "month_key": "month-4",
-        "place": "Belenmouth",
-        "proposer": "Sofi Dunmore",
-        "town": "Belenmouth",
-        "weeks": "0",
-        "year": "2020"
-      },
-      "live": true,
-      "post": {
-        "kind": "seat",
-        "id": "council",
-        "at": {
-          "kind": "municipality",
-          "tier": "local",
-          "id": 8,
-          "name": "Belenmouth",
-          "name_key": "jurisdiction-municipality"
-        },
-        "constituency_number": 5,
-        "label_key": "body-council",
-        "role_key": "role-councillor"
-      },
-      "pitch_key": "pitch-budget",
-      "tag": {
-        "template": "arc.budget_round",
-        "matter": "sector.retail",
-        "post": "councillor",
-        "town_class": "town"
-      }
-    },
-    {
-      "town": 5,
-      "town_name": "Rosiridge",
-      "town_class": "city",
       "template": "arc.zoning",
       "title_key": "arc-zoning",
       "args": {
-        "clock_day": "31",
-        "clock_month_key": "month-5",
+        "clock_day": "12",
+        "clock_month_key": "month-4",
         "concern_key": "concern-housing",
         "concern_talk_key": "talk-concern-housing",
-        "day": "2",
-        "developer": "Delphine Garrower",
-        "hall": "Queensfield",
-        "hood": "Foundry Cross",
-        "member": "Gil Uedawell",
-        "month_key": "month-5",
-        "neighbour": "Osric Stoneby",
-        "organiser": "Saul Hart",
-        "place": "Rosiridge",
-        "town": "Rosiridge",
+        "day": "3",
+        "developer": "Benno Thorne",
+        "hall": "Castle Quarter",
+        "hood": "Castle Green",
+        "member": "Imre Hale",
+        "month_key": "month-3",
+        "neighbour": "Arlo Kell",
+        "organiser": "Kai Quiller",
+        "place": "Thornridge",
+        "town": "Thornridge",
         "weeks": "0",
         "year": "2020"
       },
@@ -125,29 +129,29 @@
         "at": {
           "kind": "municipality",
           "tier": "local",
-          "id": 5,
-          "name": "Rosiridge",
+          "id": 20,
+          "name": "Thornridge",
           "name_key": "jurisdiction-municipality"
         },
-        "constituency_number": 5,
+        "constituency_number": 1,
         "label_key": "body-council",
         "role_key": "role-councillor"
       },
       "pitch_key": "pitch-zoning",
       "tag": {
         "template": "arc.zoning",
-        "matter": "sector.knowledge",
+        "matter": "sector.retail",
         "post": "councillor",
-        "town_class": "city"
+        "town_class": "town"
       }
     }
   ],
-  "months_ahead": 4,
+  "months_ahead": 2,
   "scan_step_days": 30,
   "opens": {
-    "day_number": 737421,
+    "day_number": 737361,
     "year": 2020,
-    "month": 5,
-    "day": 2
+    "month": 3,
+    "day": 3
   }
 }
