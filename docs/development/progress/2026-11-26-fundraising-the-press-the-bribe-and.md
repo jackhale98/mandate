@@ -40,7 +40,12 @@ Same world, at the place: the one action against the conversation. The states ar
 2. **The press is one exchange,** opened on nothing in particular or a bill; the journalist's two questions drawn from the outlet's interests and the player's record wait for B6 (lines) and a mechanism of their own.
 3. **The leak is at the news office only** (there was no late leak); the diner variant waits.
 
+## Gates and pins
+
+- `mandate-cli bots --seeds 16`, before and after (release): every enforced gate holds, none made report-only. ladder_rote mixed share 0.7222 → 0.7225 (win 1.0); ladder_learned explorer − mixed 0.0244 → 0.0238 (margin 0.01); corrupt − best honest −0.0625 → −0.0625; proxy_not_optimal directed 0.6468 → 0.6468 against informed median 0.7447 → 0.7441; effort_matters and exploring_alone_never_wins unchanged. The corrupt bot's mix is unchanged (it takes the envelope and leaks as often).
+- The spine proof's pins moved (repin): each verb now adds a talk deed (one `PlayerDeed` event), and the people a verb is had with can be talked to where it is done, so the bots that ask people for support find more of them (seed 31's explorer legislator: 3373 → 3932 events). Seeds, the state's shape, the geography and the fixtures did not move.
+
 ## Not done, and risks
 
-- Bot gates and pins: see the report (before and after figures).
+- The panel's header still states a conversation's cost (½ slot); a verb's own time is on its choice ("one slot").
 - The panel shows money as units (`3543`), as the old toast did.
