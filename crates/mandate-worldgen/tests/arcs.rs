@@ -797,7 +797,10 @@ fn the_state_is_bounded() {
         "arcs state: at most {biggest} bytes of JSON with one run; {} after it ended",
         serde_json::to_vec(a).unwrap().len()
     );
-    assert!(biggest < 2500, "{biggest}");
+    // The engaged path goes through the meeting now (work started early
+    // does not skip the hall), so the run holds a played scene: 2,737 bytes
+    // on 2026-11-26 (under 2,500 when it skipped the meeting).
+    assert!(biggest < 4000, "{biggest}");
     // The same strike raises nothing twice.
     for _ in 0..6 {
         end_turn(&mut e);

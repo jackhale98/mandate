@@ -167,7 +167,12 @@ fn state_shape_matches_format_version() {
     // as the state loads).
     // Re-recorded on the merge with lobbying (note 29).
     // Re-recorded on the merge with the pilot arc (the zoning fight).
-    const EXPECTED: (u16, &str) = (32, "75e9d04e73ba81f2");
+    // v33 (arc infrastructure): a cause may name a worry
+    // (`Pressure::Worry`, the root of a matter its worry raised), a scene's
+    // clock is held to a turn, the flood's hall is no longer skipped and
+    // the places for arcs go by rank, so the sample game's contents moved.
+    // Migration: `worry_roots` (nothing an older save holds changes).
+    const EXPECTED: (u16, &str) = (33, "75e9d04e73ba81f2");
     let c = content();
     let mut e = generate(
         &WorldConfig {

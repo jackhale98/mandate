@@ -241,3 +241,54 @@ fn the_arc_conditions_belong_to_arcs() {
         "DEC-098",
     );
 }
+
+/// The arcs' infrastructure (2026-11-26): a scene's clock shorter than a
+/// turn is a warning (the engine holds it to a turn); an `arc_scene` names
+/// a scene of its own arc; a standing arc takes no rank; a crisis is ranked
+/// in content, never by its id.
+#[test]
+fn scene_windows_reads_of_scenes_and_ranks_are_checked() {
+    // The flood's meeting on a week's clock: it loads, with the warning.
+    let mut src = sources();
+    let f = src.iter_mut().find(|s| s.path.ends_with(FLOOD)).unwrap();
+    let from = r#""climax": true, "clock": { "days": [14, 21] }"#;
+    assert!(f.text.contains(from));
+    f.text = f
+        .text
+        .replacen(from, r#""climax": true, "clock": { "days": [7, 14] }"#, 1);
+    let (_, warnings) = load(&src).unwrap();
+    let w: Vec<String> = warnings.iter().map(|x| x.to_string()).collect();
+    assert!(
+        w.iter()
+            .any(|x| x.contains("exchange-window-short") && x.contains("`meeting` (7 days)")),
+        "{w:#?}"
+    );
+    // A read of a scene the arc does not have.
+    refused(
+        FLOOD,
+        r#""beat": "meeting.room", "outcomes": ["won", "split"]"#,
+        r#""beat": "meeting.nowhere", "outcomes": ["won", "split"]"#,
+        "`meeting.nowhere` is not a scene of this arc",
+    );
+    // A standing arc holds no place.
+    refused(
+        "arcs/rival.jsonc",
+        r#""standing": "campaign","#,
+        r#""standing": "campaign", "rank": "crisis","#,
+        "it takes no `rank`",
+    );
+    let (b, _) = load(&sources()).unwrap();
+    use mandate_content::arcs::ArcRank;
+    for (id, rank) in [
+        ("arc.flood", ArcRank::Crisis),
+        ("arc.plant_closure", ArcRank::Crisis),
+        ("arc.zoning", ArcRank::Matter),
+        ("arc.favour_debt", ArcRank::Matter),
+    ] {
+        assert_eq!(b.arc(id).unwrap().rank, rank, "{id}");
+    }
+    // Every scene of the pack but the zoning meeting reaches its ending
+    // (`arc-scene-unread`: the zoning meeting's exits read no outcome).
+    let unread = mandate_content::arcs::unread_scenes(&b);
+    assert_eq!(unread, vec![("arc.zoning", "meeting.room".to_string())]);
+}
