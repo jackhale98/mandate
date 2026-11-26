@@ -131,7 +131,7 @@ jobs:
           - group: cli-wasm
             packages: -p mandate-cli -p mandate-wasm
           - group: rest
-            packages: -p mandate-core -p mandate-content -p mandate-sim -p mandate-protocol -p mandate-save -p mandate-seeds
+            packages: -p mandate-core -p mandate-content -p mandate-sim -p mandate-protocol -p mandate-save -p mandate-seeds -p mandate-testkit
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -141,7 +141,7 @@ jobs:
       - name: Every crate of the workspace is in a test group
         if: matrix.group == 'rest'
         run: |
-          groups="mandate-worldgen mandate-cli mandate-wasm mandate-core mandate-content mandate-sim mandate-protocol mandate-save mandate-seeds"
+          groups="mandate-worldgen mandate-cli mandate-wasm mandate-core mandate-content mandate-sim mandate-protocol mandate-save mandate-seeds mandate-testkit"
           for c in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[].name'); do
             case " $groups " in *" $c "*) ;; *) echo "crate $c is in no test group (.github/workflows/ci.yml)"; exit 1 ;; esac
           done
