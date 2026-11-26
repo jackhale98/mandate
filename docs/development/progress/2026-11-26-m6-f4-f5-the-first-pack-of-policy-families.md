@@ -26,6 +26,14 @@
 - `policies --coverage --seeds 16`: 18 of 18 bind (`never_bind: []`); `policies --check`: 18 of 18. The family table is in the task report.
 - `bots --seeds 16`: every enforced gate passes before and after; mean shares fall (TUNING_QUEUE). Winners drafted 8 distinct families in 13 of 16 worlds.
 
+## Tests that moved
+
+- The situational mechanism's tests (`mandate-wasm/tests/{m5d2,knowledge}.rs`) load the base pack with the four situational templates un-retired: the `unlock` path stays and is still proved.
+- Tests of old saves (v13, v14, v18, v23/v24) play without family content, as those formats held none; the family save tests disable the base families with a `disable` patch so the samples are what opens (and `draw_deck` now leaves disabled families out, as `disabled` documents).
+- The occupation-removal test strips the occupation from family slots too; an unknown concern in a family slot is a warning (it never binds), as for conditions.
+- World-history shifts: the town-state test lets a place closed in history through; the asks hook test counts the ask hook's own choices (a lobbying choice is also offered at seed 31); the flooded-town stand-in test lets the passive player's empty-chair mark (`stayed_away`) through; the broker test forms the member's relationship before measuring compliance (`compliance` reads a missing relationship as neutral, a new one starts from a first impression: a mismatch worth a look).
+- Pins re-recorded (`scripts/repin.sh`): spine proof, state-shape fingerprint (data, not types: no format bump), town geography, v18 golden, asks fixture, seeds; pocket and exchange view fixtures rewritten.
+
 ## Left
 
 - Campus incubator, port expansion and water for the farms never bind in a home town (no home town has a campus, a port or an open farm): they bind in other towns and wait for M7's wider focus.
