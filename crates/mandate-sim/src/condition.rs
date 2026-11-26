@@ -1022,6 +1022,23 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             })
         }
         C::ArcMark { mark, is } => cx.arc.is_some_and(|r| r.has_mark(mark) == *is),
+        C::ArcScene {
+            beat,
+            outcomes,
+            min_pm,
+            max_pm,
+        } => cx.arc.is_some_and(|r| {
+            r.played
+                .iter()
+                .rev()
+                .find(|p| beat.as_ref().is_none_or(|b| p.beat.key() == *b))
+                .is_some_and(|p| {
+                    let pm = (p.result * 1000.0).round() as i32;
+                    (outcomes.is_empty() || outcomes.contains(&p.outcome))
+                        && min_pm.is_none_or(|m| pm >= m)
+                        && max_pm.is_none_or(|m| pm <= m)
+                })
+        }),
         C::ArcHeat { min, max } => cx
             .arc
             .is_some_and(|r| in_range(f64::from(r.heat), *min, *max)),
@@ -1304,11 +1321,20 @@ pub fn concern_args(content: &mandate_content::ContentBundle, i: usize, args: &m
 }
 
 fn concern(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
-    let Some(w) = c.worry() else {
+    let Some(i) = worry_held(cx, c) else {
         return false;
     };
+    concern_args(cx.v.content(), i, args);
+    true
+}
+
+/// The concern (its index in `content.concerns`) that makes a `concern`
+/// condition hold now, if it does: what a matter raised by a standing
+/// worry names as its root on the spine.
+pub(crate) fn worry_held(cx: &Ctx<'_>, c: &Condition) -> Option<usize> {
+    let w = c.worry()?;
     let content = cx.v.content();
-    let Some(i) = ranked_worries(cx, w.of, w.by)
+    ranked_worries(cx, w.of, w.by)
         .into_iter()
         .take(w.top as usize)
         .find(|i| {
@@ -1317,11 +1343,6 @@ fn concern(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
                 .get(*i)
                 .is_some_and(|x| w.concerns.contains(&&x.id))
         })
-    else {
-        return false;
-    };
-    concern_args(content, i, args);
-    true
 }
 
 fn remembers(cx: &Ctx<'_>, slot: &str, kinds: &[String], args: &mut Args) -> bool {

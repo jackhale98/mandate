@@ -1,0 +1,14 @@
+[package]
+name = "mandate-testkit"
+version = "0.1.0"
+edition = "2024"
+description = "Dev-only: the shared arc-test harness (worlds that hold the arc under test alone, raised, played and met by a scene policy)"
+
+[dependencies]
+mandate-content = { version = "0.1.0", path = "../mandate-content", features = ["fs"] }
+mandate-core = { version = "0.1.0", path = "../mandate-core" }
+mandate-sim = { version = "0.1.0", path = "../mandate-sim" }
+mandate-worldgen = { version = "0.1.0", path = "../mandate-worldgen" }
+
+[lints]
+workspace = true

@@ -17,7 +17,7 @@
 use super::*;
 use crate::arcs::{ArcId, ArcRun, ArcsState};
 use crate::spine::{Cause, Process};
-use mandate_content::arcs::{ArcDef, Standing};
+use mandate_content::arcs::{ArcDef, ArcRank, Standing};
 
 /// Draw salt of the lead's pick (`KEY_PICK`).
 const SALT_LEAD: u64 = 7;
@@ -74,16 +74,13 @@ pub fn place_clock(v: &View<'_>, lo: SimDate, hi: SimDate, lead: u32, u: f64) ->
     }
 }
 
-/// The theme of a material arc: one about something physical in the
-/// town (a flood, a plant), which outranks a standing arc for the lead.
-pub const THEME_MATERIAL: &str = "crisis";
-
-/// How a run ranks for the lead: a material arc, then the standing arc of
-/// this kind of chapter, then the rest (a debt being called in, the
-/// other kind's standing arc).
+/// How a run ranks for the lead: a crisis (`ArcDef::rank`: something
+/// physical in the town, a flood, a plant), then the standing arc of this
+/// kind of chapter, then the rest (a debt being called in, the other
+/// kind's standing arc).
 fn lead_tier(def: &ArcDef, kind: ChapterKind) -> Tier {
     match (def.standing, kind) {
-        (None, _) if def.themes.iter().any(|t| t == THEME_MATERIAL) => Tier::A,
+        (None, _) if def.rank == ArcRank::Crisis => Tier::A,
         (Some(Standing::Session), ChapterKind::Session)
         | (Some(Standing::Campaign), ChapterKind::Campaign) => Tier::B,
         _ => Tier::C,

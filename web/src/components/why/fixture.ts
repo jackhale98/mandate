@@ -19,7 +19,7 @@ export const PROCESSES = [
   "calendar", "markets", "central_bank", "budget", "lawmaking", "agenda", "elections", "parties", "director", "press", "justice", "asks", "society",
   "knowledge", "arcs", "update",
 ] as const;
-export const PRESSURES = ["world_demand", "commodity_prices", "depletion", "competitiveness", "labour_costs", "track"] as const;
+export const PRESSURES = ["world_demand", "commodity_prices", "depletion", "competitiveness", "labour_costs", "track", "worry"] as const;
 export const SHOCKS = ["world_economy", "commodities", "hazard", "race"] as const;
 
 const date = (year: number, month: number, day: number): DateView => ({ day_number: (year - 2000) * 360 + (month - 1) * 30 + day, year, month, day });

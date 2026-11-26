@@ -1040,6 +1040,10 @@
           },
           "type": "array"
         },
+        "rank": {
+          "$ref": "#/$defs/ArcRank",
+          "description": "How it ranks for the places for arcs (`director.arcs_active`) and\nfor the chapter's lead: a `crisis` (a flood, a plant closing) is\nnever kept out of a place by a `matter` (a zoning fight, a debt), and\nleads a chapter over a standing arc. Omitted: a matter."
+        },
         "requires": {
           "description": "Engine features it needs (`parties.membership`).",
           "items": {
@@ -1109,6 +1113,21 @@
         "stages"
       ],
       "type": "object"
+    },
+    "ArcRank": {
+      "description": "How an arc ranks for a place (`ArcDef::rank`): later variants outrank\nearlier ones.",
+      "oneOf": [
+        {
+          "const": "matter",
+          "description": "A standing matter of the town: rules, a debt, a scheme.",
+          "type": "string"
+        },
+        {
+          "const": "crisis",
+          "description": "Something physical happening to the town: water in the streets, a\nworks closing.",
+          "type": "string"
+        }
+      ]
     },
     "ArcReplyDef": {
       "additionalProperties": false,
@@ -5692,6 +5711,46 @@
           "required": [
             "type",
             "mark"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The run finished a scene (DEC-112) whose outcome is one of\n`outcomes` (`won`, `split`, `lost`, `absent`; any, if empty) and\nwhose result (Σ weight × change in lean, per mille) is within\n[`min_pm`, `max_pm`]: the scene the player played, read where the\nending is decided. `beat` (`<stage>.<beat>`) names one scene of\nthe arc; omitted, the latest. Inside an arc only.",
+          "properties": {
+            "beat": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "max_pm": {
+              "format": "int32",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "min_pm": {
+              "format": "int32",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "outcomes": {
+              "items": {
+                "$ref": "#/$defs/Outcome"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "arc_scene",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
           ],
           "type": "object"
         },
@@ -15540,6 +15599,24 @@
         }
       },
       "type": "object"
+    },
+    "Outcome": {
+      "description": "How a scene ends.",
+      "oneOf": [
+        {
+          "enum": [
+            "won",
+            "split",
+            "lost"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "absent",
+          "description": "The player never began before its day passed: an empty chair.",
+          "type": "string"
+        }
+      ]
     },
     "OutletDef": {
       "additionalProperties": false,

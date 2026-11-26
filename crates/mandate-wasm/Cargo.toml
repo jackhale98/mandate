@@ -28,3 +28,4 @@ dev-tools = ["mandate-protocol/dev-tools"]
 
 [dev-dependencies]
 mandate-seeds = { path = "../mandate-seeds" }
+mandate-testkit = { path = "../mandate-testkit" }

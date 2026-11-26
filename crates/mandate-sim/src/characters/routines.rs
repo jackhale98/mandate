@@ -71,8 +71,14 @@ pub fn day_part(state: &State) -> DayPart {
 
 /// Days the current turn spans (as `Engine::turn_days`).
 pub fn turn_days(state: &State, content: &ContentBundle) -> u32 {
+    turn_days_in(state.calendar.phase, content)
+}
+
+/// A turn's length in a phase (`tuning.turn_days`): what a system that
+/// reads the calendar, not the whole state, asks.
+pub fn turn_days_in(phase: GamePhase, content: &ContentBundle) -> u32 {
     let t = &content.tuning.turn_days;
-    let days: u32 = match state.calendar.phase {
+    let days: u32 = match phase {
         GamePhase::Campaign => t.campaign.into(),
         GamePhase::Governing | GamePhase::BurnIn => t.governing_local.into(),
     };

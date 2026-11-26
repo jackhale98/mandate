@@ -211,6 +211,10 @@ pub enum Pressure {
     SlackLabour,
     /// A long boom in an industry's demand: what reopens a works.
     Boom,
+    /// What the town worries about most (a concern, by its index in the
+    /// pack's `concerns`): the root of a matter its own worry raised (the
+    /// zoning fight, raised by housing), where no event made it true.
+    Worry { concern: u16 },
 }
 
 impl Pressure {
@@ -230,6 +234,7 @@ impl Pressure {
             Pressure::Water => "water",
             Pressure::SlackLabour => "slack_labour",
             Pressure::Boom => "boom",
+            Pressure::Worry { .. } => "worry",
         }
     }
 }

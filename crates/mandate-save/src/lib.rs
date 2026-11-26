@@ -38,8 +38,11 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// scene under way and the scenes finished on an arc run, a story's source
 /// that is a scene, the community filter of an approval request. v32: the
 /// town calendar and familiarity (B1, DEC-114): the day played, the events
-/// the player was at this turn, familiarity on a relationship.
-pub const SAVE_FORMAT_VERSION: u16 = 32;
+/// the player was at this turn, familiarity on a relationship. v33: the
+/// arcs' infrastructure: an arc raised by a standing worry has that worry
+/// as its root on the spine (`Pressure::Worry`), and a scene's clock is
+/// held to a turn's length (no field changed; an older save reads as is).
+pub const SAVE_FORMAT_VERSION: u16 = 33;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -267,6 +270,10 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // the next. Renumber only this key if another bump merges first (the
         // step names no version).
         (31, calendar_familiarity),
+        // A worry as a root on the spine (arcs infrastructure): nothing an
+        // older save holds changes. Renumber only this key if another bump
+        // merges first (the step names no version).
+        (32, worry_roots),
     ];
     let mut value = value;
     let mut v = from;
@@ -1058,6 +1065,12 @@ fn frozen_estimates(mut value: serde_json::Value) -> Result<serde_json::Value, S
             ledger.insert("homes_started".into(), total);
         }
     }
+    Ok(value)
+}
+
+/// v32 → v33: a new root a cause can name (`Pressure::Worry`); an older
+/// save holds none, so it reads as it is.
+fn worry_roots(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
     Ok(value)
 }
 

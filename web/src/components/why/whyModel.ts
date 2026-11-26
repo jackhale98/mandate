@@ -71,6 +71,8 @@ export function rootOf(tr: Translator, c: CauseView): WhyRoot | null {
     case "process":
       return { kind: "process", text: tr.t(`why-process-${c.process}`) };
     case "pressure":
+      // A worry names its concern as said in a sentence ("the rent").
+      if (c.concern_key) return { kind: "pressure", text: tr.t(`why-pressure-${c.pressure}-named`, { concern: tr.t(c.concern_key) }) };
       return { kind: "pressure", text: tr.t(`why-pressure-${c.pressure}`) };
     case "exogenous":
       return { kind: "exogenous", text: tr.t(`why-exogenous-${c.shock}`) };

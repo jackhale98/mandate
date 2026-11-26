@@ -69,6 +69,12 @@ pub struct ArcDef {
     /// outranks it for the chapter's lead.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub standing: Option<Standing>,
+    /// How it ranks for the places for arcs (`director.arcs_active`) and
+    /// for the chapter's lead: a `crisis` (a flood, a plant closing) is
+    /// never kept out of a place by a `matter` (a zoning fight, a debt), and
+    /// leads a chapter over a standing arc. Omitted: a matter.
+    #[serde(default, skip_serializing_if = "ArcRank::is_matter")]
+    pub rank: ArcRank,
     /// Where it may run.
     pub tiers: Vec<TierKey>,
     /// Conditions over simulated state at a jurisdiction; never the ledger.
@@ -118,6 +124,34 @@ impl ArcDef {
         self.stages
             .iter()
             .flat_map(|s| s.beats.iter().map(move |b| (s, b)))
+    }
+}
+
+/// How an arc ranks for a place (`ArcDef::rank`): later variants outrank
+/// earlier ones.
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ArcRank {
+    /// A standing matter of the town: rules, a debt, a scheme.
+    #[default]
+    Matter,
+    /// Something physical happening to the town: water in the streets, a
+    /// works closing.
+    Crisis,
+}
+
+impl ArcRank {
+    pub fn is_matter(&self) -> bool {
+        *self == ArcRank::Matter
+    }
+
+    pub fn key(self) -> &'static str {
+        match self {
+            ArcRank::Matter => "matter",
+            ArcRank::Crisis => "crisis",
+        }
     }
 }
 
@@ -950,6 +984,22 @@ impl Checker<'_> {
                 break;
             }
         }
+        // A scene read where the ending is decided names one of the arc's
+        // own scenes.
+        {
+            let mut all = Vec::new();
+            crate::condition::walk(cs, &mut all);
+            for c in all {
+                if let Condition::ArcScene { beat: Some(b), .. } = c {
+                    let found = self.a.beats().any(|(st, x)| {
+                        matches!(x.kind, BeatKind::Exchange(_)) && format!("{}.{}", st.id, x.id) == *b
+                    });
+                    if !found {
+                        self.err(issues, format!("arc_scene: `{b}` is not a scene of this arc"));
+                    }
+                }
+            }
+        }
         // A run's conditions are decided inside the arcs' own step, where
         // the domain is not readable: they read the run, never other runs.
         if at != ConditionUse::ArcReply {
@@ -1100,7 +1150,7 @@ pub fn single_decision_turns(b: &ContentBundle) -> Vec<(&str, &str)> {
 /// task); then `arc-turn-single-decision` moves into validation as an
 /// error.
 pub fn lints(b: &ContentBundle) -> Vec<Issue> {
-    single_decision_turns(b)
+    let mut out: Vec<Issue> = single_decision_turns(b)
         .into_iter()
         .map(|(arc, stage)| {
             Issue::warning(
@@ -1111,7 +1161,68 @@ pub fn lints(b: &ContentBundle) -> Vec<Issue> {
                 ),
             )
         })
-        .collect()
+        .collect();
+    for (arc, beat) in unread_scenes(b) {
+        out.push(Issue::warning(
+            arc,
+            &format!(
+                "scene `{beat}`: how it ends reaches no ending (arc-scene-unread): no edge reads \
+                 its outcome (`arc_scene`, or a mark an outcome sets) and no outcome acts on the \
+                 matter itself (`recovery`, `plant_relief`, `displacement`, `budget`)"
+            ),
+        ));
+    }
+    out
+}
+
+/// The scenes (`<stage>.<beat>`) whose outcome reaches no ending: no edge
+/// of the arc reads it (an `arc_scene` naming it or naming none, or a mark
+/// one of its outcomes sets), and no outcome posts an effect on the matter
+/// the edges read (repairs, a plant's margin, people leaving, a budget).
+/// A room of the race's voters moves the race. An outcome that only moves
+/// opinion, approval or the record changes how the ending is remembered,
+/// not which ending it is.
+pub fn unread_scenes(b: &ContentBundle) -> Vec<(&str, String)> {
+    let mut out = Vec::new();
+    for a in &b.arcs {
+        let mut edge_conds: Vec<&Condition> = Vec::new();
+        for s in &a.stages {
+            for e in &s.next {
+                crate::condition::walk(&e.when, &mut edge_conds);
+            }
+        }
+        for (s, beat) in a.beats() {
+            let BeatKind::Exchange(x) = &beat.kind else {
+                continue;
+            };
+            let key = format!("{}.{}", s.id, beat.id);
+            let marks: Vec<&str> = x.outcome.values().filter_map(|o| o.sets.as_deref()).collect();
+            let read = edge_conds.iter().any(|c| match c {
+                Condition::ArcScene { beat: b, .. } => b.as_ref().is_none_or(|b| *b == key),
+                Condition::ArcMark { mark, .. } => marks.contains(&mark.as_str()),
+                _ => false,
+            });
+            let acts = x.outcome.values().flat_map(|o| o.effects.iter()).any(|g| {
+                matches!(
+                    g.effect,
+                    ArcEffect::Recovery { .. }
+                        | ArcEffect::PlantRelief { .. }
+                        | ArcEffect::Displacement { .. }
+                        | ArcEffect::Budget { .. }
+                )
+            });
+            // A room that is the race's voters moves the race itself,
+            // which is what a campaign's ending reads.
+            let race = x
+                .audience
+                .iter()
+                .any(|d| d.of.as_deref() == Some(crate::exchange::OF_RACE));
+            if !read && !acts && !race {
+                out.push((a.id.as_str(), key));
+            }
+        }
+    }
+    out
 }
 
 impl Checker<'_> {
@@ -1433,6 +1544,46 @@ impl Checker<'_> {
     }
 }
 
+/// The longest turn an arc can be played in: the campaign's and the
+/// governing turns of the tiers it runs in (`tuning.turn_days`).
+pub fn longest_turn_days(b: &ContentBundle, a: &ArcDef) -> u32 {
+    let t = &b.tuning.turn_days;
+    a.tiers
+        .iter()
+        .map(|tier| match tier {
+            crate::TierKey::Local => t.governing_local,
+            crate::TierKey::Regional => t.governing_regional,
+            crate::TierKey::National => t.governing_national,
+        })
+        .chain([t.campaign])
+        .max()
+        .map_or(1, u32::from)
+}
+
+/// A stage with a scene whose clock can fall sooner than a turn
+/// (`exchange-window-short`): the engine holds the clock to a turn's
+/// length, so the content's range is not what is played.
+pub fn short_scene_window(b: &ContentBundle, a: &ArcDef) -> Option<String> {
+    let turn = longest_turn_days(b, a);
+    let short: Vec<String> = a
+        .stages
+        .iter()
+        .filter(|s| s.beats.iter().any(|x| matches!(x.kind, BeatKind::Exchange(_))))
+        .filter_map(|s| {
+            let lo = s.clock.as_ref()?.days?[0];
+            (lo < turn).then(|| format!("`{}` ({lo} days)", s.id))
+        })
+        .collect();
+    (!short.is_empty()).then(|| {
+        format!(
+            "stage {}: a scene's clock is shorter than a turn of {turn} days \
+             (exchange-window-short): the engine holds it to a turn, so the scene \
+             is on offer for one turn the player can act in",
+            short.join(", ")
+        )
+    })
+}
+
 pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
     // The exchange's own constants.
     for msg in b.exchange.problems() {
@@ -1500,6 +1651,16 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             if !b.policies.contains_key(t) && b.family(t).is_none() {
                 err(issues, format!("answers: unknown policy or family `{t}`"));
             }
+        }
+        // A standing arc holds no place, so it has no rank for one.
+        if a.standing.is_some() && !a.rank.is_matter() {
+            err(
+                issues,
+                "a standing arc runs beside the places for arcs: it takes no `rank`".into(),
+            );
+        }
+        if let Some(msg) = short_scene_window(b, a) {
+            issues.push(Issue::warning(owner, &msg));
         }
 
         // Roles: unique, and a `near` names an earlier role of the right kind.

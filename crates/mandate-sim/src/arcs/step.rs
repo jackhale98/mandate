@@ -25,7 +25,7 @@ use crate::events::{EventId, EventKind};
 use crate::narrative::cast::View;
 use crate::narrative::{CastEntry, DecisionStatus};
 use crate::scheduler::{Effect, Outs, Reads, Request};
-use crate::spine::{Cause, Link, PlayerAct, Process, Thread};
+use crate::spine::{Cause, Causes, Link, PlayerAct, Pressure, Process, Thread};
 use crate::state::GamePhase;
 use crate::world::Jurisdiction;
 use mandate_content::Condition;
@@ -409,6 +409,19 @@ fn enter(
                 run.clock = Some(today.add_days(d as u32));
             }
             None => {}
+        }
+        // A scene is on offer for at least one turn the player can act in
+        // (X3: a meeting of 7 to 14 days could open and close between two
+        // fortnight turns, never offered): its clock, the night after its
+        // last day, is never sooner than a turn's length from today,
+        // whatever the content's range (`exchange-window-short` warns).
+        let scene = stage
+            .beats
+            .iter()
+            .any(|b| matches!(b.kind, BeatKind::Exchange(_)));
+        if scene && let Some(c) = run.clock {
+            let turn = crate::characters::routines::turn_days_in(v.r.calendar.phase, v.content());
+            run.clock = Some(c.max(today.add_days(turn)));
         }
     }
     let facts = cast::facts(v, def, run);
@@ -851,6 +864,20 @@ fn root_event(
     best
 }
 
+/// The standing worry a template's `raise` read at a jurisdiction: the
+/// concern of its first `concern` condition (at any depth) that holds now.
+/// `None` when it reads none.
+fn worry_root(v: &View<'_>, at: Jurisdiction, raise: &[Condition]) -> Option<Pressure> {
+    let mut all = Vec::new();
+    mandate_content::condition::walk(raise, &mut all);
+    let cx = Ctx::new(v, None, Some(at));
+    all.into_iter()
+        .filter(|c| matches!(c, Condition::Concern { .. }))
+        .find_map(|c| crate::condition::worry_held(&cx, c))
+        .and_then(|i| u16::try_from(i).ok())
+        .map(|concern| Pressure::Worry { concern })
+}
+
 /// Days a template whose `raise` reads no event waits before it may be
 /// raised again, whatever its cooldown.
 const MIN_COOLDOWN_DAYS: u32 = 28;
@@ -860,6 +887,13 @@ const MIN_COOLDOWN_DAYS: u32 = 28;
 /// most `director.arcs_active` there, standing arcs aside (the world does
 /// not wait, but nobody follows a third matter at once: its owning system
 /// resolves it by its own rule).
+///
+/// The places go by rank (`ArcDef::rank`): a run holds a place against a
+/// template only if it ranks as high, so a crisis is never kept out by
+/// matters raised before it (a flood behind a zoning fight). At most
+/// `arcs_active` runs of a rank or above are live, so a jurisdiction
+/// follows at most that many crises, and a crisis beside full places of
+/// matters is one more.
 fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
     let Some(pl) = v.player() else { return };
     let content = v.content();
@@ -884,7 +918,7 @@ fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
                 .filter(|x| {
                     content
                         .arc(&x.template)
-                        .is_none_or(|d| d.standing.is_none())
+                        .is_none_or(|d| d.standing.is_none() && d.rank >= def.rank)
                 })
                 .count();
             if def.standing.is_none() && others >= cap {
@@ -951,7 +985,16 @@ fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
                 continue;
             }
             a.ids.alloc_raw();
-            // The event that made it true is the arc's root on the spine.
+            // The event that made it true is the arc's root on the spine;
+            // where none did, the standing worry its `raise` read (housing
+            // as the town's strongest worry), so the Why panel says why.
+            let causes = match root {
+                Some((ev, _)) => Causes::from(Cause::caused_by(ev)),
+                None => match worry_root(v, at, &def.raise) {
+                    Some(w) => Causes::from(Cause::Pressure(w)).and(Cause::Process(Process::Arcs)),
+                    None => Causes::from(Cause::Process(Process::Arcs)),
+                },
+            };
             out.events.record(
                 today,
                 EventKind::ArcRaised {
@@ -959,10 +1002,7 @@ fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
                     template: def.id.clone(),
                     at,
                 },
-                match root {
-                    Some((ev, _)) => Cause::caused_by(ev),
-                    None => Cause::Process(Process::Arcs),
-                },
+                causes,
             );
             // An arc raised mid-matter starts where the world is: the
             // first stage's edges are checked on entry, and the stage it

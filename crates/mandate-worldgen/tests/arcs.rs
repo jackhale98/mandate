@@ -15,34 +15,29 @@
 //! - the state is bounded, and holds no town key.
 
 use mandate_content::arcs::{ArcEffect, BeatKind, GatedEffect};
-use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
+use mandate_content::ContentBundle;
 use mandate_sim::actions::{Action, PlayerCommand};
 use mandate_sim::arcs::beats::{self, BeatAction, BeatOffer};
 use mandate_sim::arcs::exchange::{self, ExchangeAct};
 use mandate_sim::arcs::{ArcActor, ArcRun, ArcSummary};
 use mandate_sim::characters::{self, CharacterId, MemoryKind};
-use mandate_sim::environment::{DeferredHazard, HazardKind};
+use mandate_sim::environment::HazardKind;
 use mandate_sim::events::EventKind;
 use mandate_sim::places::Location;
 use mandate_sim::spine::{Cause, Link, Thread};
 use mandate_sim::talk::TalkTarget;
-use mandate_sim::world::{Area, Jurisdiction, MunicipalityId, NeighborhoodId};
+use mandate_sim::world::{Area, Jurisdiction, NeighborhoodId};
 use mandate_sim::{Command, Engine};
-use mandate_worldgen::{WorldConfig, WorldSize, generate};
 use std::collections::BTreeSet;
-use std::path::Path;
+use mandate_testkit::{self as kit, end_turn, home, plant_flood, world as engine};
 use std::sync::Arc;
 
-/// The base pack with the flood arc alone: these are the flood's tests
-/// (task A1), written when it was the only arc. The standing arcs and the
-/// folded storylines (task A2) have their own (`budget_round.rs`,
-/// `narrative.rs`), where a flood runs beside the budget round.
+/// The base pack with the flood arc alone (the harness's `only`): these are
+/// the flood's tests (task A1). The standing arcs and the folded
+/// storylines (task A2) have their own (`budget_round.rs`, `narrative.rs`);
+/// where arcs meet is `director_arcs.rs`.
 fn base() -> Arc<ContentBundle> {
-    let src =
-        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
-    let mut b = load(&src).unwrap().0;
-    b.arcs.retain(|a| a.id == "arc.flood");
-    Arc::new(b)
+    kit::only(&["arc.flood"])
 }
 
 /// The base pack with no arc content.
@@ -52,34 +47,6 @@ fn without_arcs(c: &ContentBundle) -> Arc<ContentBundle> {
     Arc::new(b)
 }
 
-fn engine(c: &Arc<ContentBundle>, seed: u64) -> Engine {
-    generate(&WorldConfig::new(seed, WorldSize::Small), c.clone()).unwrap()
-}
-
-fn home(e: &Engine) -> MunicipalityId {
-    mandate_sim::player::home(e.state()).unwrap()
-}
-
-/// A flood strikes the player's town at the next monthly hazard step (as
-/// the lab plants one: a held hazard past its longest deferral).
-fn plant_flood(e: &mut Engine, severity: f64) {
-    let town = home(e).0;
-    let max = e.content().director.chance.hazard_max_defer_days;
-    e.setup(|st| {
-        let drawn = mandate_core::SimDate(st.calendar.date.0.saturating_sub(max + 1));
-        st.environment.deferred.push(DeferredHazard {
-            municipality: town,
-            kind: HazardKind::Flood,
-            severity,
-            drawn,
-            hold_event: None,
-        });
-    });
-}
-
-fn end_turn(e: &mut Engine) {
-    e.apply(Command::EndTurn).unwrap();
-}
 
 fn run(e: &Engine) -> Option<&ArcRun> {
     e.state().arcs.runs.first()

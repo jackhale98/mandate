@@ -14,20 +14,13 @@
 //! - an edge that reads a law names the law's enactment on the spine.
 
 use mandate_content::exchange::MoveKind;
-use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
-use mandate_sim::actions::PlayerCommand;
-use mandate_sim::arcs::beats::{self, BeatAction};
-use mandate_sim::arcs::exchange::{self, ExchangeAct};
-use mandate_sim::arcs::{ArcActor, ArcRun};
-use mandate_sim::characters::{self, CharacterId};
+use mandate_sim::arcs::ArcActor;
+use mandate_sim::arcs::beats;
+use mandate_sim::characters;
 use mandate_sim::events::EventKind;
-use mandate_sim::spine::{Cause, Link, Process};
-use mandate_sim::standin::{self, Kind, Seat};
-use mandate_sim::world::{Jurisdiction, MunicipalityId};
-use mandate_sim::{Command, Engine};
-use mandate_worldgen::{WorldConfig, WorldSize, generate};
-use std::path::Path;
-use std::sync::Arc;
+use mandate_sim::spine::{Cause, Link, Pressure, Process};
+use mandate_sim::Engine;
+use mandate_testkit::{self as kit, Policy, Scene, end_turn, exit_of, home, me, occupation, only, world};
 
 const ZONING: &str = "arc.zoning";
 /// A small world whose home town has housing as its strongest worry from
@@ -35,187 +28,14 @@ const ZONING: &str = "arc.zoning";
 /// 2): the arc is raised in the first turns.
 const ZONING_SEED: u64 = 2;
 
-fn pack() -> ContentBundle {
-    let src =
-        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
-    load(&src).unwrap().0
-}
-
-/// The base pack with one arc.
-fn only(id: &str) -> Arc<ContentBundle> {
-    let mut b = pack();
-    b.arcs.retain(|a| a.id == id);
-    Arc::new(b)
-}
-
-fn engine(c: &Arc<ContentBundle>, seed: u64) -> Engine {
-    generate(&WorldConfig::new(seed, WorldSize::Small), c.clone()).unwrap()
-}
-
-fn home(e: &Engine) -> MunicipalityId {
-    mandate_sim::player::home(e.state()).unwrap()
-}
-
-fn me(e: &Engine) -> CharacterId {
-    characters::player_character(e.state()).unwrap()
-}
-
-fn run_of<'a>(e: &'a Engine, template: &str) -> Option<&'a ArcRun> {
-    e.state().arcs.runs.iter().find(|r| r.template == template)
-}
-
-fn exit_of(e: &Engine, template: &str) -> Option<String> {
-    e.state()
-        .arcs
-        .past
-        .iter()
-        .rev()
-        .find(|p| p.template == template)
-        .map(|p| p.exit.clone())
-}
-
-fn end_turn(e: &mut Engine) {
-    e.apply(Command::EndTurn).unwrap();
-}
-
-fn seat(e: &Engine) -> Seat {
-    Seat::of_player(e.state(), e.content()).unwrap_or(Seat {
-        at: Jurisdiction::town(home(e)),
-        post: None,
-    })
-}
-
-fn occupation(e: &Engine, who: CharacterId) -> String {
-    characters::profile(&e.state().politics, &e.state().world, who)
-        .and_then(|p| p.occupation)
-        .unwrap_or_default()
-}
-
-/// End turns until the run is raised.
-fn raised(e: &mut Engine) -> ArcRun {
-    for _ in 0..40 {
-        if let Some(r) = run_of(e, ZONING) {
-            return r.clone();
-        }
-        end_turn(e);
-    }
-    panic!("housing as the strongest worry raised no zoning fight");
-}
-
-/// How a scripted player meets the meeting: never (an empty chair), or
-/// turning up and saying, each round, the first line of these kinds on
-/// offer (else the safe line).
-#[derive(Clone, Copy)]
-enum Meeting {
-    Away,
-    Lines(&'static [MoveKind]),
-    /// The line whose shown change, weighed by the groups and the chance
-    /// shown, is largest (the middle of a range): what the screen shows.
-    Best,
-}
-
-/// The shown change of a line across the room.
-fn shown(v: &exchange::view::SceneView, o: &exchange::view::OptionView) -> f64 {
-    let mid = |s: &mandate_sim::arcs::exchange::landing::Span| (s.lo + s.hi) / 2.0;
-    v.groups
-        .iter()
-        .enumerate()
-        .map(|(i, g)| {
-            let up = o.stands.get(i).map_or(0.0, mid);
-            let down = o.fails.get(i).map_or(0.0, mid);
-            f64::from(g.weight) * (o.chance * up + (1.0 - o.chance) * down)
-        })
-        .sum()
-}
-
-/// Turn up at the scene of the run if it is open, and play its rounds.
-/// Returns the lines' kinds offered in the first round.
-fn meet(e: &mut Engine, how: Meeting) -> Option<Vec<MoveKind>> {
-    let prefer: &[MoveKind] = match how {
-        Meeting::Away => return None,
-        Meeting::Lines(p) => p,
-        Meeting::Best => &[],
-    };
-    let (run, beat, location) =
-        beats::offers(e.state(), e.content())
-            .into_iter()
-            .find_map(|o| match o.action {
-                BeatAction::Exchange {
-                    run,
-                    beat,
-                    location,
-                } => Some((run, beat, location)),
-                _ => None,
-            })?;
-    e.apply(Command::Player(PlayerCommand::Go {
-        location,
-        then: Some(Box::new(PlayerCommand::Exchange {
-            run,
-            beat: beat.clone(),
-            act: ExchangeAct::Begin,
-        })),
-    }))
-    .ok()?;
-    let mut first = None;
-    for _ in 0..8 {
-        let v = exchange::view(e.state(), e.content(), run, &beat)?;
-        if v.phase != exchange::Phase::UnderWay {
-            break;
-        }
-        let kinds: Vec<MoveKind> = v.options.iter().map(|o| o.kind).collect();
-        first.get_or_insert(kinds);
-        let best = || {
-            v.options
-                .iter()
-                .max_by(|a, b| shown(&v, a).total_cmp(&shown(&v, b)))
-        };
-        let o = match how {
-            Meeting::Best => best(),
-            _ => prefer
-                .iter()
-                .find_map(|k| v.options.iter().find(|o| o.kind == *k))
-                .or_else(|| v.options.iter().find(|o| o.kind == MoveKind::Pass)),
-        }
-        .unwrap();
-        e.apply(Command::Player(PlayerCommand::Exchange {
-            run,
-            beat: beat.clone(),
-            act: ExchangeAct::Say {
-                option: o.id.clone(),
-            },
-        }))
-        .unwrap();
-    }
-    first
-}
-
-/// Play until the run ends (at most `turns` turns): the stand-in of `kind`
-/// takes the arc's levers each turn, and the meeting is met as `how` says.
-/// Returns the exit and the lines offered in the meeting's first round.
-fn play(e: &mut Engine, kind: Kind, how: Meeting, turns: u32) -> (String, Option<Vec<MoveKind>>) {
-    let mut lines = None;
-    for _ in 0..turns {
-        if let Some(x) = exit_of(e, ZONING) {
-            return (x, lines);
-        }
-        // The meeting first: it takes the evening the levers would.
-        if let Some(l) = meet(e, how) {
-            lines = Some(l);
-        }
-        if kind != Kind::Passive && run_of(e, ZONING).is_some() {
-            let s = seat(e);
-            standin::play_turn(e, kind, s);
-        }
-        end_turn(e);
-    }
-    (exit_of(e, ZONING).expect("the zoning fight ended"), lines)
-}
+/// Turns enough for any path of the fight.
+const TURNS: u32 = 80;
 
 #[test]
 fn housing_as_the_towns_strongest_worry_raises_the_fight_with_its_own_people() {
-    let c = only(ZONING);
-    let mut e = engine(&c, ZONING_SEED);
-    let r = raised(&mut e);
+    let c = only(&[ZONING]);
+    let mut e = world(&c, ZONING_SEED);
+    let r = kit::raised(&mut e, ZONING);
     assert_eq!(r.stage, "plans");
     let st = e.state();
     // The cast is from live state: a neighbourhood of the town, three
@@ -241,14 +61,24 @@ fn housing_as_the_towns_strongest_worry_raises_the_fight_with_its_own_people() {
         ]
         .contains(&occupation(&e, nb).as_str())
     );
-    // On the spine: a matter raised by its own conditions (no event made
-    // it true: the town's rents), and the stage continues the thread.
+    // On the spine: no event made it true, so its root is the worry its
+    // `raise` read (housing, the town's strongest), with the arcs' rule;
+    // and the stage continues the thread.
     let log = &st.events;
     let up = log
         .iter()
         .find(|ev| matches!(&ev.kind, EventKind::ArcRaised { arc, .. } if *arc == r.id.0))
         .unwrap();
-    assert_eq!(up.causes, vec![Cause::Process(Process::Arcs)]);
+    let housing = c.concerns.iter().position(|x| x.id == "concern.housing").unwrap();
+    assert_eq!(
+        up.causes,
+        vec![
+            Cause::Pressure(Pressure::Worry {
+                concern: housing as u16
+            }),
+            Cause::Process(Process::Arcs)
+        ]
+    );
     assert!(log.iter().any(|ev| matches!(&ev.kind,
         EventKind::ArcStage { arc, stage, .. } if *arc == r.id.0 && stage == "plans")
         && ev.causes.contains(&Cause::Event(up.id, Link::Continues))));
@@ -265,13 +95,13 @@ fn housing_as_the_towns_strongest_worry_raises_the_fight_with_its_own_people() {
 
 #[test]
 fn a_passive_player_sees_the_plans_shelved_and_an_engaged_one_does_not() {
-    let c = only(ZONING);
-    let mut passive = engine(&c, ZONING_SEED);
-    let mut engaged = engine(&c, ZONING_SEED);
-    let r = raised(&mut passive);
-    raised(&mut engaged);
-    let (p, _) = play(&mut passive, Kind::Passive, Meeting::Away, 80);
-    let (g, _) = play(&mut engaged, Kind::Engaged, Meeting::Best, 80);
+    let c = only(&[ZONING]);
+    let mut passive = world(&c, ZONING_SEED);
+    let mut engaged = world(&c, ZONING_SEED);
+    let r = kit::raised(&mut passive, ZONING);
+    kit::raised(&mut engaged, ZONING);
+    let p = kit::play(&mut passive, ZONING, Policy::PASSIVE, TURNS).exit.unwrap();
+    let g = kit::play(&mut engaged, ZONING, Policy::BEST, TURNS).exit.unwrap();
     assert_eq!(p, "shelved");
     assert_ne!(g, "shelved");
     println!("seed {ZONING_SEED}: passive {p}, engaged {g}");
@@ -312,20 +142,20 @@ fn a_passive_player_sees_the_plans_shelved_and_an_engaged_one_does_not() {
 
 #[test]
 fn what_was_learned_before_the_meeting_is_what_can_be_said_in_it() {
-    let c = only(ZONING);
+    let c = only(&[ZONING]);
     let lines: &[MoveKind] = &[MoveKind::Proof, MoveKind::Second];
     // Prepared: walked the site, saw the drawings, asked the organiser.
-    let mut ready = engine(&c, ZONING_SEED);
-    raised(&mut ready);
-    let (_, said) = play(&mut ready, Kind::Engaged, Meeting::Lines(lines), 80);
-    let said = said.expect("the meeting was held");
+    let mut ready = world(&c, ZONING_SEED);
+    kit::raised(&mut ready, ZONING);
+    let played = kit::play(&mut ready, ZONING, Policy::new(kit::Kind::Engaged, Scene::Lines(lines)), TURNS);
+    let said = played.met.first().expect("the meeting was held").first().to_vec();
     assert!(said.contains(&MoveKind::Proof), "{said:?}");
     assert!(said.contains(&MoveKind::Second), "{said:?}");
     // Turned up cold: nothing to show, nobody to speak.
-    let mut cold = engine(&c, ZONING_SEED);
-    raised(&mut cold);
-    let (_, said) = play(&mut cold, Kind::Passive, Meeting::Lines(lines), 80);
-    let said = said.expect("the meeting was held");
+    let mut cold = world(&c, ZONING_SEED);
+    kit::raised(&mut cold, ZONING);
+    let played = kit::play(&mut cold, ZONING, Policy::new(kit::Kind::Passive, Scene::Lines(lines)), TURNS);
+    let said = played.met.first().expect("the meeting was held").first().to_vec();
     assert!(!said.contains(&MoveKind::Proof), "{said:?}");
     assert!(!said.contains(&MoveKind::Second), "{said:?}");
     assert!(said.contains(&MoveKind::Pass), "{said:?}");
@@ -333,9 +163,9 @@ fn what_was_learned_before_the_meeting_is_what_can_be_said_in_it() {
 
 #[test]
 fn an_edge_that_reads_a_law_names_its_enactment() {
-    let c = only(ZONING);
-    let mut e = engine(&c, ZONING_SEED);
-    let r = raised(&mut e);
+    let c = only(&[ZONING]);
+    let mut e = world(&c, ZONING_SEED);
+    let r = kit::raised(&mut e, ZONING);
     assert_eq!(r.stage, "plans");
     // The rules are loosened while the plans are talked about: a law
     // enacted at home (as lawmaking records one).
