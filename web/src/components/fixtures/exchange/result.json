@@ -1,5 +1,5 @@
 {
-  "arc": 2,
+  "arc": 3,
   "beat": "showdown.debate",
   "phase": "done",
   "layout": "crowd",
@@ -12,7 +12,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "23",
+      "clock_day": "24",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -39,7 +39,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "23",
+      "clock_day": "24",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -66,7 +66,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "23",
+      "clock_day": "24",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -91,7 +91,7 @@
     "backer_role_key": "occupation-union_steward",
     "chair": "Hector Birchby",
     "chair_role_key": "occupation-editor",
-    "clock_day": "23",
+    "clock_day": "24",
     "clock_month_key": "month-10",
     "day": "13",
     "hall": "Foundryside",
@@ -138,12 +138,12 @@
   "available": false,
   "blocked_key": null,
   "last_day": {
-    "day_number": 737594,
+    "day_number": 737595,
     "year": 2020,
     "month": 10,
-    "day": 22
+    "day": 23
   },
-  "days_left": 14,
+  "days_left": 15,
   "other": {
     "id": 759,
     "ambient_slot": null,
@@ -259,7 +259,7 @@
   "played": [
     {
       "round": 1,
-      "prompt_key": "exchange-debate-prompt-thin_record-1",
+      "prompt_key": "exchange-debate-prompt-thin_record-2",
       "said_key": "exchange-debate-say-promise-2",
       "option": "promise:promise.clean_politics",
       "kind": "promise",
@@ -283,12 +283,12 @@
           "points": -4
         }
       ],
-      "event": 2172
+      "event": 2189
     },
     {
       "round": 2,
       "prompt_key": "exchange-debate-prompt-top_worry-3",
-      "said_key": "exchange-debate-say-promise-1",
+      "said_key": "exchange-debate-say-promise-2",
       "option": "promise:promise.no_tax_rise",
       "kind": "promise",
       "reply_key": null,
@@ -311,12 +311,12 @@
           "points": 9
         }
       ],
-      "event": 2174
+      "event": 2191
     },
     {
       "round": 3,
       "prompt_key": "exchange-debate-prompt-top_worry-1",
-      "said_key": "exchange-debate-say-promise-1",
+      "said_key": "exchange-debate-say-promise-2",
       "option": "promise:promise.town_halls",
       "kind": "promise",
       "reply_key": null,
@@ -339,7 +339,7 @@
           "points": 4
         }
       ],
-      "event": 2176
+      "event": 2193
     }
   ],
   "result": {
@@ -354,7 +354,7 @@
         "backer_role_key": "occupation-union_steward",
         "chair": "Hector Birchby",
         "chair_role_key": "occupation-editor",
-        "clock_day": "23",
+        "clock_day": "24",
         "clock_month_key": "month-10",
         "day": "13",
         "hall": "Foundryside",
@@ -381,7 +381,7 @@
         "backer_role_key": "occupation-union_steward",
         "chair": "Hector Birchby",
         "chair_role_key": "occupation-editor",
-        "clock_day": "23",
+        "clock_day": "24",
         "clock_month_key": "month-10",
         "day": "13",
         "hall": "Foundryside",
@@ -451,7 +451,7 @@
     ],
     "promises": [
       {
-        "ask": 6,
+        "ask": 8,
         "title": {
           "key": "promise-clean-politics",
           "args": {
@@ -471,7 +471,7 @@
         }
       },
       {
-        "ask": 7,
+        "ask": 9,
         "title": {
           "key": "promise-no-tax-rise",
           "args": {
@@ -491,7 +491,7 @@
         }
       },
       {
-        "ask": 8,
+        "ask": 10,
         "title": {
           "key": "promise-town-halls",
           "args": {
@@ -511,6 +511,6 @@
         }
       }
     ],
-    "event": 2177
+    "event": 2194
   }
 }

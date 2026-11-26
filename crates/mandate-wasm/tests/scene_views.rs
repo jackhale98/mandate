@@ -80,11 +80,16 @@ fn command(s: &mut Session, c: CommandDto) {
     send(s, 4, RequestBody::Command(c));
 }
 
-/// Turns until a scene needs the player: (arc, beat, turn).
+/// Turns until the debate needs the player: (arc, beat, turn). Another
+/// arc's scene may come first (the zoning fight's meeting, 2026-11-25);
+/// these tests are the debate's.
 fn to_scene(s: &mut Session) -> (u32, String, u32) {
     for _ in 0..80 {
         let p = pocket(s);
-        if let Some(n) = p.needs_you.iter().find(|n| n.kind == NeedKind::Scene) {
+        if let Some(n) = p.needs_you.iter().find(|n| {
+            n.kind == NeedKind::Scene
+                && matches!(&n.target, NeedTargetDto::Scene { beat, .. } if beat == "showdown.debate")
+        }) {
             let NeedTargetDto::Scene { arc, beat } = &n.target else {
                 panic!("a scene's need targets the scene");
             };

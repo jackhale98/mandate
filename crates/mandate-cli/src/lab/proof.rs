@@ -272,10 +272,10 @@ fn digests(
 /// without. The kind-by-kind counts above are from the recording before
 /// that merge.
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
-    (2026, "idle", 96, "30ce01e2879f7510", "45fee5f6200b1895"), // 1482 events
-    (2026, "mixed", 96, "c344bd681508c0a2", "018380aaf093deeb"), // 2053 events
-    (7, "idle", 96, "36bb2c99eee5bc3a", "c2130b1ef396f154"),    // 1321 events
-    (7, "corrupt", 96, "4446386e242cf0eb", "42f8237c71a6ada5"), // 2854 events
+    (2026, "idle", 96, "433b50b4efb9a7fc", "ceac71c858af9dc0"), // 1505 events
+    (2026, "mixed", 96, "2b5826f8b9800ad8", "c66e5347db960a9a"), // 3112 events
+    (7, "idle", 96, "22718a2b5f4ec77a", "77101d2db89ed048"),    // 1358 events
+    (7, "corrupt", 96, "98fa30a32bb10650", "b4db9fb01bf30ae8"), // 2885 events
     (31, "idle", 96, "35af6c07e794cc56", "0be8f5e354f4e84a"),   // 1514 events
     (
         31,
@@ -288,16 +288,16 @@ const PINS: [(u64, &str, u32, &str, &str); 8] = [
         2026,
         "mixed+prison",
         96,
-        "b4532f52bb1d31b3",
-        "6b58c320da695d1e",
-    ), // 1773 events
+        "e81f2971e17dcd73",
+        "1681d4b3cf3bccb5",
+    ), // 2228 events
     (
         2026,
         "idle+six_years",
         120,
-        "0c968b2981196f84",
-        "5153ab63568caf42",
-    ), // 1765 events
+        "252667c9ab62f693",
+        "c15115cfbb1b4f61",
+    ), // 1785 events
 ];
 
 #[test]

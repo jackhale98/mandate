@@ -1,5 +1,5 @@
 {
-  "arc": 2,
+  "arc": 3,
   "beat": "showdown.debate",
   "phase": "open",
   "layout": "crowd",
@@ -12,7 +12,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "23",
+      "clock_day": "24",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -39,7 +39,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "23",
+      "clock_day": "24",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -66,7 +66,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "23",
+      "clock_day": "24",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -91,7 +91,7 @@
     "backer_role_key": "occupation-union_steward",
     "chair": "Hector Birchby",
     "chair_role_key": "occupation-editor",
-    "clock_day": "23",
+    "clock_day": "24",
     "clock_month_key": "month-10",
     "day": "13",
     "hall": "Foundryside",
@@ -138,12 +138,12 @@
   "available": true,
   "blocked_key": null,
   "last_day": {
-    "day_number": 737594,
+    "day_number": 737595,
     "year": 2020,
     "month": 10,
-    "day": 22
+    "day": 23
   },
-  "days_left": 14,
+  "days_left": 15,
   "other": {
     "id": 759,
     "ambient_slot": null,

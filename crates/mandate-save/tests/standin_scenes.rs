@@ -46,9 +46,10 @@ fn game(seed: u64) -> Engine {
 }
 
 fn open(e: &Engine) -> Option<(u32, String)> {
+    // The rival's debate only: other arcs have scenes of their own.
     exchange::view::open_scenes(e.state(), e.content())
         .into_iter()
-        .next()
+        .find(|(run, _, _)| e.state().arcs.run(*run).is_some_and(|r| r.template == ARC))
         .map(|(run, beat, _)| (run.0, beat.key()))
 }
 

@@ -25,7 +25,12 @@ const SEVERITY: f64 = 0.9;
 /// A small idle game with a flood planted in the player's town.
 pub fn flooded(seed: u64) -> Game {
     let content = crate::lab::load(&super::runner::content_root(), &[]).unwrap();
-    let mut g = Game::new(&content, &Setup::small(seed, None), Driver::Idle).unwrap();
+    flooded_in(&content, seed)
+}
+
+/// [`flooded`] with the given content (a test that wants the flood alone).
+pub fn flooded_in(content: &std::sync::Arc<mandate_content::ContentBundle>, seed: u64) -> Game {
+    let mut g = Game::new(content, &Setup::small(seed, None), Driver::Idle).unwrap();
     let town = g.home();
     g.intervene(&Intervention::Disaster {
         town,

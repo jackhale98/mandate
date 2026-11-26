@@ -1,0 +1,303 @@
+// The zoning fight (DEC-109, DEC-112): a builder wants to put up homes in a
+// neighbourhood of a town the player is watching, and the rules there will
+// not let them build that high. Some of the street want the homes; some
+// fear what the street becomes. It goes to the members who make the rules,
+// and the player is pulled in.
+//
+// Raised by the town's own housing market: housing the town's strongest
+// worry as measured (rents against incomes, `concern.housing`), while no law
+// that loosens the rules or builds homes is in force. Once a term at most
+// (`cooldown_days`): how often it comes is the tuning pass's to settle
+// (`TUNING_QUEUE.md`). The builder's scheme is
+// the fiction of what the market already says: private building in the
+// simulation answers price and vacancy, scaled by zoning (`policy.upzoning`).
+// The rules are a law, and only a law changes them.
+//
+// The cast comes from live state: the area least pleased with the player
+// (where the squeeze bites), a business leader there as the builder, an
+// organiser, teacher or nurse who wants the homes, a resident or retiree who
+// fears the change, a hall near it, and a member of the body that makes the
+// rules from another party (found by a power, never by name; DEC-098).
+//
+// Transitions read; beats write. The edges read the laws in force, the run's
+// marks, heat and days. Nothing a player picks names a stage. What the player
+// can push on is real: the bill is a bill (put forward by the player, or by a
+// member whose agenda the run favours: `answers`), and whether it passes is
+// the body's own vote.
+//
+// The turn is played (DEC-112): a packed residents' meeting at the hall, a
+// hostile meeting of three rounds before the neighbourhood by income class,
+// the builder and the neighbour who called it; the organiser may speak for
+// the player. Walking the site first means the room knows them (round 1 is
+// not cold). The builder's drawings, seen beforehand, are a thing to show.
+//
+// Marks: `walked` (the site), `drawings` (the builder showed them),
+// `heard_out` (the neighbour's objections heard), `put_forward` (the
+// organiser's ask kept: a bill introduced), `street` (the neighbour's ask
+// kept: a word in public for the street), `endorsed` (the organiser will
+// speak), `counted` (a member's vote asked); from the meeting `tabled` and
+// its ends `meeting_won`, `meeting_split`, `meeting_lost`, `stayed_away`.
+{
+  "kind": "arcs",
+  "items": [
+    {
+      "id": "arc.zoning", "title_key": "arc-zoning", "themes": ["scheme"],
+      // A town's matter: `concern` and `law_in_force` read a town.
+      "tiers": ["local"], "cooldown_days": 1460,
+      "raise": [
+        { "type": "concern", "concern": "concern.housing", "top": 1 },
+        { "type": "law_in_force", "templates": ["policy.upzoning", "policy.affordable_housing"], "absent": true } ],
+      "roles": [
+        { "id": "hood", "cast": { "type": "area", "pick": "least_pleased" } },
+        { "id": "developer", "cast": { "type": "occupation", "near": "hood",
+            "occupations": ["occupation.business_leader", "occupation.hotel_manager"] } },
+        { "id": "organiser", "cast": { "type": "occupation", "near": "hood",
+            "occupations": ["occupation.organiser", "occupation.teacher", "occupation.nurse", "occupation.student"] } },
+        { "id": "neighbour", "cast": { "type": "occupation", "near": "hood",
+            "occupations": ["occupation.retiree", "occupation.resident", "occupation.clergy", "occupation.shopkeeper"] } },
+        { "id": "hall", "cast": { "type": "place", "kinds": ["community_centre", "school", "town_hall"], "near": "hood" } },
+        { "id": "member", "optional": true, "cast": { "type": "post", "power": "approve_ordinance", "party": "other" } },
+      ],
+      "sides": { "ally": "organiser", "opponent": "neighbour" },
+      "heat": { "start": 0.2, "floor": { "indicator": "rent_burden", "scale": 1.5 } },
+      "answers": ["policy.upzoning", "policy.affordable_housing"],
+      "stages": [
+        // The plans are in the paper. Asking now is cheap: walk the site,
+        // see the drawings, hear the objections.
+        { "id": "plans", "key": "arc-zoning-plans", "clock": { "days": [28, 42] },
+          "beats": [
+            { "id": "press", "type": "press", "headline_key": "headline-arc-zoning-plans" },
+            { "id": "talk", "type": "heard", "line": "overheard.zoning.plans" },
+            { "id": "site", "type": "visit", "at": "hood", "time": "half", "sets": "walked",
+              "verb_key": "visit-arc-zoning-site", "outcome_key": "outcome-arc-zoning-site",
+              "effects": [ { "type": "learn", "role": "hood", "level": "known" } ] },
+            // The builder shows the drawings to someone who has walked the
+            // site, or whom they trust: a thing to show the room later.
+            { "id": "drawings", "type": "talk", "with": "developer",
+              "choice": { "label_key": "talk-arc-zoning-drawings", "say_key": "talk-arc-zoning-drawings-say",
+                "replies": [
+                  { "key": "talk-arc-zoning-drawings-yes", "agrees": true, "sets": "drawings",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "arc_mark", "mark": "walked" },
+                      { "type": "trust", "slot": "speaker", "min": 0.5 },
+                      { "type": "opinion", "slot": "speaker", "min": 10 } ] } ],
+                    "effects": [ { "type": "learn", "role": "developer", "level": "detailed" } ] },
+                  { "key": "talk-arc-zoning-drawings-no" } ] } },
+            // The neighbour says what they fear, to anyone who asks; who is
+            // with them on the street comes with it.
+            { "id": "objections", "type": "talk", "with": "neighbour", "sets": "heard_out",
+              "effects": [
+                { "type": "learn", "role": "neighbour", "level": "known" },
+                { "type": "opinion", "role": "neighbour", "delta": 4 } ],
+              "choice": { "label_key": "talk-arc-zoning-objections", "say_key": "talk-arc-zoning-objections-say",
+                "replies": [
+                  { "key": "talk-arc-zoning-objections-known", "agrees": true,
+                    "when": [ { "type": "arc_mark", "mark": "walked" } ] },
+                  { "key": "talk-arc-zoning-objections-yes", "agrees": true } ] } },
+          ],
+          "next": [
+            { "to": "upzoned", "when": [ { "type": "law_in_force", "templates": ["policy.upzoning"] } ] },
+            { "to": "public_homes", "when": [ { "type": "law_in_force", "templates": ["policy.affordable_housing"] } ] },
+            { "to": "split", "clock_within_days": 0 } ] },
+
+        // The street splits. The neighbour wants a word from the player in
+        // public; the organiser wants someone to speak. The meeting is
+        // called.
+        { "id": "split", "key": "arc-zoning-split", "rise": 0.03, "clock": { "days": [21, 35] },
+          "beats": [
+            { "id": "talk", "type": "heard", "line": "overheard.zoning.plans" },
+            { "id": "street", "type": "ask", "template": "ask.zoning_street", "asker": "neighbour", "sets": "street" },
+            // The organiser will speak at the meeting for someone who has
+            // walked the site with them, or whom they think well of.
+            { "id": "speak", "type": "talk", "with": "organiser",
+              "choice": { "label_key": "talk-arc-zoning-speak", "say_key": "talk-arc-zoning-speak-say",
+                "replies": [
+                  { "key": "talk-arc-zoning-speak-yes", "agrees": true, "sets": "endorsed",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "arc_mark", "mark": "walked" },
+                      { "type": "opinion", "slot": "speaker", "min": 10 } ] } ] },
+                  { "key": "talk-arc-zoning-speak-no" } ] } },
+            // What was not seen before can still be.
+            { "id": "drawings", "type": "talk", "with": "developer",
+              "when": [ { "type": "arc_mark", "mark": "drawings", "is": false } ],
+              "choice": { "label_key": "talk-arc-zoning-drawings", "say_key": "talk-arc-zoning-drawings-say",
+                "replies": [
+                  { "key": "talk-arc-zoning-drawings-yes", "agrees": true, "sets": "drawings",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "arc_mark", "mark": "walked" },
+                      { "type": "trust", "slot": "speaker", "min": 0.5 },
+                      { "type": "opinion", "slot": "speaker", "min": 10 } ] } ],
+                    "effects": [ { "type": "learn", "role": "developer", "level": "detailed" } ] },
+                  { "key": "talk-arc-zoning-drawings-no" } ] } },
+            // With nobody listening to them, the neighbour takes a petition
+            // round the street.
+            { "id": "petition", "type": "move", "actor": "neighbour", "weight": 0.5,
+              "line_key": "skip-item-arc-zoning-petition",
+              "when": [ { "type": "arc_days", "min": 10 }, { "type": "arc_mark", "mark": "heard_out", "is": false } ],
+              "effects": [ { "type": "heat", "delta": 0.12 } ] },
+          ],
+          "next": [
+            { "to": "upzoned", "when": [ { "type": "law_in_force", "templates": ["policy.upzoning"] } ] },
+            { "to": "public_homes", "when": [ { "type": "law_in_force", "templates": ["policy.affordable_housing"] } ] },
+            { "to": "meeting", "when": [ { "type": "arc_heat", "min": 0.7 } ] },
+            { "to": "meeting", "clock_within_days": 0 } ] },
+
+        // The turn: the hall is packed, and the player is expected. The
+        // clock is the meeting's night; a player who never came leaves an
+        // empty chair the street remembers.
+        { "id": "meeting", "key": "arc-zoning-meeting", "climax": true, "clock": { "days": [14, 21] },
+          "beats": [
+            { "id": "room", "type": "exchange", "once": true,
+              "at": "hall", "time": "slot",
+              "sides": { "other": "neighbour", "second": "organiser" },
+              "layout": "crowd",
+              "audience": [
+                // The neighbourhood by income class: the renters who want
+                // the homes and the owners who fear the change sit apart.
+                { "from": "classes", "of": "hood", "start": "approval" },
+                { "from": "person", "role": "neighbour", "start": "opinion" },
+                { "from": "person", "role": "developer", "start": "opinion" } ],
+              "temper": { "reads": "heat", "drag": 0.4 },
+              "rounds": 3,
+              "prompts": [
+                { "round": 1, "from": ["absent", "broken_promise", "top_worry"] },
+                { "round": 2, "from": ["governing_record", "failed_law", "top_worry"] },
+                { "round": 3, "from": ["top_worry"] } ],
+              "moves": ["record", "heard", "act", "own", "offer", "second", "proof", "pass"],
+              "prep": [
+                { "mark": "walked", "removes": "cold" },
+                { "mark": "endorsed", "adds": "second" },
+                { "mark": "drawings", "adds": "proof", "evidence": 0.8 } ],
+              "outcome": {
+                "won": { "sets": "meeting_won", "heat": -0.2 },
+                "split": { "sets": "meeting_split", "heat": -0.05 },
+                "lost": { "sets": "meeting_lost", "heat": 0.1 },
+                "absent": { "sets": "stayed_away", "heat": 0.15,
+                  "effects": [ { "type": "opinion", "role": "neighbour", "delta": -6, "memory": "ignored_me" } ] } },
+              "text": "exchange-zoning" },
+            // With the hall called, the organiser wants the bill: put
+            // forward now, it is voted on after the meeting (the body's own
+            // deliberation), and the ask outlasts the stage.
+            { "id": "homes", "type": "ask", "template": "ask.zoning_homes", "asker": "organiser", "sets": "put_forward" },
+            // Before the night, a member's vote can be asked.
+            { "id": "count", "type": "talk", "with": "member", "sets": "counted",
+              "effects": [ { "type": "learn", "role": "member", "level": "known" } ],
+              "choice": { "label_key": "talk-arc-zoning-count", "say_key": "talk-arc-zoning-count-say",
+                "replies": [
+                  { "key": "talk-arc-zoning-count-yes", "agrees": true,
+                    "when": [ { "type": "opinion", "slot": "speaker", "min": 0 } ] },
+                  { "key": "talk-arc-zoning-count-no", "agrees": true } ] } },
+          ],
+          "next": [
+            { "to": "upzoned", "when": [ { "type": "law_in_force", "templates": ["policy.upzoning"] } ] },
+            { "to": "public_homes", "when": [ { "type": "law_in_force", "templates": ["policy.affordable_housing"] } ] },
+            { "to": "chamber", "clock_within_days": 0 } ] },
+
+        // It is with the members now. A bill put forward is voted on by
+        // the body's own rule; with none, the builder waits, then sells.
+        { "id": "chamber", "key": "arc-zoning-chamber", "clock": { "days": [56, 84] },
+          "beats": [
+            { "id": "count", "type": "talk", "with": "member", "sets": "counted",
+              "when": [ { "type": "arc_mark", "mark": "counted", "is": false } ],
+              "effects": [ { "type": "learn", "role": "member", "level": "known" } ],
+              "choice": { "label_key": "talk-arc-zoning-count", "say_key": "talk-arc-zoning-count-say",
+                "replies": [
+                  { "key": "talk-arc-zoning-count-yes", "agrees": true,
+                    "when": [ { "type": "opinion", "slot": "speaker", "min": 0 } ] },
+                  { "key": "talk-arc-zoning-count-no", "agrees": true } ] } },
+          ],
+          "next": [
+            { "to": "upzoned", "when": [ { "type": "law_in_force", "templates": ["policy.upzoning"] } ] },
+            { "to": "public_homes", "when": [ { "type": "law_in_force", "templates": ["policy.affordable_housing"] } ] },
+            // A bill was put forward and the body has had time to vote it.
+            { "to": "voted_down", "when": [ { "type": "arc_mark", "mark": "put_forward" } ], "after_days": 49 },
+            { "to": "kept", "when": [ { "type": "arc_mark", "mark": "street" } ], "clock_within_days": 0 },
+            { "to": "shelved", "clock_within_days": 0 } ] },
+
+        // The rules were loosened: the builder can build. The law does what
+        // it does to rents and to the street; who stood where is remembered.
+        { "id": "upzoned", "key": "arc-zoning-upzoned",
+          "exit": { "headline_key": "headline-arc-zoning-upzoned", "legacy_key": "legacy-arc-zoning-upzoned", "effects": [
+            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "put_forward" }, { "type": "arc_mark", "mark": "tabled" } ] } ], "type": "record", "delta": 0.04 },
+            { "when": [ { "type": "arc_mark", "mark": "put_forward" } ], "type": "favour", "role": "developer", "owed_to_player": true },
+            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "meeting_won" }, { "type": "arc_mark", "mark": "meeting_split" } ] } ],
+              "type": "approval", "area": "hood", "delta": 0.01 },
+            { "unless": [ { "type": "arc_mark", "mark": "heard_out" } ], "type": "approval", "area": "hood", "delta": -0.01, "classes": [2] },
+            { "unless": [ { "type": "arc_mark", "mark": "heard_out" } ], "type": "opinion", "role": "neighbour", "delta": -8, "memory": "stood_against_me" },
+            { "when": [ { "type": "arc_mark", "mark": "put_forward" } ], "type": "opinion", "role": "organiser", "delta": 8, "memory": "stood_with_me" } ] } },
+        // The town builds instead: homes of its own, on its own money.
+        { "id": "public_homes", "key": "arc-zoning-public-homes",
+          "exit": { "headline_key": "headline-arc-zoning-public-homes", "legacy_key": "legacy-arc-zoning-public-homes", "effects": [
+            { "when": [ { "type": "arc_mark", "mark": "put_forward" } ], "type": "record", "delta": 0.04 },
+            { "type": "approval", "area": "hood", "delta": 0.01, "classes": [0] },
+            { "type": "opinion", "role": "developer", "delta": -6 },
+            { "when": [ { "type": "arc_mark", "mark": "put_forward" } ], "type": "opinion", "role": "organiser", "delta": 6, "memory": "stood_with_me" } ] } },
+        // The bill went to the members and they turned it down. The
+        // builder has the land and no rules to build on it.
+        { "id": "voted_down", "key": "arc-zoning-voted-down",
+          "exit": { "headline_key": "headline-arc-zoning-voted-down", "effects": [
+            { "type": "standing", "delta": -1 },
+            { "type": "opinion", "role": "organiser", "delta": 4, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "developer", "delta": -4 },
+            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "meeting_won" }, { "type": "arc_mark", "mark": "meeting_split" } ] } ],
+              "type": "approval", "area": "hood", "delta": 0.01, "classes": [0] },
+            { "unless": [ { "type": "arc_mark", "mark": "heard_out" } ], "type": "opinion", "role": "neighbour", "delta": -4 } ] } },
+        // Nothing was put forward, and the player spoke for the street as
+        // it is. The neighbours remember; so do those still waiting for a
+        // home.
+        { "id": "kept", "key": "arc-zoning-kept",
+          "exit": { "headline_key": "headline-arc-zoning-kept", "legacy_key": "legacy-arc-zoning-kept", "effects": [
+            { "type": "approval", "area": "hood", "delta": 0.015, "classes": [2] },
+            { "type": "approval", "area": "hood", "delta": -0.01, "classes": [0] },
+            { "type": "opinion", "role": "neighbour", "delta": 8, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "organiser", "delta": -6, "memory": "stood_against_me" } ] } },
+        // Nobody put anything forward: the builder waited, then sold the
+        // land on. Those who wanted the homes remember who was not there.
+        { "id": "shelved", "key": "arc-zoning-shelved",
+          "exit": { "headline_key": "headline-arc-zoning-shelved", "effects": [
+            { "unless": [ { "type": "arc_mark", "mark": "walked" } ], "type": "approval", "area": "hood", "delta": -0.02, "classes": [0] },
+            { "unless": [ { "type": "arc_mark", "mark": "endorsed" } ], "type": "opinion", "role": "organiser", "delta": -8, "memory": "ignored_me" },
+            { "when": [ { "type": "arc_mark", "mark": "stayed_away" } ], "type": "approval", "area": "hood", "delta": -0.01 },
+            { "when": [ { "type": "arc_mark", "mark": "meeting_lost" } ], "type": "opinion", "role": "neighbour", "delta": 4 },
+            { "when": [ { "type": "arc_mark", "mark": "heard_out" } ], "type": "opinion", "role": "neighbour", "delta": 3 },
+            { "type": "opinion", "role": "developer", "delta": -3 } ] } },
+      ],
+    },
+  ],
+
+  // The arc's asks: offered only by a run, from its cast.
+  "asks": [
+    // The organiser wants the rules changed, by a bill with the player's
+    // name on it.
+    { "id": "ask.zoning_homes", "name_key": "ask-zoning-homes", "from": ["arc"],
+      "asker": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.teacher", "occupation.nurse", "occupation.student"] },
+      "needs": [ { "type": "introduce", "bills": { "type": "templates", "templates": ["policy.upzoning", "policy.affordable_housing"] } } ],
+      "deadline_days": [35, 49], "cooldown_days": 0, "big": true, "public": true,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 10, "memory": "kept_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "classes": [0], "delta": 0.01 } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -10, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -4 } ],
+      "detail_key": "ask-zoning-homes-detail", "need_key": "ask-zoning-homes-need",
+      "kept_key": "ask-zoning-homes-kept", "broken_key": "ask-zoning-homes-broken" },
+    // The neighbour wants the player to say, in public, that the street
+    // comes first.
+    { "id": "ask.zoning_street", "name_key": "ask-zoning-street", "from": ["arc"],
+      "asker": { "type": "occupation", "occupations": ["occupation.retiree", "occupation.resident", "occupation.clergy", "occupation.shopkeeper"] },
+      "needs": [ { "type": "statement", "about": { "type": "concern", "concern": "concern.housing" } } ],
+      "deadline_days": [14, 21], "cooldown_days": 0, "public": true,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 8, "memory": "kept_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "classes": [2], "delta": 0.01 } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -8, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-zoning-street-detail", "need_key": "ask-zoning-street-need",
+      "kept_key": "ask-zoning-street-kept", "broken_key": "ask-zoning-street-broken" },
+  ],
+
+  // Heard in the neighbourhood while the plans are talked about.
+  "overheard": [
+    { "id": "overheard.zoning.plans", "key": "heard-zoning-plans", "weight": 1.5,
+      "when": [ { "type": "arc", "arc": "arc.zoning", "stages": ["plans", "split"], "here": "hood" } ] },
+  ],
+}

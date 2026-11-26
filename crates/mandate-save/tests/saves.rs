@@ -166,7 +166,8 @@ fn state_shape_matches_format_version() {
     // `calendar_familiarity` (no change: everyone a stranger, the day chosen
     // as the state loads).
     // Re-recorded on the merge with lobbying (note 29).
-    const EXPECTED: (u16, &str) = (32, "ad00c82d7863a609");
+    // Re-recorded on the merge with the pilot arc (the zoning fight).
+    const EXPECTED: (u16, &str) = (32, "75e9d04e73ba81f2");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -775,6 +776,12 @@ fn v10_payload(st: &mandate_sim::State) -> serde_json::Value {
         .as_object_mut()
         .unwrap()
         .remove("characters");
+    // A v10 save held no arc runs (the sample game may have one raised).
+    v.pointer_mut("/state")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .remove("arcs");
     v
 }
 

@@ -63,10 +63,12 @@ struct Debate {
     hall: Location,
 }
 
+/// The debate on offer (another arc's scene may be open first: the zoning
+/// fight's meeting, 2026-11-25).
 fn open(e: &Engine) -> Option<Debate> {
     exchange::view::open_scenes(e.state(), e.content())
         .into_iter()
-        .next()
+        .find(|(run, _, _)| e.state().arcs.run(*run).is_some_and(|r| r.template == ARC))
         .map(|(run, beat, hall)| Debate {
             run: run.0,
             beat: beat.key(),
@@ -1094,8 +1096,11 @@ fn a_skip_stops_at_a_debate_and_the_stand_in_never_plays_it() {
             })
             .unwrap();
             let stop = e.state().act.last_skip.as_ref().map(|s| s.stop.clone());
+            // A stop at another arc's scene (the zoning fight's meeting) is
+            // skipped past: this test is the debate's.
             if let Some(SkipStop::Interrupted { interrupt, key, .. }) = stop
                 && interrupt == "interrupt.exchange"
+                && open(&e).is_some()
             {
                 assert_eq!(key, "exchange-interrupt");
                 stopped = true;

@@ -33,10 +33,16 @@ use std::sync::Arc;
 const FLOOD: &str = "arc.flood";
 const SEVERITY: f64 = 0.9;
 
+/// The base pack without the zoning fight: these are the flood's views,
+/// and in these worlds the zoning run (raised at the start, where housing
+/// is the strongest worry) would hold the place for arcs the flood needs
+/// (2026-11-25).
 fn base() -> ContentBundle {
-    mandate_content::load(&mandate_content::embedded::sources())
+    let mut b = mandate_content::load(&mandate_content::embedded::sources())
         .unwrap()
-        .0
+        .0;
+    b.arcs.retain(|a| a.id != "arc.zoning");
+    b
 }
 
 /// The base pack with the flood's first stage hidden and nothing in it

@@ -55,7 +55,11 @@ fn the_flood_arc_loads_and_uses_only_what_is_built() {
     // What it carries joined the registries, after every other file's (the
     // arc files in name order: the plant's overheard line comes after).
     assert_eq!(b.dilemmas.last().unwrap().id, "dilemma.flood_money");
-    assert_eq!(b.asks.last().unwrap().id, "ask.flood_shelter");
+    // Asks: the flood's comes after every file's but the arc files that
+    // sort after it (the zoning fight's).
+    let at = |id: &str| b.asks.iter().position(|a| a.id == id).unwrap();
+    assert_eq!(at("ask.flood_shelter") + 1, at("ask.zoning_homes"));
+    assert_eq!(b.asks.last().unwrap().id, "ask.zoning_street");
     assert!(b.overheard.iter().any(|o| o.id == "overheard.flood.skips"));
     assert!(b.scene("scene.flood_hall").is_some());
     // The meeting's decision is retired: the scene replaced it.

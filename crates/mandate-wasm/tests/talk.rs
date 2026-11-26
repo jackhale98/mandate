@@ -544,8 +544,22 @@ fn exchanges_leak_nothing_hidden() {
                             x.state(),
                             &Subject::Broker { town: t },
                         ) >= Level::Heard;
+                        // An arc the player knows names its cast, as its
+                        // view does: an arc's line may name any of them.
+                        let arc_cast = topic
+                            .id
+                            .strip_prefix("choice.arc.")
+                            .and_then(|r| r.split('.').next())
+                            .and_then(|r| r.parse::<u32>().ok())
+                            .and_then(|r| x.state().arcs.runs.iter().find(|run| run.id.0 == r))
+                            .is_some_and(|run| {
+                                run.cast.iter().any(|m| {
+                                    m.actor == mandate_sim::arcs::ArcActor::Person { id: *c }
+                                })
+                            });
                         assert!(
                             knows(*c) >= Level::Heard
+                                || arc_cast
                                 || (Some(*c) == broker && broker_heard)
                                 || e.state().politics.characters.towns[t.index()].rival == Some(*c),
                             "{name} named in an exchange the player has not heard of: {json}"

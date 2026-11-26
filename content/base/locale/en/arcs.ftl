@@ -301,3 +301,70 @@ ask-choice-budget-second = Put { $asker }'s change to the estimates
 ask-say-budget-second = "{ $asker } has a change to the estimates. Hear it before the vote, not after."
 talk-ask-budget-second-yes = "Send { $asker } in on Thursday. I'll listen. I'm not promising to like it."
 talk-ask-budget-second-no = "I've heard from { $asker } already, at length. Not again before the vote."
+
+## The zoning fight (arc.zoning): a builder's plans in a neighbourhood whose
+## rules will not let them build that high. The meeting is `exchange-zoning-*`.
+## Cast: `$hood`, `$developer`, `$organiser`, `$neighbour`, `$hall`, `$member`
+## (optional: a member of the body that makes the rules, by `$member_role`).
+arc-zoning = the plans for { $hood }
+arc-zoning-plans = Since { $day } { $month }, { $developer } has had plans for new homes in { $hood }. The rules there say two storeys, and the drawings say more.
+arc-zoning-split = { $hood } has split over the plans. { $organiser } wants the homes built; { $neighbour } wants the street left as it is.
+arc-zoning-meeting = { $neighbour } has called a meeting at { $hall } about the plans for { $hood }, and the hall will be full.
+arc-zoning-chamber = { $weeks } weeks on, the plans for { $hood } wait on the rules. Only a bill changes them.
+arc-zoning-upzoned = The rules in { $hood } were loosened, and { $developer } can build. Some of the street is glad.
+arc-zoning-public-homes = Homes are going up in { $place } on public money. { $developer } has not said what happens to the plans for { $hood }.
+arc-zoning-voted-down = The bill to loosen the rules was voted down. { $developer } has the land in { $hood } and nothing to build on it.
+arc-zoning-kept = Nothing was put forward, and { $hood } stays as it is. { $neighbour } says the street was listened to; { $organiser } says the rents will answer for it.
+arc-zoning-shelved = Nobody put the rules forward. { $developer } has sold the land in { $hood }, and nothing has been built.
+
+headline-arc-zoning-plans = Plans for new homes in { $hood } go beyond the rules
+headline-arc-zoning-upzoned = Rules loosened: new homes can go up in { $hood }
+headline-arc-zoning-public-homes = Public homes to go up as the { $hood } plans stall
+headline-arc-zoning-voted-down = Members turn down the bill behind the { $hood } homes
+headline-arc-zoning-kept = { $hood } plans go no further
+headline-arc-zoning-shelved = Land in { $hood } sold on, and the plans with it
+
+heard-zoning-plans = "Seen the drawings for { $hood }? Four floors where the yard is. Half of us have waited years for a flat we can afford; the rest count parking spaces."
+
+visit-arc-zoning-site = Walk the site with the neighbours
+outcome-arc-zoning-site = You walked the site in { $hood } with whoever came out. Half of them showed you where the light would go, and the other half asked when they could put their names down.
+
+talk-arc-zoning-drawings = Ask to see the drawings for { $hood }
+talk-arc-zoning-drawings-say = "People in { $hood } are talking about ten floors. Show me what you actually want to build."
+talk-arc-zoning-drawings-yes = "Four floors, set back from the road, with a share for local people. Take a copy. I'd rather they argued with the drawings than the rumour."
+talk-arc-zoning-drawings-no = "I'll show them to whoever is voting on the rules. Until then they stay in my office."
+
+talk-arc-zoning-objections = Hear what the street fears
+talk-arc-zoning-objections-say = "Tell me what worries you about the plans. All of it."
+talk-arc-zoning-objections-known = "You walked it, so you saw. Four floors, and the back gardens go dark by three. Forty years I've lived here. Nobody asked us before they drew it."
+talk-arc-zoning-objections-yes = "The light, the parking, and a builder who'll be gone when the cracks show. I've lived here forty years, and nobody asked us before they drew it."
+
+talk-arc-zoning-speak = Ask { $organiser } to speak at the meeting
+talk-arc-zoning-speak-say = "There'll be a meeting about the plans. Would you stand up and say why the homes matter?"
+talk-arc-zoning-speak-yes = "I'll speak. I've a list of families in { $hood } paying half of what they earn in rent. They can hear it from me."
+talk-arc-zoning-speak-no = "I'll be there, but I won't stand up for you. I don't know yet whose side you're on."
+
+talk-arc-zoning-count = Ask { $member } how they will vote on the rules
+talk-arc-zoning-count-say = "If a bill to loosen the rules in { $hood } comes to a vote, where will you be?"
+talk-arc-zoning-count-yes = "Bring me the bill and the numbers on rents, and I'll read both. I'm not against homes. I'm against being rushed."
+talk-arc-zoning-count-no = "My side will vote it down, and I'll be with them. Count me out before you count anyone else."
+
+skip-item-arc-zoning-petition = { $neighbour } took a petition round { $hood } against the plans. Most doors signed.
+
+legacy-arc-zoning-upzoned = Changed the rules so new homes could go up in { $hood }.
+legacy-arc-zoning-public-homes = Saw public homes built when the { $hood } plans stalled.
+legacy-arc-zoning-kept = Spoke for { $hood } as it was when a builder wanted more.
+
+## The homes (the zoning fight's ask, from the organiser)
+ask-zoning-homes = A bill for the homes
+ask-zoning-homes-detail = { $asker } ({ $asker_role }) says talk will not build a single flat. The rules have to change, and they want the bill that changes them put forward by you.
+ask-zoning-homes-need = Put forward a bill that loosens the rules or builds homes
+ask-zoning-homes-kept = Your bill is down for a vote, and { $asker } has told everyone on the waiting list.
+ask-zoning-homes-broken = No bill came. { $asker } told the waiting list who had been asked.
+
+## The street (the zoning fight's ask, from the neighbour)
+ask-zoning-street = A word for the street
+ask-zoning-street-detail = { $asker } ({ $asker_role }) wants you to say in public that the street will be heard before anything is built.
+ask-zoning-street-need = Say in public where you stand on homes
+ask-zoning-street-kept = You said it in public. { $asker } cut it out of the paper and pinned it up in the shop window.
+ask-zoning-street-broken = You said nothing in public. { $asker } took that as an answer.

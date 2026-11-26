@@ -837,6 +837,8 @@ fn older_saves_migrate_to_empty_talk() {
     let mut e = game(42, &c);
     script(&mut e, &c, 0, 2);
     assert!(!e.state().player.as_ref().unwrap().talk.log.is_empty());
+    // A v16 save held no arcs (they came in v27).
+    e.setup(|st| st.arcs = Default::default());
     let mut v16 = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
     v16.pointer_mut("/state/player")
         .unwrap()
