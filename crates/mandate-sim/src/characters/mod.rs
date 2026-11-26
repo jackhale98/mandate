@@ -35,6 +35,7 @@ pub mod ambient;
 pub mod calendar;
 pub mod familiar;
 pub mod goals;
+pub mod households;
 pub mod knows;
 pub mod routines;
 pub mod town;
@@ -329,6 +330,10 @@ pub struct CharactersState {
     /// Goals given up recently (not taken up again for a while).
     #[serde(default)]
     pub ended_goals: Vec<goals::EndedGoal>,
+    /// Doors (DEC-114 §2): the doorstep records kept on the player's
+    /// character and the canvass under way (`households`).
+    #[serde(default, skip_serializing_if = "households::Households::is_empty")]
+    pub households: households::Households,
 }
 
 impl CharactersState {

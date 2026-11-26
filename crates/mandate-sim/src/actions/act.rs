@@ -57,6 +57,13 @@ pub(super) fn perform(
         } => {
             res = canvass(state, content, pl, neighborhood, issue)?;
         }
+        Action::Doorstep {
+            neighborhood,
+            door,
+            choice,
+        } => {
+            res = doorstep(state, content, pl, *neighborhood, *door, choice)?;
+        }
         Action::Fundraise => {
             res = fundraise(state, content, pl, m, late_night)?;
         }

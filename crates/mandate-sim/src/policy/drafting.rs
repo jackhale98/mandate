@@ -536,7 +536,7 @@ pub fn learn_from(state: &mut State, content: &ContentBundle, cmd: &crate::actio
                     moments.push(Moment::Met(p.character));
                 }
             }
-            Action::Canvass { neighborhood, .. } => moments.push(Moment::Did {
+            Action::Canvass { neighborhood, .. } | Action::Doorstep { neighborhood, .. } => moments.push(Moment::Did {
                 action: "canvass",
                 hood: Some(NeighborhoodId(*neighborhood)),
             }),

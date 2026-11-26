@@ -33,6 +33,9 @@ import { setTalkStage, useTalkStage, type TalkStage } from "./talk/stage";
 import { keepLook } from "./portrait/look";
 import { Interior } from "../interior/Interior";
 import { enterable } from "../interior/recipes";
+import { doorPlots } from "../hub/townScene";
+import type { TownPlan } from "../hub/layoutV2/plan";
+import { useDoor } from "./doors/doorStore";
 
 /** Walk to a place picked on the town map; a new `id` is a new request. */
 /** How long an action's auto-walk takes on the street, about (seconds): brisk, then the result. */
@@ -49,6 +52,8 @@ export interface TownStreetProps {
   map: TownMap;
   /** The latest place picked on the town map, to walk to. */
   walkTo: WalkRequest | null;
+  /** The plan the map was dressed from: its fill ranks put the street's doors on its houses (DEC-114 §2). */
+  plan?: TownPlan;
 }
 
 /** What tests see (`window.__townStreet`). */
@@ -59,6 +64,10 @@ interface StreetProbe {
   readonly target: number;
   /** Where the player stands in the engine's terms when the walk ends (the last arrival), for tests. */
   arrivals: number;
+  /** The houses with a door to knock at (DEC-114 §2): building index, its front cell, neighbourhood and door slot. */
+  doors(): { building: number; front: number; hood: number; door: number }[];
+  /** Walk to a house's door and knock, as a tap on the house does. */
+  walkToDoor(building: number): boolean;
 }
 declare global {
   interface Window {
@@ -68,7 +77,7 @@ declare global {
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
+export default function TownStreet({ town, map, walkTo, plan }: TownStreetProps) {
   const tr = useGame((s) => s.tr);
   const pocket = useGame((s) => s.pocket);
   const busy = useGame((s) => s.busy);
@@ -83,6 +92,9 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const walkIn = useGame((s) => s.walkIn);
   const inside = useGame((s) => s.interior !== null);
   const sheets = useGame((s) => [s.pocketOpen && "pocket", s.openPlace !== null && "place", s.character !== null && "character", s.decision !== null && "decision", s.story !== null && "story", s.talk !== null && "talk"].filter(Boolean).join(" "));
+  // A doorstep open (DEC-114 §3.3) covers the street as the other sheets do.
+  const doorOpen = useDoor((s) => s.at !== null);
+  const openDoor = useDoor((s) => s.open);
   // The talk hook (DEC-093): people standing in the street to walk up to.
   const peopleAt = useGame((s) => s.peopleAt);
   const whereIs = useGame((s) => s.whereIs);
@@ -119,6 +131,18 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       const v = viewRef.current;
       if (!v) return;
       let loc: LocationDto | null = null;
+      // A house's door (DEC-114 §2): on its neighbourhood's streets, knock.
+      const spot = b ? v.scene.doors.get(b.index) : undefined;
+      if (spot) {
+        if (latest.current.busy) return;
+        const street: LocationDto = { type: "street", neighborhood: spot.hood };
+        setStatus(null);
+        void (async () => {
+          if (!sameLocation(street, latest.current.here)) await command({ type: "move_to", location: street });
+          await openDoor(spot.hood, spot.door);
+        })();
+        return;
+      }
       if (b?.home) loc = { type: "home" };
       else if (b && b.place !== null) loc = { type: "place", place: b.place };
       else {
@@ -163,6 +187,8 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
         if (!document.getElementById("hub-icon-sprite")) document.body.insertAdjacentHTML("afterbegin", art.iconSprite().replace("<svg ", '<svg id="hub-icon-sprite" '));
         const name = (b: TownBuilding) => (b.home ? tr.t("place-home") : b.place !== null ? b.name || tr.t(`place-${b.kind}`) : null);
         const enter = (b: TownBuilding) => {
+          const spot = viewRef.current?.scene.doors.get(b.index);
+          if (spot) return tr.t("ui-door-hint", { number: spot.door + 1 });
           const n = name(b);
           return n ? tr.t("ui-town-street-enter", { place: n }) : null;
         };
@@ -196,6 +222,19 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
             return view?.clock.target ?? 0;
           },
           arrivals: 0,
+          doors() {
+            const v = viewRef.current;
+            if (!v) return [];
+            return [...v.scene.doors.entries()].map(([building, d]) => ({ building, front: v.map.buildings[building]?.front ?? -1, hood: d.hood, door: d.door }));
+          },
+          walkToDoor(building) {
+            const v = viewRef.current;
+            const b = v?.map.buildings[building];
+            if (!v || !b || !v.scene.doors.has(building)) return false;
+            const ok = v.scene.goToBuilding(building, () => arrive.current(b));
+            v.wake();
+            return ok;
+          },
         };
         setReady(true);
       })
@@ -211,6 +250,17 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
     // The view is made once per map; it reads the rest through `latest`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
+
+  // The street's doors on its houses (DEC-114 §2): the engine's door slots by neighbourhood, put on the
+  // standing houses by the plan's fill rank (the dress pass's order), so a door is the same house every year.
+  const slotsKey = town.neighborhoods.map((h) => `${h.id}:${h.doors}`).join(",");
+  useEffect(() => {
+    const v = viewRef.current;
+    if (!ready || !v) return;
+    const ranks = plan?.plots.map((p) => p.fillRank) ?? v.map.buildings.map((b) => b.index);
+    v.scene.doors = doorPlots(v.map, ranks, new Map(town.neighborhoods.map((h) => [h.id, h.doors])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, plan, slotsKey]);
 
   // The light: ease forward to the turn's time (instant with reduced motion); repaint the moods once, at the target.
   useEffect(() => {
@@ -228,7 +278,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
 
   // Nothing animates where nobody sees it: behind the map overlay, a modal, or a sheet over most of the
   // street (a phone). A sheet beside the street (wide screens) leaves it live: zoom and pan keep working.
-  const sheetCovers = useSheetsCover(stageRef, sheets);
+  const sheetCovers = useSheetsCover(stageRef, [sheets, doorOpen && "door"].filter(Boolean).join(" "));
   // A conversation over a portrait covers the street too (in the street, it frames the speakers instead).
   const portrait = useTalkStage((s) => s.mode === "portrait");
   const covered = modal || sheetCovers || portrait;

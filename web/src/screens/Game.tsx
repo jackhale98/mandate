@@ -16,6 +16,7 @@ import { StorySheet } from "../components/StorySheet";
 import { ArcSheet } from "../components/ArcSheet";
 import { RunBanner } from "../components/Newspaper";
 import { TalkSheet } from "../components/talk/TalkSheet";
+import { DoorSheet } from "../components/doors/DoorSheet";
 import { TermReview } from "../components/act/TermReview";
 import { SkipSummary } from "../components/act/SkipSummary";
 import { Epilogue } from "../components/act/Epilogue";
@@ -180,6 +181,7 @@ export function Game() {
       <DecisionSheet />
       <CharacterSheet />
       <TalkSheet />
+      <DoorSheet />
       <TermReview />
       <SkipSummary />
       <PromisePicker />

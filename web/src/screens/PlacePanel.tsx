@@ -22,6 +22,7 @@ import { Newspaper } from "../components/Newspaper";
 import { TalkButton } from "../components/talk/TalkButton";
 import { CaseworkHere } from "../components/asks/Asks";
 import { FaultsHere } from "../components/faults/Faults";
+import { DoorsHere } from "../components/doors/Doors";
 
 /** Decisions whose scene happens here (DEC-079: here, the conversation). */
 function WaitingHere({ v }: { v: PlacePanelView }) {
@@ -450,6 +451,7 @@ export function PlacePanel() {
           {v.newspaper && <Newspaper n={v.newspaper} />}
           {v.decisions_here.length > 0 && <WaitingHere v={v} />}
           {v.faults && <FaultsHere faults={v.faults} />}
+          {v.doors && <DoorsHere v={v.doors} />}
           <People v={v} />
           <Verbs v={v} />
           <Actions v={v} skip={skip} />

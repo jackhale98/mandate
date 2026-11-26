@@ -305,6 +305,69 @@ impl Default for FamiliarityParams {
     }
 }
 
+/// Doors and households (DEC-114 §2, `BEING_THERE.md` §3): door slots per
+/// neighbourhood, households generated on demand at a door, the doorstep
+/// exchange's chances, and the bounded doorstep records.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HouseholdParams {
+    /// One door slot per this many residents (adults and children) ...
+    pub residents_per_door: u32,
+    /// ... within [min, max].
+    pub doors: [u32; 2],
+    /// Doors a canvass knocks at most (a street).
+    pub street_doors: u8,
+    /// Adults in a household, [min, max]; children by the neighbourhood's
+    /// children per adult.
+    pub adults: [u8; 2],
+    /// Chance a household owns its home, by class (low, middle, high).
+    pub owner_by_class: [f64; 3],
+    /// Chance nobody answers at an occupied door (keyed by door and day).
+    pub not_in: f64,
+    /// The spread of a household's view of the player around its cohort's
+    /// (−1..1, a keyed normal draw).
+    pub view_sd: f64,
+    /// A view at or above this is warm; at or below `cool`, cool.
+    pub warm: f64,
+    pub cool: f64,
+    /// Asking for their vote (in a campaign) or a poster: the chance is
+    /// `ask_base + ask_view × view`, within [`ask_min`, `ask_max`].
+    pub ask_base: f64,
+    pub ask_view: f64,
+    pub ask_min: f64,
+    pub ask_max: f64,
+    /// Doorstep records kept a neighbourhood (the oldest forgotten), and the
+    /// days after which a household forgets a call.
+    pub records_per_hood: u8,
+    pub forget_days: u32,
+    /// Listening at this many doors of a street that name the same worry
+    /// teaches the neighbourhood's worries (`known`).
+    pub agree: u8,
+}
+
+impl Default for HouseholdParams {
+    fn default() -> Self {
+        HouseholdParams {
+            residents_per_door: 150,
+            doors: [16, 60],
+            street_doors: 4,
+            adults: [1, 3],
+            owner_by_class: [0.35, 0.6, 0.85],
+            not_in: 0.15,
+            view_sd: 0.25,
+            warm: 0.15,
+            cool: -0.15,
+            ask_base: 0.35,
+            ask_view: 0.6,
+            ask_min: 0.05,
+            ask_max: 0.9,
+            records_per_hood: 16,
+            forget_days: 365,
+            agree: 2,
+        }
+    }
+}
+
 /// Town character (DEC-077 §1).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -387,6 +450,8 @@ pub struct CharacterParams {
     pub broker: BrokerParams,
     #[serde(default)]
     pub familiarity: FamiliarityParams,
+    #[serde(default)]
+    pub households: HouseholdParams,
 }
 
 impl CharacterParams {

@@ -273,6 +273,9 @@ pub struct TownHoodView {
     /// concern overlay).
     pub top_concern_key: Option<String>,
     pub concern_knowledge: crate::knowledge::KnowledgeView,
+    /// Its door slots (DEC-114 §2): the street maps slot *k* to its *k*-th
+    /// house by the plan's fill rank (`PlacePanelView.doors` lists them).
+    pub doors: u32,
     /// Knowledge in words (DEC-113): one sentence, only where not knowing
     /// its worries, or knowing them from an old reading, bears on
     /// something in hand (`crate::notebook`).
@@ -591,6 +594,11 @@ pub struct PlacePanelView {
     #[serde(default)]
     #[ts(as = "Option<Vec<crate::upkeep::FaultView>>", optional)]
     pub faults: Vec<crate::upkeep::FaultView>,
+    /// On a neighbourhood's streets in the player's town: its doors
+    /// (DEC-114 §2), as rows and for the street's houses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub doors: Option<crate::doors::StreetDoorsView>,
 }
 
 pub fn location_view(st: &State, loc: Location) -> LocationView {
@@ -1013,6 +1021,7 @@ pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
                 spots,
                 top_concern_key,
                 concern_knowledge: gate.view(&concern_subject),
+                doors: mandate_sim::characters::households::doors(st, engine.content(), n.id),
                 note: None,
             }
         })
@@ -1380,6 +1389,10 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
         faults: match loc {
             Location::Street { neighborhood } => crate::upkeep::faults_in(engine, neighborhood),
             _ => Vec::new(),
+        },
+        doors: match loc {
+            Location::Street { neighborhood } => crate::doors::street_doors(engine, neighborhood),
+            _ => None,
         },
         decisions_here: crate::narrative::pending_decisions(engine)
             .into_iter()

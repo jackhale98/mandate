@@ -10,6 +10,7 @@ pub mod campaign;
 pub mod characters;
 #[cfg(feature = "dev-tools")]
 pub mod dev;
+pub mod doors;
 pub mod exchange;
 pub mod impact;
 pub mod knowledge;
@@ -325,6 +326,15 @@ pub enum ActionDto {
         #[ts(optional)]
         issue: Option<String>,
     },
+    /// Knock at a door of the street the player stands on and say one of
+    /// three things (DEC-114 §3.3): the first knock starts a canvass and
+    /// spends its time; the last of `StreetDoorsView.street_doors` (or
+    /// `Canvass` on that neighbourhood, or anything else) finishes it.
+    Doorstep {
+        neighborhood: u32,
+        door: u32,
+        choice: crate::doors::DoorChoiceDto,
+    },
     Fundraise,
     Rest,
     Advertise,
@@ -444,6 +454,13 @@ pub enum QueryDto {
     Canvass {
         neighborhood: u32,
     },
+    /// A doorstep (DEC-114 §3.3): who answers a door of a street, what they
+    /// say first, and the choices. Read-only (the knock is
+    /// `ActionDto::Doorstep`).
+    Door {
+        neighborhood: u32,
+        door: u32,
+    },
     /// Term in review (DEC-012): directives and the points to skip to.
     TermReview,
     /// The last skip's summary (the interrupt or homecoming summary).
@@ -559,6 +576,8 @@ pub enum ResponseBody {
     Talk(TalkView),
     Exchange(ExchangeView),
     Canvass(CanvassView),
+    /// `None`: no such door (or not in the player's town).
+    Door(Option<doors::DoorView>),
     TermReview(TermReviewView),
     /// `None` before any skip.
     SkipSummary(Option<SkipSummaryView>),
