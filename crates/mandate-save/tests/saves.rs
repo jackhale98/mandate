@@ -167,7 +167,7 @@ fn state_shape_matches_format_version() {
     // as the state loads).
     // Re-recorded on the merge with lobbying (note 29).
     // Re-recorded on the merge with the pilot arc (the zoning fight).
-    const EXPECTED: (u16, &str) = (32, "75e9d04e73ba81f2");
+    const EXPECTED: (u16, &str) = (32, "87409f67e9043718");
     let c = content();
     let mut e = generate(
         &WorldConfig {
