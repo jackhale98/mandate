@@ -63,6 +63,8 @@ fn preview(s: &mut Session, template: &str, params: &[(&str, f64)]) -> PolicyPre
                     value: *value,
                 })
                 .collect(),
+            proposal: None,
+            choices: None,
         }),
     )
     .unwrap()
@@ -145,6 +147,8 @@ fn the_policy_preview_cost_follows_the_parameters() {
             RequestBody::Query(QueryDto::PolicyPreview {
                 template: "policy.nope".into(),
                 params: vec![],
+                proposal: None,
+                choices: None,
             }),
         )
         .is_err()

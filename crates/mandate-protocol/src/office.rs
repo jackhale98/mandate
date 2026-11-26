@@ -207,20 +207,37 @@ pub struct TemplateView {
 }
 
 /// What a draft with these parameters would cost and do, computed by the
-/// engine for the catalogue's sliders (`QueryDto::PolicyPreview`).
+/// engine for the catalogue's sliders and the proposal sheet
+/// (`QueryDto::PolicyPreview`; a family proposal's in `family`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct PolicyPreviewView {
+    /// The template id, or the proposal's family id.
     pub template: String,
     /// The parameters as the engine reads them (clamped, snapped to the step).
     pub params: Vec<ParamValue>,
-    /// Estimated annual cost for the player's town (nominal currency).
+    /// Estimated annual cost in its jurisdiction (nominal currency).
     pub est_annual_cost: f64,
-    /// That cost as a share of the town's annual budget.
+    /// That cost as a share of the jurisdiction's annual budget.
     pub budget_share: f64,
     pub side_effects: Vec<SideEffectView>,
     pub support: SupportView,
+    /// A standard or situational template: on the table now. A proposal:
+    /// the package as chosen can be drafted (the proposal open, the
+    /// options compatible); whether the player may is
+    /// `family.proposal.can_draft`.
     pub available: bool,
+    /// What it would probably do (DEC-111); none where the impact table
+    /// covers no such tier, or for a proposal the player only heard of.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub impact: Option<crate::impact::ImpactView>,
+    /// A family proposal's sheet (DEC-092 §2.12): its axes with every
+    /// option's cost, support and impact, the sponsors' versions and
+    /// prices, and who may draft it. `None` for a template.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub family: Option<crate::proposals::FamilyPreviewView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -374,6 +391,12 @@ pub struct BillView {
     #[ts(optional)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub broker_pull: Option<String>,
+    /// A bill drafted from a policy-family proposal (DEC-092): its
+    /// proposal, choices and the arguments its keys take. `None` for a
+    /// standard bill.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub family: Option<crate::proposals::BillFamilyView>,
 }
 
 /// A Fluent key and its arguments (a reason the engine states as a fact).
@@ -506,6 +529,10 @@ pub struct TownView {
 pub struct OfficeView {
     pub player: PlayerView,
     pub catalog: Vec<TemplateView>,
+    /// Policy-family proposals open in the player's focus jurisdictions
+    /// that the player has heard of (DEC-092, DEC-091), in the order they
+    /// opened: a stub below `known`.
+    pub proposals: Vec<crate::proposals::ProposalView>,
     pub bills: Vec<BillView>,
     /// The bodies of the player's focus jurisdictions, in constitution
     /// order, each with its members (DEC-098).
@@ -977,6 +1004,7 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
         ward_certainty: ward_certainty.into(),
         ward_support,
         owe_sponsor,
+        family: crate::proposals::bill_family(engine, p),
         broker_pull: broker
             .filter(|b| {
                 pending
@@ -1065,7 +1093,25 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
 }
 
 /// The engine's estimate for a draft of `template` with these parameters in
-/// the player's town: cost, share of the budget, side effects, and support.
+/// the player's home town: cost, share of the budget, side effects, support
+/// and what it would do. With `proposal`, a family proposal's sheet instead
+/// (`crate::proposals::family_preview`; `template` is then its family id,
+/// or empty).
+pub fn policy_preview_of(
+    engine: &Engine,
+    template: &str,
+    params: &[ParamValue],
+    proposal: Option<u32>,
+    choices: &[crate::proposals::ChoiceValue],
+) -> Option<PolicyPreviewView> {
+    match proposal {
+        Some(id) => crate::proposals::family_preview(engine, template, id, params, choices),
+        None => policy_preview(engine, template, params),
+    }
+}
+
+/// The engine's estimate for a draft of a standard or situational
+/// `template` with these parameters in the player's home town.
 pub fn policy_preview(
     engine: &Engine,
     template: &str,
@@ -1073,9 +1119,8 @@ pub fn policy_preview(
 ) -> Option<PolicyPreviewView> {
     let st = engine.state();
     let content = engine.content();
-    let pl = st.player.as_ref()?;
     let t = content.policies.get(template)?;
-    let m = pl.municipality;
+    let m = mandate_sim::player::home(st)?;
     let given: std::collections::BTreeMap<String, f64> =
         params.iter().map(|p| (p.id.clone(), p.value)).collect();
     let probe = mandate_sim::policy::probe(t, m.0, &given);
@@ -1089,7 +1134,19 @@ pub fn policy_preview(
         .map(|x| x.budget_total().units() as f64)
         .unwrap_or(0.0);
     let hoods: Vec<usize> = st.world.hoods_of(m).collect();
+    let gate = Gate::of(engine);
+    // A situational policy the player has only heard of is a stub: no
+    // estimate of what it would do.
+    let stub = t.unlock.is_some()
+        && gate.level(&Subject::Situational {
+            town: m,
+            template: t.id.clone(),
+        }) < Level::Known;
     Some(PolicyPreviewView {
+        impact: (!stub)
+            .then(|| crate::impact::impact_of(engine, &probe))
+            .flatten(),
+        family: None,
         template: t.id.clone(),
         params: t
             .params
@@ -1102,7 +1159,7 @@ pub fn policy_preview(
         est_annual_cost: cost,
         budget_share: if budget > 0.0 { cost / budget } else { 0.0 },
         side_effects: side_effects_view(t, &probe),
-        support: support_view(&Gate::of(engine), t, st, m, &hoods),
+        support: support_view(&gate, t, st, m, &hoods),
         available: mandate_sim::policy::unlocked(st, content, t, m.0),
     })
 }
@@ -1278,6 +1335,7 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
                 .collect(),
         },
         catalog,
+        proposals: crate::proposals::proposals(engine),
         bills,
         bodies,
         mayor: executive.clone(),

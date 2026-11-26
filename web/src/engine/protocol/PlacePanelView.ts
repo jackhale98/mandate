@@ -8,6 +8,7 @@ import type { OfferView } from "./OfferView";
 import type { OverheardView } from "./OverheardView";
 import type { PersonRefView } from "./PersonRefView";
 import type { PlantView } from "./PlantView";
+import type { ProposalView } from "./ProposalView";
 import type { TownDataView } from "./TownDataView";
 import type { VerbOfferView } from "./VerbOfferView";
 
@@ -57,4 +58,10 @@ interior: unknown,
  * Pending decisions whose scene happens here (DEC-079: going there adds
  * the conversation; they can always be answered from the pocket).
  */
-decisions_here: Array<DecisionView>, };
+decisions_here: Array<DecisionView>, 
+/**
+ * Open policy-family proposals the player has heard of that are about
+ * this place (DEC-092): bound to it, or to the neighbourhood whose
+ * streets these are, or brought by a sponsor who works here.
+ */
+proposals_here: Array<ProposalView>, };

@@ -4,10 +4,17 @@ import type { BodyView } from "./BodyView";
 import type { DateView } from "./DateView";
 import type { MemberView } from "./MemberView";
 import type { PlayerView } from "./PlayerView";
+import type { ProposalView } from "./ProposalView";
 import type { TemplateView } from "./TemplateView";
 import type { TownView } from "./TownView";
 
-export type OfficeView = { player: PlayerView, catalog: Array<TemplateView>, bills: Array<BillView>, 
+export type OfficeView = { player: PlayerView, catalog: Array<TemplateView>, 
+/**
+ * Policy-family proposals open in the player's focus jurisdictions
+ * that the player has heard of (DEC-092, DEC-091), in the order they
+ * opened: a stub below `known`.
+ */
+proposals: Array<ProposalView>, bills: Array<BillView>, 
 /**
  * The bodies of the player's focus jurisdictions, in constitution
  * order, each with its members (DEC-098).

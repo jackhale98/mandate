@@ -86,23 +86,22 @@ fn prepare_with(
             .cloned()
             .or_else(|| a.default_option().map(str::to_string))
             .ok_or("an axis has no options")?;
-        let o = a
-            .option(&id)
+        a.option(&id)
             .ok_or_else(|| format!("`{}` has no option `{id}`", a.id))?;
-        if o.needs.is_some() {
-            return Err(format!(
-                "`{}.{id}` needs powers this jurisdiction lacks",
-                a.id
-            ));
-        }
         picked.push((a.id.clone(), id));
     }
-    let keys: Vec<String> = picked.iter().map(|(a, o)| format!("{a}.{o}")).collect();
-    for (a, o) in &picked {
-        let opt = f.axis(a).and_then(|x| x.option(o)).ok_or("bad option")?;
-        if let Some(x) = opt.excludes.iter().find(|x| keys.contains(x)) {
-            return Err(format!("`{a}.{o}` cannot be combined with `{x}`"));
+    match unavailable(f, &picked) {
+        Some(Unavailable::Needs { axis, option }) => {
+            return Err(format!(
+                "`{axis}.{option}` needs powers this jurisdiction lacks"
+            ));
         }
+        Some(Unavailable::Excludes { axis, option, with }) => {
+            return Err(format!(
+                "`{axis}.{option}` cannot be combined with `{with}`"
+            ));
+        }
+        None => {}
     }
     if let Some(p) = preset {
         for a in &f.axes {
@@ -161,6 +160,108 @@ fn prepare_with(
     })
 }
 
+/// Why a set of choices (one option per axis, in axis order) cannot be
+/// drafted by the rules of the options themselves: the checks [`prepare`]
+/// makes, typed for views (an option the proposal sheet shows as
+/// unavailable, task F3).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Unavailable {
+    /// The option needs a power or competence the jurisdiction lacks (M7).
+    Needs { axis: String, option: String },
+    /// The option cannot be combined with another chosen one (`with`:
+    /// `<axis>.<option>`).
+    Excludes {
+        axis: String,
+        option: String,
+        with: String,
+    },
+}
+
+/// The first reason these choices cannot be drafted, if any. Options the
+/// family lacks are not checked here (`prepare` refuses them).
+pub fn unavailable(f: &PolicyFamilyDef, picked: &[(String, String)]) -> Option<Unavailable> {
+    let keys: Vec<String> = picked.iter().map(|(a, o)| format!("{a}.{o}")).collect();
+    let opts = || {
+        picked
+            .iter()
+            .filter_map(|(a, o)| Some((a, o, f.axis(a)?.option(o)?)))
+    };
+    if let Some((a, o, _)) = opts().find(|(_, _, x)| x.needs.is_some()) {
+        return Some(Unavailable::Needs {
+            axis: a.clone(),
+            option: o.clone(),
+        });
+    }
+    opts().find_map(|(a, o, x)| {
+        let with = x.excludes.iter().find(|x| keys.contains(x))?;
+        Some(Unavailable::Excludes {
+            axis: a.clone(),
+            option: o.clone(),
+            with: with.clone(),
+        })
+    })
+}
+
+/// [`prepare`] for a view, whether or not the proposal is still open (a
+/// lapsed proposal's sheet still says what each version would have done).
+pub fn prepare_any(
+    state: &State,
+    content: &ContentBundle,
+    proposal: FamilyInstanceId,
+    choices: &BTreeMap<String, String>,
+    params: &BTreeMap<String, f64>,
+) -> Result<Prepared, String> {
+    prepare_with(state, content, proposal, choices, params, None, false)
+}
+
+/// The bill a checked draft would make, not stored: previews read its cost,
+/// support and impact through `resolve` like any bill's. Its id is
+/// `u32::MAX`, which no bill has.
+pub fn probe_bill(content: &ContentBundle, p: &Prepared) -> PolicyInstance {
+    bill(
+        content,
+        p.clone(),
+        PolicyInstanceId(u32::MAX),
+        None,
+        PolicyStatus::Draft,
+    )
+}
+
+fn bill(
+    content: &ContentBundle,
+    p: Prepared,
+    id: PolicyInstanceId,
+    sponsor: Option<PoliticianId>,
+    status: PolicyStatus,
+) -> PolicyInstance {
+    let tier = content
+        .family(&p.family)
+        .map(|f| f.tier)
+        .unwrap_or(TierKey::Local);
+    PolicyInstance {
+        id,
+        template: p.family,
+        tier,
+        jurisdiction: p.at.raw(),
+        sponsor,
+        params: p.params,
+        clauses: p.clauses,
+        status,
+        stage: 0,
+        next_stage_on: None,
+        votes: Vec::new(),
+        introduced_on: None,
+        enacted_on: None,
+        progress: 0.0,
+        awareness: 0.0,
+        end_reason: None,
+        cause: None,
+        ledger: BTreeMap::new(),
+        family: Some(p.draft),
+        estimate: None,
+    }
+}
+
 /// The neighbourhoods the chosen options' area covers (`None`: everywhere).
 fn area_of(
     state: &State,
@@ -187,35 +288,11 @@ pub fn make_bill(
     extra: Vec<Clause>,
 ) -> PolicyInstanceId {
     let id: PolicyInstanceId = state.policy.ids.alloc();
-    let tier = content
-        .family(&p.family)
-        .map(|f| f.tier)
-        .unwrap_or(TierKey::Local);
     let proposal = p.draft.instance;
-    let mut clauses = p.clauses;
-    clauses.extend(extra);
-    state.policy.instances.push(PolicyInstance {
-        id,
-        template: p.family,
-        tier,
-        jurisdiction: p.at.raw(),
-        sponsor: Some(sponsor),
-        params: p.params,
-        clauses,
-        status,
-        stage: 0,
-        next_stage_on: None,
-        votes: Vec::new(),
-        introduced_on: None,
-        enacted_on: None,
-        progress: 0.0,
-        awareness: 0.0,
-        end_reason: None,
-        cause: None,
-        ledger: BTreeMap::new(),
-        family: Some(p.draft),
-        estimate: None,
-    });
+    let mut p = p;
+    p.clauses.extend(extra);
+    let b = bill(content, p, id, Some(sponsor), status);
+    state.policy.instances.push(b);
     if let Some(i) = state.policy.families.instances.get_mut(proposal.index()) {
         i.drafts.push(id);
     }
