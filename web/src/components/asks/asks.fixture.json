@@ -1,7 +1,7 @@
 {
   "pocket_asks": [
     {
-      "id": 13,
+      "id": 14,
       "template": "ask.casework",
       "promise": false,
       "title_key": "ask-casework",
@@ -21,7 +21,7 @@
       "asker": {
         "type": "person",
         "person": {
-          "id": 1314,
+          "id": 1300,
           "ambient_slot": null,
           "name": "Ada Dace",
           "role_key": "occupation-party_chair",
@@ -137,7 +137,7 @@
       ]
     },
     {
-      "id": 12,
+      "id": 13,
       "template": "ask.casework",
       "promise": false,
       "title_key": "ask-casework",
@@ -157,7 +157,7 @@
       "asker": {
         "type": "person",
         "person": {
-          "id": 1314,
+          "id": 1300,
           "ambient_slot": null,
           "name": "Ada Dace",
           "role_key": "occupation-party_chair",
@@ -261,7 +261,7 @@
   ],
   "asks_recent": [
     {
-      "id": 11,
+      "id": 12,
       "template": "ask.casework",
       "promise": false,
       "title_key": "ask-casework",
@@ -281,7 +281,7 @@
       "asker": {
         "type": "person",
         "person": {
-          "id": 1314,
+          "id": 1300,
           "ambient_slot": null,
           "name": "Ada Dace",
           "role_key": "occupation-party_chair",
@@ -521,7 +521,7 @@
   "asks": {
     "open": [
       {
-        "id": 13,
+        "id": 14,
         "template": "ask.casework",
         "promise": false,
         "title_key": "ask-casework",
@@ -541,7 +541,7 @@
         "asker": {
           "type": "person",
           "person": {
-            "id": 1314,
+            "id": 1300,
             "ambient_slot": null,
             "name": "Ada Dace",
             "role_key": "occupation-party_chair",
@@ -657,7 +657,7 @@
         ]
       },
       {
-        "id": 12,
+        "id": 13,
         "template": "ask.casework",
         "promise": false,
         "title_key": "ask-casework",
@@ -677,7 +677,7 @@
         "asker": {
           "type": "person",
           "person": {
-            "id": 1314,
+            "id": 1300,
             "ambient_slot": null,
             "name": "Ada Dace",
             "role_key": "occupation-party_chair",
@@ -781,7 +781,7 @@
     ],
     "recent": [
       {
-        "id": 11,
+        "id": 12,
         "template": "ask.casework",
         "promise": false,
         "title_key": "ask-casework",
@@ -801,7 +801,7 @@
         "asker": {
           "type": "person",
           "person": {
-            "id": 1314,
+            "id": 1300,
             "ambient_slot": null,
             "name": "Ada Dace",
             "role_key": "occupation-party_chair",
@@ -891,7 +891,7 @@
     ],
     "promises": [],
     "tally": {
-      "offered": 11,
+      "offered": 12,
       "accepted": 0,
       "declined": 10,
       "lapsed": 10,

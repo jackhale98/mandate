@@ -38,11 +38,11 @@
 //! `hood_concerns`); the indicators are read-only views of other domains,
 //! reusable by later systems (town character, situational policies).
 
-use crate::population::{CLASSES, PARTICIPATION, PopulationState, age_of, class_of};
+use crate::population::{AGE_BANDS, CLASSES, PARTICIPATION, PopulationState, age_of, class_of};
 use crate::scheduler::{Outs, Reads};
 use crate::world::{Jurisdiction, MunicipalityId, NeighborhoodId, NeighborhoodKind, World};
 use mandate_content::condition::Worry;
-use mandate_content::{ContentBundle, Indicator, NeighborhoodLean, SectorDriver};
+use mandate_content::{BudgetCategory, ContentBundle, Indicator, NeighborhoodLean, SectorDriver};
 use mandate_core::math::pow;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -95,14 +95,276 @@ pub fn budget_index(r: &Reads<'_>, pop: Option<&PopulationState>, m: usize) -> f
     t.budget_total().units() as f64 / need.max(1.0)
 }
 
+/// The lines of the budget that schools and health care read
+/// (`Indicator::CareShortfall`); the services worry reads the others but
+/// Infrastructure (`SERVICE_EXCLUDED`).
+const CARE_LINES: [BudgetCategory; 2] = [BudgetCategory::Education, BudgetCategory::Health];
+/// Lines the services worry leaves to schools and health care and to the
+/// streets (DEC-106).
+const SERVICE_EXCLUDED: [BudgetCategory; 3] = [
+    BudgetCategory::Education,
+    BudgetCategory::Health,
+    BudgetCategory::Infrastructure,
+];
+
+/// The budget rule's index of real need (prices × productivity × the
+/// nation's population against its start), as `finance::new_budget_year`
+/// aims budgets.
+fn need_index(r: &Reads<'_>, pop: Option<&PopulationState>) -> f64 {
+    let econ = r.economy();
+    let fin = r.finance();
+    let wage_index = (econ.national.price_level * econ.national.productivity_index).max(0.1);
+    let pop_index = pop
+        .map(|p| (p.total() as f64 / fin.base_population.max(1.0)).max(0.1))
+        .unwrap_or(1.0);
+    wage_index * pop_index
+}
+
+/// Some lines of a treasury against their need (their shares of its
+/// starting budget, indexed by `need_index`): (have, need), yearly.
+fn lines_against_need(
+    r: &Reads<'_>,
+    t: &crate::finance::Treasury,
+    lines: &dyn Fn(usize) -> bool,
+    index: f64,
+) -> (f64, f64) {
+    use crate::finance::TierKind;
+    let ts = &r.content.economy.treasury_shares;
+    let shares = match t.tier {
+        TierKind::Local => &ts.local,
+        TierKind::Regional => &ts.regional,
+        TierKind::National => &ts.national,
+    };
+    let total: f64 = shares.iter().sum::<f64>().max(1e-9);
+    let (mut have, mut share) = (0.0, 0.0);
+    for (i, b) in t.budget.iter().enumerate().filter(|(i, _)| lines(*i)) {
+        have += b.units() as f64;
+        share += shares.get(i).copied().unwrap_or(0.0) / total;
+    }
+    (have, t.base_budget_total.units() as f64 * share * index)
+}
+
 /// Services delivered against need, as a shortfall (`Indicator::ServiceShortfall`):
-/// 1 − the budget index (`budget_index`) − the service gains of laws in
-/// effect (the quantity approval reads). Programmes that crowd out the
-/// baseline, cuts and interest raise it; services laws lower it.
+/// 1 − the town's lines other than Education, Health and Infrastructure
+/// against their need − the service gains of laws in effect on lines
+/// other than Education and Health. Programmes that crowd out the
+/// baseline, cuts and interest raise it; services laws lower it. While
+/// every line moves together (the budget rule) the index is the budget's
+/// (`budget_index`, which approval reads).
 pub fn service_shortfall(r: &Reads<'_>, pop: Option<&PopulationState>, m: usize) -> f64 {
     let fin = r.finance();
     let mods = crate::policy::mods_for(r.policy(), r.content, m as u32, &|id| fin.funded_share(id));
-    1.0 - budget_index(r, pop, m) - mods.services.iter().sum::<f64>()
+    let care = CARE_LINES.map(crate::policy::category_index);
+    let gains: f64 = mods
+        .services
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !care.contains(i))
+        .map(|(_, g)| g)
+        .sum();
+    1.0 - services_index(r, pop, m) - gains
+}
+
+/// The town's lines other than Education, Health and Infrastructure
+/// against their need (1 at need), the budget index the services worry
+/// reads (`service_shortfall`).
+pub fn services_index(r: &Reads<'_>, pop: Option<&PopulationState>, m: usize) -> f64 {
+    let Some(t) = r.finance().local.get(m) else {
+        return 1.0;
+    };
+    let excluded = SERVICE_EXCLUDED.map(crate::policy::category_index);
+    let (have, need) = lines_against_need(r, t, &|i| !excluded.contains(&i), need_index(r, pop));
+    if need > 0.0 { have / need } else { 1.0 }
+}
+
+/// Schools and health care against need, as a shortfall
+/// (`Indicator::CareShortfall`): 1 − the Education and Health lines of
+/// every tier that serves the town (its own treasury's whole; its
+/// region's and the nation's in the town's share of their residents)
+/// against their need − the service gains of laws on those lines.
+pub fn care_shortfall(r: &Reads<'_>, pop: Option<&PopulationState>, m: usize) -> f64 {
+    use crate::world::Jurisdiction as J;
+    let fin = r.finance();
+    let Some(mu) = r.world.municipalities.get(m) else {
+        return 0.0;
+    };
+    let index = need_index(r, pop);
+    let care = CARE_LINES.map(crate::policy::category_index);
+    let lines = |i: usize| care.contains(&i);
+    let town_pop = pop.map_or(0.0, |p| p.municipality_total(r.world, mu.id) as f64);
+    let region_pop = pop.map_or(0.0, |p| p.region_total(r.world, mu.region) as f64);
+    let nation_pop = pop.map_or(0.0, |p| p.total() as f64);
+    let share = |part: f64, of: f64| if of > 0.0 { part / of } else { 0.0 };
+    let (mut have, mut need) = (0.0, 0.0);
+    for (at, part) in [
+        (J::town(mu.id), 1.0),
+        (J::Region { id: mu.region }, share(town_pop, region_pop)),
+        (J::Nation, share(town_pop, nation_pop)),
+    ] {
+        if let Some(t) = crate::finance::treasury(fin, at) {
+            let (h, n) = lines_against_need(r, t, &lines, index);
+            have += h * part;
+            need += n * part;
+        }
+    }
+    let mods = crate::policy::mods_for(r.policy(), r.content, m as u32, &|id| fin.funded_share(id));
+    let gains: f64 = care.iter().filter_map(|i| mods.services.get(*i)).sum();
+    let ratio = if need > 0.0 { have / need } else { 1.0 };
+    1.0 - ratio - gains
+}
+
+/// The Infrastructure line against need, as a shortfall
+/// (`Indicator::UpkeepShortfall`): 1 − min(line ÷ need, the upkeep's
+/// `maintain_cap`), the index upkeep's wear reads.
+pub fn upkeep_shortfall(r: &Reads<'_>, pop: Option<&PopulationState>, m: usize) -> f64 {
+    let Some(t) = r.finance().local.get(m) else {
+        return 0.0;
+    };
+    let infra = crate::policy::category_index(BudgetCategory::Infrastructure);
+    let (have, need) = lines_against_need(r, t, &|i| i == infra, need_index(r, pop));
+    let cap = r.content.upkeep.params.maintain_cap.max(1.0);
+    let ratio = if need > 0.0 {
+        have.max(0.0) / need
+    } else {
+        1.0
+    };
+    1.0 - ratio.min(cap)
+}
+
+/// A neighbourhood's streets' wear (`Indicator::StreetWear`): the
+/// midpoint of upkeep's starting condition − its condition, or 0 where
+/// upkeep keeps none.
+fn hood_wear(r: &Reads<'_>, h: NeighborhoodId) -> f64 {
+    let Some(c) = r.upkeep().and_then(|u| u.condition(h)) else {
+        return 0.0;
+    };
+    let [lo, hi] = r.content.upkeep.params.start;
+    (lo + hi) / 2.0 - f64::from(c)
+}
+
+/// A town's streets' wear: its neighbourhoods' (`hood_wear`) weighted by
+/// residents (0 where upkeep keeps no condition).
+fn town_wear(r: &Reads<'_>, pop: Option<&PopulationState>, m: usize) -> f64 {
+    let Some(mu) = r.world.municipalities.get(m) else {
+        return 0.0;
+    };
+    if r.upkeep().is_none_or(|u| u.hoods.is_empty()) {
+        return 0.0;
+    }
+    let (mut sum, mut w) = (0.0, 0.0);
+    for &h in &mu.neighborhoods {
+        let n = pop.map_or(1.0, |p| (p.hood_total(h.index()) as f64).max(1.0));
+        sum += n * hood_wear(r, h);
+        w += n;
+    }
+    if w > 0.0 { sum / w } else { 0.0 }
+}
+
+/// The town's politicians' scandals and cases (`Indicator::Scandals`):
+/// each scandal that broke within `signals.scandal_days` by its gravity,
+/// fading to 0 with age; each open case; each conviction within the days,
+/// fading.
+pub fn scandals(r: &Reads<'_>, m: usize) -> f64 {
+    use mandate_content::Gravity;
+    let sg = &r.content.opinion.local_concerns.signals;
+    let days = f64::from(sg.scandal_days.max(1));
+    let fade = |d: mandate_core::SimDate| (1.0 - f64::from(d.days_until(r.date)) / days).max(0.0);
+    let gravity = |g: Gravity| {
+        Gravity::ALL
+            .iter()
+            .position(|x| *x == g)
+            .and_then(|i| sg.scandal_gravity.get(i))
+            .copied()
+            .unwrap_or(1.0)
+    };
+    let town = m as u32;
+    let scandals: f64 = r
+        .media()
+        .scandals
+        .iter()
+        .filter(|s| s.town == town && s.broke <= r.date)
+        .map(|s| gravity(s.severity) * fade(s.broke))
+        .sum();
+    let cases: f64 = r
+        .justice()
+        .cases
+        .iter()
+        .filter(|c| c.town == town)
+        .map(|c| {
+            if c.stage.open() {
+                sg.case_open
+            } else if c.stage == crate::justice::Stage::Convicted {
+                let on = c.history.last().map_or(c.opened, |x| x.1);
+                sg.case_convicted * fade(on)
+            } else {
+                0.0
+            }
+        })
+        .sum();
+    scandals + cases
+}
+
+/// The share of its real value each income class's income (wages,
+/// benefits and transfers over prices) lost over the last year: 1 − now ÷
+/// a year ago (below 0 when incomes beat prices); 0 without a year of
+/// history.
+fn real_income_loss(e: &crate::economy::MuniEcon) -> [f64; CLASSES] {
+    match (
+        e.history.last(),
+        e.history.get(e.history.len().saturating_sub(13)),
+    ) {
+        (Some(now), Some(then)) => std::array::from_fn(|c| {
+            let (n, t) = (
+                f64::from(now.real_income[c]),
+                f64::from(then.real_income[c]),
+            );
+            if n > 0.0 && t > 0.0 { 1.0 - n / t } else { 0.0 }
+        }),
+        _ => [0.0; CLASSES],
+    }
+}
+
+/// Prices against incomes as some adults feel them
+/// (`Indicator::CostOfLiving`): each income class's loss
+/// (`real_income_loss`) × how strongly it feels prices
+/// (`signals.cost_of_living_class`), weighted by the adults of each class.
+fn price_squeeze(content: &ContentBundle, loss: &[f64; CLASSES], adults: &[f64; CLASSES]) -> f64 {
+    let w = &content.opinion.local_concerns.signals.cost_of_living_class;
+    let n: f64 = adults.iter().sum();
+    let feel = |c: usize| w.get(c).copied().unwrap_or(1.0);
+    if n <= 0.0 {
+        return loss[1] * feel(1);
+    }
+    (0..CLASSES)
+        .map(|c| adults[c] / n * feel(c) * loss[c])
+        .sum()
+}
+
+/// The share of a town's adults aged 65 and over (`None` without adults).
+fn old_share(groups: &[f64]) -> Option<f64> {
+    let all: f64 = groups.iter().sum();
+    let old: f64 = (0..CLASSES)
+        .map(|c| groups[crate::population::group_index(AGE_BANDS - 1, c)])
+        .sum();
+    (all > 0.0).then(|| old / all)
+}
+
+/// The share of the nation's adults aged 65 and over.
+fn nation_old_share(pop: &PopulationState) -> f64 {
+    let (mut old, mut all) = (0u64, 0u64);
+    for h in &pop.hoods {
+        for (ci, c) in h.cohorts.iter().enumerate() {
+            all += u64::from(c.count);
+            if age_of(ci) == AGE_BANDS - 1 {
+                old += u64::from(c.count);
+            }
+        }
+    }
+    if all > 0 {
+        old as f64 / all as f64
+    } else {
+        0.0
+    }
 }
 
 /// [`indicator`] with the population given (its own systems hold it).
@@ -164,6 +426,74 @@ pub fn indicator_with(
             }
             _ => 0.0,
         },
+        Indicator::CostOfLiving => {
+            let groups = pop.map(|p| p.municipality_groups(r.world, MunicipalityId(m as u32)));
+            let adults: [f64; CLASSES] = std::array::from_fn(|c| {
+                groups.map_or(0.0, |g| {
+                    (0..AGE_BANDS)
+                        .map(|a| g[crate::population::group_index(a, c)])
+                        .sum()
+                })
+            });
+            price_squeeze(r.content, &real_income_loss(e), &adults)
+        }
+        Indicator::Arrivals => match (pop, pop.and_then(|p| p.flows.get(m))) {
+            (Some(p), Some(f)) => {
+                let adults: f64 = p
+                    .municipality_groups(r.world, MunicipalityId(m as u32))
+                    .iter()
+                    .sum();
+                if adults > 0.0 {
+                    f64::from(f.arrived) / adults
+                } else {
+                    0.0
+                }
+            }
+            _ => 0.0,
+        },
+        Indicator::YoungLeaving => match (pop, pop.and_then(|p| p.flows.get(m))) {
+            (Some(p), Some(f)) => {
+                let g = p.municipality_groups(r.world, MunicipalityId(m as u32));
+                let young: f64 = (0..CLASSES)
+                    .map(|c| g[crate::population::group_index(0, c)])
+                    .sum();
+                if young > 0.0 {
+                    f64::from(f.young_left - f.young_arrived) / young
+                } else {
+                    0.0
+                }
+            }
+            _ => 0.0,
+        },
+        Indicator::OldAgeShare => match pop {
+            Some(p) => old_share(&p.municipality_groups(r.world, MunicipalityId(m as u32)))
+                .map_or(0.0, |s| s - nation_old_share(p)),
+            None => 0.0,
+        },
+        Indicator::CareShortfall => care_shortfall(r, pop, m),
+        Indicator::UpkeepShortfall => upkeep_shortfall(r, pop, m),
+        Indicator::StreetWear => town_wear(r, pop, m),
+        Indicator::Scandals => scandals(r, m),
+        Indicator::Construction => {
+            let h = &e.housing;
+            h.pipeline.iter().sum::<f64>().max(0.0) / h.stock.max(1.0)
+        }
+        Indicator::WorksDisruption => {
+            let fin = r.finance();
+            let mods = crate::policy::mods_for(r.policy(), r.content, m as u32, &|id| {
+                fin.funded_share(id)
+            });
+            let local = r.world.municipalities.get(m).map_or(0.0, |mu| {
+                let (mut sum, mut w) = (0.0, 0.0);
+                for h in &mu.neighborhoods {
+                    let n = pop.map_or(1.0, |p| (p.hood_total(h.index()) as f64).max(1.0));
+                    sum += n * mods.disruption_at(h.0);
+                    w += n;
+                }
+                if w > 0.0 { sum / w } else { 0.0 }
+            });
+            mods.disruption + local
+        }
     }
 }
 
@@ -469,6 +799,79 @@ fn hood_indicators(
         })
         .collect();
     let pollution = relative(&pollution, &w);
+    // The DEC-106 batch. Prices against each class's income, as its
+    // residents' classes feel them.
+    let loss = econ.map_or([0.0; CLASSES], real_income_loss);
+    let squeeze: Vec<f64> = classes
+        .iter()
+        .map(|(adults, _)| price_squeeze(content, &loss, adults))
+        .collect();
+    // Schools and clinics: the residents who rely on them (children and
+    // the old weigh more).
+    let sg = &lc.signals;
+    let users: Vec<f64> = hoods
+        .iter()
+        .map(|h| {
+            let Some(hp) = pop.hoods.get(h.index()) else {
+                return 0.0;
+            };
+            let total = hp.total() as f64;
+            if total <= 0.0 {
+                return 0.0;
+            }
+            let seniors: f64 = hp
+                .cohorts
+                .iter()
+                .enumerate()
+                .filter(|(ci, _)| age_of(*ci) == AGE_BANDS - 1)
+                .map(|(_, c)| c.count as f64)
+                .sum();
+            (total + sg.care_children * hp.children as f64 + sg.care_seniors * seniors) / total
+        })
+        .collect();
+    let users = relative(&users, &w);
+    // An ageing town: each district's own share of adults aged 65+.
+    let nation_old = nation_old_share(pop);
+    let old: Vec<f64> = hoods
+        .iter()
+        .map(|h| {
+            let Some(hp) = pop.hoods.get(h.index()) else {
+                return 0.0;
+            };
+            let mut g = [0.0; crate::population::GROUPS];
+            for (ci, c) in hp.cohorts.iter().enumerate() {
+                g[crate::population::group_of(ci)] += c.count as f64;
+            }
+            old_share(&g).map_or(0.0, |s| s - nation_old)
+        })
+        .collect();
+    // Building: where the town has grown faster than its average.
+    let growth: Vec<f64> = hoods
+        .iter()
+        .zip(&residents)
+        .map(|(h, here)| {
+            let base = pop
+                .hoods
+                .get(h.index())
+                .map_or(0, |x| x.baseline_population);
+            if base > 0 && town_growth > 0.0 {
+                (here / base as f64 / town_growth).clamp(0.5, 2.0)
+            } else {
+                1.0
+            }
+        })
+        .collect();
+    let growth = relative(&growth, &w);
+    // Works: the town's share and each district's own.
+    let (works_town, works_hood): (f64, Vec<f64>) = {
+        let fin = r.finance();
+        let mods =
+            crate::policy::mods_for(r.policy(), content, m as u32, &|id| fin.funded_share(id));
+        (
+            mods.disruption,
+            hoods.iter().map(|h| mods.disruption_at(h.0)).collect(),
+        )
+    };
     hoods
         .iter()
         .enumerate()
@@ -484,7 +887,17 @@ fn hood_indicators(
                     Indicator::TaxBurden
                     | Indicator::BudgetStress
                     | Indicator::ServiceShortfall
-                    | Indicator::RecentDisaster => t,
+                    | Indicator::RecentDisaster
+                    | Indicator::Arrivals
+                    | Indicator::YoungLeaving
+                    | Indicator::UpkeepShortfall
+                    | Indicator::Scandals => t,
+                    Indicator::CostOfLiving => squeeze[i],
+                    Indicator::OldAgeShare => old[i],
+                    Indicator::CareShortfall => t * users[i],
+                    Indicator::StreetWear => hood_wear(r, h),
+                    Indicator::Construction => t * growth[i],
+                    Indicator::WorksDisruption => works_town + works_hood[i],
                 };
             }
             (h, w[i], v)
@@ -508,7 +921,7 @@ fn compute_town(
     let town_levels: Vec<f64> = content
         .concerns
         .iter()
-        .map(|c| c.level.of(town[slot(c.indicator)]))
+        .map(|c| c.level_from(|i| town[slot(i)]))
         .collect();
     let mut sum = vec![0.0; content.concerns.len()];
     let mut wsum = 0.0;
@@ -524,7 +937,7 @@ fn compute_town(
                         // Felt by how hard the disaster hit here (DEC-090 D8).
                         (tl * pop.impact(h.index())).min(1.0)
                     } else {
-                        c.level.of(v[slot(c.indicator)])
+                        c.level_from(|i| v[slot(i)])
                     };
                     let add = faults_felt(r, h, c);
                     if add > 0.0 {
@@ -562,7 +975,7 @@ fn compute_town(
 }
 
 /// What the faults open on a neighbourhood's streets add to its level of a
-/// worry they feed (DEC-114: the services worry reads open faults): each
+/// worry they feed (DEC-114; since DEC-106 the roads-and-upkeep worry): each
 /// adds `worry_per_fault`, within the concern's level range. Felt only:
 /// the town's measured levels, which drive its politics, are the
 /// indicators'. Nothing without upkeep's faults.

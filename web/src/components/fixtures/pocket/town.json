@@ -33,13 +33,13 @@
         "weight": 0.7000000000000001
       },
       {
-        "id": "concern.taxes",
-        "name_key": "concern-taxes",
-        "weight": 0.4
+        "id": "concern.young_leaving",
+        "name_key": "concern-young-leaving",
+        "weight": 0.6000000000000001
       },
       {
-        "id": "concern.housing",
-        "name_key": "concern-housing",
+        "id": "concern.taxes",
+        "name_key": "concern-taxes",
         "weight": 0.4
       }
     ],
@@ -53,16 +53,16 @@
       "ambient_slot": null,
       "can_talk": false,
       "has_news": true,
-      "id": 864,
-      "level": "detailed",
-      "name": "Rosa Brookwell",
-      "role_key": "occupation-student",
+      "id": 355,
+      "level": "known",
+      "name": "Nell Beckfield",
+      "role_key": "occupation-park_keeper",
       "rumoured": false,
       "tier": "named"
     },
     "rival_plan": null
   },
-  "home_neighborhood": 92,
+  "home_neighborhood": 95,
   "location": {
     "place": 127,
     "type": "place"
@@ -432,7 +432,7 @@
                   "official_role_key": "role-mayor",
                   "organiser": "Neve Oak",
                   "organiser_role_key": "occupation-organiser",
-                  "player": "Fen Galloway",
+                  "player": "Hal Nash",
                   "town": "Belenwick"
                 },
                 "key": "dilemma-flood-money"
@@ -451,35 +451,15 @@
       "concern_knowledge": {
         "as_of": null,
         "lead": null,
-        "level": "known",
+        "level": "unknown",
         "stale": false
       },
       "id": 92,
-      "in_ward": true,
-      "is_home": true,
+      "in_ward": false,
+      "is_home": false,
       "kind": "industrial",
       "name": "Castle Green",
       "spots": [
-        {
-          "actions": [
-            "rest"
-          ],
-          "here": false,
-          "late_night": [],
-          "location": {
-            "kind_key": "home",
-            "location": {
-              "type": "home"
-            },
-            "name": "",
-            "neighborhood": 92,
-            "neighborhood_name": "Castle Green"
-          },
-          "now": [],
-          "rank": 12,
-          "services": [],
-          "verbs": []
-        },
         {
           "actions": [
             "canvass",
@@ -498,7 +478,7 @@
             "neighborhood_name": "Castle Green"
           },
           "now": [],
-          "rank": 13,
+          "rank": 12,
           "services": [],
           "verbs": []
         },
@@ -520,7 +500,7 @@
             "neighborhood_name": "Castle Green"
           },
           "now": [],
-          "rank": 14,
+          "rank": 13,
           "services": [
             "overheard"
           ],
@@ -541,7 +521,7 @@
             "neighborhood_name": "Castle Green"
           },
           "now": [],
-          "rank": 15,
+          "rank": 14,
           "services": [],
           "verbs": [
             "verb-tour_works",
@@ -550,7 +530,7 @@
           ]
         }
       ],
-      "top_concern_key": "concern-recovery",
+      "top_concern_key": null,
       "ward_number": 6
     },
     {
@@ -584,7 +564,7 @@
             "neighborhood_name": "Westwood"
           },
           "now": [],
-          "rank": 16,
+          "rank": 15,
           "services": [],
           "verbs": []
         }
@@ -622,7 +602,7 @@
             "neighborhood_name": "Queens Cross"
           },
           "now": [],
-          "rank": 17,
+          "rank": 16,
           "services": [],
           "verbs": []
         },
@@ -641,7 +621,7 @@
             "neighborhood_name": "Queens Cross"
           },
           "now": [],
-          "rank": 18,
+          "rank": 17,
           "services": [],
           "verbs": [
             "verb-visit_service",
@@ -683,13 +663,13 @@
               "title": {
                 "args": {
                   "above": "Ferreland",
-                  "away": "316",
+                  "away": "320",
                   "clock_day": "5",
                   "clock_month_key": "month-3",
                   "crisis_key": "crisis-disaster_recovery",
                   "day": "1",
                   "hall": "Queens Cross",
-                  "homes": "247",
+                  "homes": "249",
                   "hood": "East Hill",
                   "month_key": "month-2",
                   "official": "Osric Dell",
@@ -697,7 +677,7 @@
                   "organiser": "Neve Oak",
                   "organiser_role_key": "occupation-organiser",
                   "place": "Belenwick",
-                  "player": "Fen Galloway",
+                  "player": "Hal Nash",
                   "repaired": "0",
                   "town": "Belenwick",
                   "weeks": "1",
@@ -726,22 +706,42 @@
           ]
         }
       ],
-      "top_concern_key": "concern-recovery",
+      "top_concern_key": "concern-young-leaving",
       "ward_number": 4
     },
     {
       "concern_knowledge": {
         "as_of": null,
         "lead": null,
-        "level": "unknown",
+        "level": "known",
         "stale": false
       },
       "id": 95,
-      "in_ward": false,
-      "is_home": false,
+      "in_ward": true,
+      "is_home": true,
       "kind": "suburb",
       "name": "Orchardrow",
       "spots": [
+        {
+          "actions": [
+            "rest"
+          ],
+          "here": false,
+          "late_night": [],
+          "location": {
+            "kind_key": "home",
+            "location": {
+              "type": "home"
+            },
+            "name": "",
+            "neighborhood": 95,
+            "neighborhood_name": "Orchardrow"
+          },
+          "now": [],
+          "rank": 18,
+          "services": [],
+          "verbs": []
+        },
         {
           "actions": [
             "canvass",
@@ -765,7 +765,7 @@
           "verbs": []
         }
       ],
-      "top_concern_key": null,
+      "top_concern_key": "concern-young-leaving",
       "ward_number": 1
     },
     {

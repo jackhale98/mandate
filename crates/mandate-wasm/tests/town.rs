@@ -19,7 +19,7 @@ use std::sync::Arc;
 /// Re-pinned (b9a9760d -> fc8b7717) when the power broker began to lean on
 /// votes and back candidates (M6 note 27), recorded with the conversations
 /// work and the exchange scenes merged: the burn-in's history changed.
-const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "2be5666a");
+const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "9516c43c");
 
 fn fnv1a(s: &str) -> String {
     let mut h: u32 = 0x811c_9dc5;

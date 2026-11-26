@@ -39,13 +39,43 @@ pub(super) const WORRY_WORDS: &[(&str, &[&str])] = &[
     ),
     (
         "concern.services",
+        &["bins", "library", "waiting room", "late bus", "glue sticks"],
+    ),
+    (
+        "concern.schools_health",
         &[
-            "bins",
-            "library",
-            "waiting room",
-            "late bus",
-            "glue sticks",
             "for an appointment",
+            "see a doctor",
+            "lost two teachers",
+            "thirty-four children",
+        ],
+    ),
+    (
+        "concern.cost_of_living",
+        &["same basket", "prices went up", "sitting in coats"],
+    ),
+    (
+        "concern.newcomers",
+        &["faces on this street", "new families", "new people moving"],
+    ),
+    (
+        "concern.young_leaving",
+        &["nothing for them here", "young ones left", "pensioners now"],
+    ),
+    (
+        "concern.upkeep",
+        &["tyres", "street lights", "drains back up"],
+    ),
+    (
+        "concern.trust",
+        &["in front of a judge", "looking after themselves"],
+    ),
+    (
+        "concern.development",
+        &[
+            "cranes everywhere",
+            "going to be flats",
+            "the works have been",
         ],
     ),
     (
@@ -98,6 +128,13 @@ pub(super) fn indicator_worry(i: mandate_content::Indicator) -> &'static str {
         I::TaxBurden => "concern.taxes",
         I::BudgetStress | I::ServiceShortfall => "concern.services",
         I::RecentDisaster => "concern.recovery",
+        I::CostOfLiving => "concern.cost_of_living",
+        I::Arrivals => "concern.newcomers",
+        I::YoungLeaving | I::OldAgeShare => "concern.young_leaving",
+        I::CareShortfall => "concern.schools_health",
+        I::UpkeepShortfall | I::StreetWear => "concern.upkeep",
+        I::Scandals => "concern.trust",
+        I::Construction | I::WorksDisruption => "concern.development",
     }
 }
 

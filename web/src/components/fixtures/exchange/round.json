@@ -1,5 +1,5 @@
 {
-  "arc": 3,
+  "arc": 1,
   "beat": "showdown.debate",
   "phase": "under_way",
   "layout": "crowd",
@@ -12,7 +12,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "24",
+      "clock_day": "23",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -20,7 +20,7 @@
       "other": "Rolf Wareer",
       "paper": "The Norton Post",
       "place": "Norton",
-      "player": "Saul Raskuwell",
+      "player": "Pavel Kaderby",
       "rival": "Rolf Wareer",
       "rival_role_key": "role-candidate",
       "second": "Flora Achter",
@@ -39,7 +39,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "24",
+      "clock_day": "23",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -47,7 +47,7 @@
       "other": "Rolf Wareer",
       "paper": "The Norton Post",
       "place": "Norton",
-      "player": "Saul Raskuwell",
+      "player": "Pavel Kaderby",
       "rival": "Rolf Wareer",
       "rival_role_key": "role-candidate",
       "second": "Flora Achter",
@@ -66,7 +66,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "24",
+      "clock_day": "23",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -74,7 +74,7 @@
       "other": "Rolf Wareer",
       "paper": "The Norton Post",
       "place": "Norton",
-      "player": "Saul Raskuwell",
+      "player": "Pavel Kaderby",
       "rival": "Rolf Wareer",
       "rival_role_key": "role-candidate",
       "second": "Flora Achter",
@@ -91,7 +91,7 @@
     "backer_role_key": "occupation-union_steward",
     "chair": "Hector Birchby",
     "chair_role_key": "occupation-editor",
-    "clock_day": "24",
+    "clock_day": "23",
     "clock_month_key": "month-10",
     "day": "13",
     "hall": "Foundryside",
@@ -99,7 +99,7 @@
     "other": "Rolf Wareer",
     "paper": "The Norton Post",
     "place": "Norton",
-    "player": "Saul Raskuwell",
+    "player": "Pavel Kaderby",
     "rival": "Rolf Wareer",
     "rival_role_key": "role-candidate",
     "second": "Flora Achter",
@@ -138,14 +138,14 @@
   "available": false,
   "blocked_key": null,
   "last_day": {
-    "day_number": 737595,
+    "day_number": 737594,
     "year": 2020,
     "month": 10,
-    "day": 23
+    "day": 22
   },
-  "days_left": 15,
+  "days_left": 14,
   "other": {
-    "id": 759,
+    "id": 755,
     "ambient_slot": null,
     "name": "Rolf Wareer",
     "role_key": "role-candidate",
@@ -156,7 +156,7 @@
     "has_news": true
   },
   "chair": {
-    "id": 1272,
+    "id": 1256,
     "ambient_slot": null,
     "name": "Hector Birchby",
     "role_key": "occupation-editor",
@@ -167,7 +167,7 @@
     "has_news": true
   },
   "second": {
-    "id": 1275,
+    "id": 1259,
     "ambient_slot": null,
     "name": "Flora Achter",
     "role_key": "occupation-union_steward",
@@ -195,7 +195,7 @@
       "size": 3,
       "lean": {
         "step": 0,
-        "points": 4,
+        "points": 3,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",
@@ -219,7 +219,7 @@
       "size": 3,
       "lean": {
         "step": 0,
-        "points": 4,
+        "points": 3,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",
@@ -243,7 +243,7 @@
       "size": 2,
       "lean": {
         "step": 0,
-        "points": 4,
+        "points": 3,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",
@@ -255,7 +255,7 @@
   "rounds": 3,
   "prompt": {
     "speaker": {
-      "id": 759,
+      "id": 755,
       "ambient_slot": null,
       "name": "Rolf Wareer",
       "role_key": "role-candidate",
@@ -268,7 +268,7 @@
     "by": "other",
     "source": "thin_record",
     "text": {
-      "key": "exchange-debate-prompt-thin_record-2",
+      "key": "exchange-debate-prompt-thin_record-3",
       "args": {
         "ally": "Kerstin Everwell",
         "ally_role_key": "occupation-party_chair",
@@ -276,7 +276,7 @@
         "backer_role_key": "occupation-union_steward",
         "chair": "Hector Birchby",
         "chair_role_key": "occupation-editor",
-        "clock_day": "24",
+        "clock_day": "23",
         "clock_month_key": "month-10",
         "day": "13",
         "hall": "Foundryside",
@@ -284,11 +284,11 @@
         "other": "Rolf Wareer",
         "paper": "The Norton Post",
         "place": "Norton",
-        "player": "Saul Raskuwell",
+        "player": "Pavel Kaderby",
         "rival": "Rolf Wareer",
         "rival_role_key": "role-candidate",
         "second": "Flora Achter",
-        "size": "86",
+        "size": "84",
         "town": "Norton",
         "ward": "Norton",
         "weeks": "3",
@@ -326,10 +326,10 @@
   },
   "options": [
     {
-      "id": "turn:record",
-      "kind": "turn",
+      "id": "heard:hood.100.c1",
+      "kind": "heard",
       "label": {
-        "key": "exchange-label-turn",
+        "key": "exchange-label-heard",
         "args": {
           "ally": "Kerstin Everwell",
           "ally_role_key": "occupation-party_chair",
@@ -337,170 +337,91 @@
           "backer_role_key": "occupation-union_steward",
           "chair": "Hector Birchby",
           "chair_role_key": "occupation-editor",
-          "clock_day": "24",
+          "clock_day": "23",
           "clock_month_key": "month-10",
           "day": "13",
+          "group": "Crosswood",
           "hall": "Foundryside",
           "month_key": "month-9",
           "other": "Rolf Wareer",
           "paper": "The Norton Post",
           "place": "Norton",
-          "player": "Saul Raskuwell",
+          "player": "Pavel Kaderby",
           "rival": "Rolf Wareer",
           "rival_role_key": "role-candidate",
           "second": "Flora Achter",
           "town": "Norton",
           "ward": "Norton",
           "weeks": "3",
-          "worry_key": "",
+          "worry_key": "talk-concern-young-leaving",
           "year": "2020"
         }
       },
       "args": {
-        "other": "Rolf Wareer",
-        "worry_key": ""
+        "group": "Crosswood",
+        "worry_key": "talk-concern-young-leaving"
       },
       "answers": false,
       "safe": false,
       "prep": false,
-      "target": null,
-      "chance": 40,
+      "target": "hood.100.c1",
+      "chance": null,
       "stands": [
         {
           "group": "hood.100.c0",
-          "lo": -15,
-          "hi": -11,
-          "exact": false,
+          "lo": -16,
+          "hi": -16,
+          "exact": true,
           "lo_steps": -2,
           "hi_steps": -2
         },
         {
           "group": "hood.100.c1",
-          "lo": -15,
-          "hi": -11,
-          "exact": false,
-          "lo_steps": -2,
-          "hi_steps": -2
+          "lo": -10,
+          "hi": -10,
+          "exact": true,
+          "lo_steps": -1,
+          "hi_steps": -1
         },
         {
           "group": "hood.100.c2",
-          "lo": -15,
-          "hi": -11,
-          "exact": false,
+          "lo": -16,
+          "hi": -16,
+          "exact": true,
           "lo_steps": -2,
           "hi_steps": -2
         }
       ],
-      "fails": [
-        {
-          "group": "hood.100.c0",
-          "lo": -44,
-          "hi": -44,
-          "exact": true,
-          "lo_steps": -3,
-          "hi_steps": -3
-        },
-        {
-          "group": "hood.100.c1",
-          "lo": -44,
-          "hi": -44,
-          "exact": true,
-          "lo_steps": -3,
-          "hi_steps": -3
-        },
-        {
-          "group": "hood.100.c2",
-          "lo": -44,
-          "hi": -44,
-          "exact": true,
-          "lo_steps": -3,
-          "hi_steps": -3
-        }
-      ],
+      "fails": [],
       "tags": [
         {
           "group": "hood.100.c0",
-          "lo": -15,
-          "hi": -11,
-          "exact": false,
-          "lo_steps": -2,
-          "hi_steps": -2
-        },
-        {
-          "group": "hood.100.c1",
-          "lo": -15,
-          "hi": -11,
-          "exact": false,
+          "lo": -16,
+          "hi": -16,
+          "exact": true,
           "lo_steps": -2,
           "hi_steps": -2
         },
         {
           "group": "hood.100.c2",
-          "lo": -15,
-          "hi": -11,
-          "exact": false,
+          "lo": -16,
+          "hi": -16,
+          "exact": true,
           "lo_steps": -2,
           "hi_steps": -2
-        }
-      ],
-      "notes": [
-        {
-          "key": "exchange-cost-remembers",
-          "args": {
-            "ally": "Kerstin Everwell",
-            "ally_role_key": "occupation-party_chair",
-            "backer": "Flora Achter",
-            "backer_role_key": "occupation-union_steward",
-            "chair": "Hector Birchby",
-            "chair_role_key": "occupation-editor",
-            "clock_day": "24",
-            "clock_month_key": "month-10",
-            "day": "13",
-            "hall": "Foundryside",
-            "month_key": "month-9",
-            "other": "Rolf Wareer",
-            "paper": "The Norton Post",
-            "place": "Norton",
-            "player": "Saul Raskuwell",
-            "rival": "Rolf Wareer",
-            "rival_role_key": "role-candidate",
-            "second": "Flora Achter",
-            "town": "Norton",
-            "ward": "Norton",
-            "weeks": "3",
-            "year": "2020"
-          }
         },
         {
-          "key": "exchange-risk-secondhand",
-          "args": {
-            "ally": "Kerstin Everwell",
-            "ally_role_key": "occupation-party_chair",
-            "backer": "Flora Achter",
-            "backer_role_key": "occupation-union_steward",
-            "chair": "Hector Birchby",
-            "chair_role_key": "occupation-editor",
-            "clock_day": "24",
-            "clock_month_key": "month-10",
-            "day": "13",
-            "hall": "Foundryside",
-            "month_key": "month-9",
-            "other": "Rolf Wareer",
-            "paper": "The Norton Post",
-            "place": "Norton",
-            "player": "Saul Raskuwell",
-            "rival": "Rolf Wareer",
-            "rival_role_key": "role-candidate",
-            "second": "Flora Achter",
-            "town": "Norton",
-            "ward": "Norton",
-            "weeks": "3",
-            "year": "2020"
-          }
+          "group": "hood.100.c1",
+          "lo": -10,
+          "hi": -10,
+          "exact": true,
+          "lo_steps": -1,
+          "hi_steps": -1
         }
       ],
-      "answer": "maybe",
-      "answer_key": "exchange-answer-maybe"
+      "notes": [],
+      "answer": "never",
+      "answer_key": null
     },
     {
       "id": "promise:promise.clean_politics",
@@ -514,7 +435,7 @@
           "backer_role_key": "occupation-union_steward",
           "chair": "Hector Birchby",
           "chair_role_key": "occupation-editor",
-          "clock_day": "24",
+          "clock_day": "23",
           "clock_month_key": "month-10",
           "day": "13",
           "hall": "Foundryside",
@@ -522,7 +443,7 @@
           "other": "Rolf Wareer",
           "paper": "The Norton Post",
           "place": "Norton",
-          "player": "Saul Raskuwell",
+          "player": "Pavel Kaderby",
           "promise_key": "promise-clean-politics",
           "rival": "Rolf Wareer",
           "rival_role_key": "role-candidate",
@@ -606,7 +527,7 @@
             "backer_role_key": "occupation-union_steward",
             "chair": "Hector Birchby",
             "chair_role_key": "occupation-editor",
-            "clock_day": "24",
+            "clock_day": "23",
             "clock_month_key": "month-10",
             "day": "13",
             "hall": "Foundryside",
@@ -616,7 +537,7 @@
             "other": "Rolf Wareer",
             "paper": "The Norton Post",
             "place": "Norton",
-            "player": "Saul Raskuwell",
+            "player": "Pavel Kaderby",
             "rival": "Rolf Wareer",
             "rival_role_key": "role-candidate",
             "second": "Flora Achter",
@@ -631,7 +552,7 @@
       "answer_key": "exchange-answer-maybe"
     },
     {
-      "id": "promise:promise.no_tax_rise",
+      "id": "promise:promise.town_halls",
       "kind": "promise",
       "label": {
         "key": "exchange-label-promise",
@@ -642,7 +563,7 @@
           "backer_role_key": "occupation-union_steward",
           "chair": "Hector Birchby",
           "chair_role_key": "occupation-editor",
-          "clock_day": "24",
+          "clock_day": "23",
           "clock_month_key": "month-10",
           "day": "13",
           "hall": "Foundryside",
@@ -650,21 +571,21 @@
           "other": "Rolf Wareer",
           "paper": "The Norton Post",
           "place": "Norton",
-          "player": "Saul Raskuwell",
-          "promise_key": "promise-no-tax-rise",
+          "player": "Pavel Kaderby",
+          "promise_key": "promise-town-halls",
           "rival": "Rolf Wareer",
           "rival_role_key": "role-candidate",
           "second": "Flora Achter",
           "town": "Norton",
           "ward": "Norton",
           "weeks": "3",
-          "worry_key": "talk-concern-taxes",
+          "worry_key": "",
           "year": "2020"
         }
       },
       "args": {
-        "promise_key": "promise-no-tax-rise",
-        "worry_key": "talk-concern-taxes"
+        "promise_key": "promise-town-halls",
+        "worry_key": ""
       },
       "answers": false,
       "safe": false,
@@ -674,54 +595,54 @@
       "stands": [
         {
           "group": "hood.100.c0",
-          "lo": -7,
-          "hi": 7,
+          "lo": -12,
+          "hi": -3,
           "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 1
+          "lo_steps": -2,
+          "hi_steps": -1
         },
         {
           "group": "hood.100.c1",
-          "lo": -7,
-          "hi": 7,
+          "lo": -12,
+          "hi": -3,
           "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 1
+          "lo_steps": -2,
+          "hi_steps": -1
         },
         {
           "group": "hood.100.c2",
-          "lo": -7,
-          "hi": 7,
+          "lo": -12,
+          "hi": -3,
           "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 1
+          "lo_steps": -2,
+          "hi_steps": -1
         }
       ],
       "fails": [],
       "tags": [
         {
           "group": "hood.100.c0",
-          "lo": -7,
-          "hi": 7,
+          "lo": -12,
+          "hi": -3,
           "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 1
+          "lo_steps": -2,
+          "hi_steps": -1
         },
         {
           "group": "hood.100.c1",
-          "lo": -7,
-          "hi": 7,
+          "lo": -12,
+          "hi": -3,
           "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 1
+          "lo_steps": -2,
+          "hi_steps": -1
         },
         {
           "group": "hood.100.c2",
-          "lo": -7,
-          "hi": 7,
+          "lo": -12,
+          "hi": -3,
           "exact": false,
-          "lo_steps": -1,
-          "hi_steps": 1
+          "lo_steps": -2,
+          "hi_steps": -1
         }
       ],
       "notes": [
@@ -734,7 +655,7 @@
             "backer_role_key": "occupation-union_steward",
             "chair": "Hector Birchby",
             "chair_role_key": "occupation-editor",
-            "clock_day": "24",
+            "clock_day": "23",
             "clock_month_key": "month-10",
             "day": "13",
             "hall": "Foundryside",
@@ -744,7 +665,7 @@
             "other": "Rolf Wareer",
             "paper": "The Norton Post",
             "place": "Norton",
-            "player": "Saul Raskuwell",
+            "player": "Pavel Kaderby",
             "rival": "Rolf Wareer",
             "rival_role_key": "role-candidate",
             "second": "Flora Achter",
@@ -770,7 +691,7 @@
           "backer_role_key": "occupation-union_steward",
           "chair": "Hector Birchby",
           "chair_role_key": "occupation-editor",
-          "clock_day": "24",
+          "clock_day": "23",
           "clock_month_key": "month-10",
           "day": "13",
           "hall": "Foundryside",
@@ -778,7 +699,7 @@
           "other": "Rolf Wareer",
           "paper": "The Norton Post",
           "place": "Norton",
-          "player": "Saul Raskuwell",
+          "player": "Pavel Kaderby",
           "rival": "Rolf Wareer",
           "rival_role_key": "role-candidate",
           "second": "Flora Achter",
@@ -857,7 +778,7 @@
             "backer_role_key": "occupation-union_steward",
             "chair": "Hector Birchby",
             "chair_role_key": "occupation-editor",
-            "clock_day": "24",
+            "clock_day": "23",
             "clock_month_key": "month-10",
             "day": "13",
             "hall": "Foundryside",
@@ -865,7 +786,7 @@
             "other": "Rolf Wareer",
             "paper": "The Norton Post",
             "place": "Norton",
-            "player": "Saul Raskuwell",
+            "player": "Pavel Kaderby",
             "rival": "Rolf Wareer",
             "rival_role_key": "role-candidate",
             "second": "Flora Achter",
@@ -884,7 +805,7 @@
             "backer_role_key": "occupation-union_steward",
             "chair": "Hector Birchby",
             "chair_role_key": "occupation-editor",
-            "clock_day": "24",
+            "clock_day": "23",
             "clock_month_key": "month-10",
             "day": "13",
             "hall": "Foundryside",
@@ -893,7 +814,7 @@
             "other": "Rolf Wareer",
             "paper": "The Norton Post",
             "place": "Norton",
-            "player": "Saul Raskuwell",
+            "player": "Pavel Kaderby",
             "rival": "Rolf Wareer",
             "rival_role_key": "role-candidate",
             "second": "Flora Achter",
@@ -919,7 +840,7 @@
           "backer_role_key": "occupation-union_steward",
           "chair": "Hector Birchby",
           "chair_role_key": "occupation-editor",
-          "clock_day": "24",
+          "clock_day": "23",
           "clock_month_key": "month-10",
           "day": "13",
           "hall": "Foundryside",
@@ -927,7 +848,7 @@
           "other": "Rolf Wareer",
           "paper": "The Norton Post",
           "place": "Norton",
-          "player": "Saul Raskuwell",
+          "player": "Pavel Kaderby",
           "rival": "Rolf Wareer",
           "rival_role_key": "role-candidate",
           "second": "Flora Achter",
@@ -1012,7 +933,7 @@
         "backer_role_key": "occupation-union_steward",
         "chair": "Hector Birchby",
         "chair_role_key": "occupation-editor",
-        "clock_day": "24",
+        "clock_day": "23",
         "clock_month_key": "month-10",
         "day": "13",
         "hall": "Foundryside",
@@ -1020,7 +941,7 @@
         "other": "Rolf Wareer",
         "paper": "The Norton Post",
         "place": "Norton",
-        "player": "Saul Raskuwell",
+        "player": "Pavel Kaderby",
         "rival": "Rolf Wareer",
         "rival_role_key": "role-candidate",
         "second": "Flora Achter",

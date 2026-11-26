@@ -3895,6 +3895,13 @@
       "additionalProperties": false,
       "description": "A voter concern (DEC-078 decision 3): something that worries a town,\nread from an indicator, and the issues (attitudes) it makes voters weigh.\nRegistry order is load order.",
       "properties": {
+        "also": {
+          "description": "More signals behind the same worry, each adding `slope` × its\nindicator to the level before the clamp (an ageing town and its\nyoung people leaving; the streets' line and their wear).",
+          "items": {
+            "$ref": "#/$defs/ConcernTerm"
+          },
+          "type": "array"
+        },
         "attitudes": {
           "additionalProperties": {
             "format": "double",
@@ -3984,6 +3991,24 @@
           "type": "string"
         }
       ]
+    },
+    "ConcernTerm": {
+      "additionalProperties": false,
+      "description": "A further signal behind a worry: `slope` × `indicator`.",
+      "properties": {
+        "indicator": {
+          "$ref": "#/$defs/Indicator"
+        },
+        "slope": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "indicator",
+        "slope"
+      ],
+      "type": "object"
     },
     "Condition": {
       "description": "A condition on live state: the jurisdiction's situation, the player, a\nperson in a slot (a cast role, or a conversation's `speaker`, `about`,\n`player`), a conversation, or where something is said or done.",
@@ -12106,7 +12131,7 @@
         },
         {
           "const": "service_shortfall",
-          "description": "Services delivered against need, as a shortfall: 1 − (the town's\ndiscretionary budget in real terms per head, against the level its\nbudget rule aims for) − the service gains of laws in effect. 0 at\nthe start; above 0 after cuts, below 0 with better services.",
+          "description": "Services delivered against need, as a shortfall: 1 − (the town's\ndiscretionary budget lines other than Education and Infrastructure,\nin real terms per head, against the level its budget rule aims for)\n− the service gains of laws in effect on lines other than Education\nand Health. 0 at the start; above 0 after cuts, below 0 with better\nservices. Schools and health care (`CareShortfall`) and the streets\n(`UpkeepShortfall`) were split out of it (DEC-106).",
           "type": "string"
         },
         {
@@ -12117,6 +12142,56 @@
         {
           "const": "job_loss",
           "description": "Share of the town's jobs lost over the last year (0 when jobs grew):\na plant closure or a failing industry.",
+          "type": "string"
+        },
+        {
+          "const": "cost_of_living",
+          "description": "Prices against real wages (DEC-106): the share of its real value\neach income class's income (wages, benefits and transfers over the\nprice level) lost over the last year (1 − now ÷ a year ago; below 0\nwhen incomes beat prices), weighted by the adults of each class and\nhow strongly the class feels prices (`signals.cost_of_living_class`).\nA neighbourhood's reads its own residents' classes.",
+          "type": "string"
+        },
+        {
+          "const": "arrivals",
+          "description": "Newcomers (DEC-106): adults who moved in from other towns over the\nlast year, as a share of the town's adults. Arrivals settle by adult\ncount, so every neighbourhood of a town has the same rate.",
+          "type": "string"
+        },
+        {
+          "const": "young_leaving",
+          "description": "Young people leaving (DEC-106): 18–29s who moved away over the last\nyear less those who moved in, as a share of the town's 18–29s (below\n0 when more came than went).",
+          "type": "string"
+        },
+        {
+          "const": "old_age_share",
+          "description": "An ageing town (DEC-106): the share of adults aged 65 and over, less\nthe nation's share (a neighbourhood's: its own share less the\nnation's).",
+          "type": "string"
+        },
+        {
+          "const": "care_shortfall",
+          "description": "Schools and health care against need (DEC-106), as a shortfall: 1 −\nthe town's Education line and its region's Health line (its share,\nby population) against their need, − the gains of laws on those\nlines. Felt more where more residents are children or 65 and over.",
+          "type": "string"
+        },
+        {
+          "const": "upkeep_shortfall",
+          "description": "The Infrastructure line against need, as a shortfall: 1 − min(line ÷\nneed, `faults.params.maintain_cap`), the rate at which upkeep keeps\nthe streets up.",
+          "type": "string"
+        },
+        {
+          "const": "street_wear",
+          "description": "The streets' wear where upkeep keeps a condition (DEC-106 item 3,\nB2's `UpkeepState`): the midpoint of `faults.params.start` − the\ncondition (a neighbourhood's own; the town's mean by residents);\n0 where no condition is kept.",
+          "type": "string"
+        },
+        {
+          "const": "scandals",
+          "description": "Scandals and cases (DEC-106): the town's politicians' scandals that\nbroke within `signals.scandal_days`, by gravity and fading with age,\nplus their open and recent cases (`signals`).",
+          "type": "string"
+        },
+        {
+          "const": "construction",
+          "description": "Construction pressure (DEC-106): homes under construction as a share\nof the town's stock. A neighbourhood feels it by how much faster it\nhas grown than its town since play began.",
+          "type": "string"
+        },
+        {
+          "const": "works_disruption",
+          "description": "Disruption from works being built (laws and works projects): the\ntown's share plus the neighbourhood's own (the town's: its own plus\nits neighbourhoods' mean by residents).",
           "type": "string"
         }
       ]
@@ -13876,6 +13951,27 @@
             "$ref": "#/$defs/SectorKindLean"
           },
           "type": "array"
+        },
+        "signals": {
+          "$ref": "#/$defs/WorrySignalParams",
+          "default": {
+            "care_children": 0.0,
+            "care_seniors": 0.0,
+            "case_convicted": 1.0,
+            "case_open": 0.5,
+            "cost_of_living_class": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "scandal_days": 365,
+            "scandal_gravity": [
+              0.5,
+              1.0,
+              1.5
+            ]
+          },
+          "description": "How the first batch of new worries (DEC-106) read their signals."
         },
         "workplace_affinity": {
           "description": "A district's extra share of a sector's workers per workplace of that\nsector in it (half for one next door).",
@@ -22710,6 +22806,67 @@
       "required": [
         "concern",
         "readings"
+      ],
+      "type": "object"
+    },
+    "WorrySignalParams": {
+      "additionalProperties": false,
+      "description": "How the signals of the first batch of new worries (DEC-106) are read:\nscandals and cases (trust), who feels prices (cost of living) and who\nuses schools and clinics (schools and health care).",
+      "properties": {
+        "care_children": {
+          "description": "Weight of a child and of a resident aged 65 and over, beside 1 for\nevery resident, in who relies on schools and clinics.",
+          "format": "double",
+          "type": "number"
+        },
+        "care_seniors": {
+          "format": "double",
+          "type": "number"
+        },
+        "case_convicted": {
+          "description": "Each conviction within `scandal_days` (fading).",
+          "format": "double",
+          "type": "number"
+        },
+        "case_open": {
+          "description": "Each open case (investigation, charges, a trial waiting).",
+          "format": "double",
+          "type": "number"
+        },
+        "cost_of_living_class": {
+          "description": "How strongly each income class (low, middle, high) feels prices\nagainst wages (the share of income that goes on essentials).",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "scandal_days": {
+          "description": "Days a scandal or a conviction counts after it (fading to 0).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scandal_gravity": {
+          "description": "A scandal's weight by gravity: ethics, misconduct, crime.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        }
+      },
+      "required": [
+        "scandal_days",
+        "scandal_gravity",
+        "case_open",
+        "case_convicted",
+        "cost_of_living_class",
+        "care_children",
+        "care_seniors"
       ],
       "type": "object"
     }

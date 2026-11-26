@@ -397,8 +397,10 @@ impl Script {
 // broker leans on votes (M6 note 27), seed 99's town has flood defences in
 // force before the flood (the arc goes straight to `defended`, through no
 // meeting); the scripts fail on seeds 100 to 105 too, and hold on 106, the
-// first after 99 where they do.
-const SEED: u64 = 106;
+// first after 99 where they do. Since the first batch of new worries
+// (DEC-106) moved the worlds, they fail on 106 to 110 and hold on 111, the
+// first after 106 where they do (and 113, 115).
+const SEED: u64 = 111;
 const SEVERITY: f64 = 0.9;
 /// Turns enough for any path of the flood (fortnightly turns).
 const TURNS: u32 = 60;

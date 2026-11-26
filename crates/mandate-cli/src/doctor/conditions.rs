@@ -35,6 +35,10 @@ pub(super) fn indicator_domain(i: mandate_content::Indicator) -> (f64, f64) {
         I::ServiceShortfall => (-INF, 1.0),
         I::Pollution => (0.0, 3.0),
         I::RentBurden | I::TaxBurden | I::BudgetStress => (0.0, INF),
+        I::CostOfLiving | I::OldAgeShare | I::StreetWear => (-1.0, 1.0),
+        I::YoungLeaving => (-INF, 1.0),
+        I::CareShortfall | I::UpkeepShortfall => (-INF, 1.0),
+        I::Arrivals | I::Construction | I::Scandals | I::WorksDisruption => (0.0, INF),
     }
 }
 

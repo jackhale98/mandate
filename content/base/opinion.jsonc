@@ -66,6 +66,16 @@
       ],
       "job_loss_decline": 4.0,         // a sector's decline since play began, beside its cyclicality, in who feels job losses
       "jobs_sector_tilt": 1.0,         // share of the jobs a district's sectors lost (beyond the town's) added to its unemployment
+      // How the DEC-106 worries read their signals (first guesses, rule 11).
+      "signals": {
+        "scandal_days": 365,                     // a scandal or conviction counts for a year, fading
+        "scandal_gravity": [0.5, 1.0, 1.5],      // ethics, misconduct, crime
+        "case_open": 0.5,                        // each open case
+        "case_convicted": 1.0,                   // each conviction within the year, fading
+        "cost_of_living_class": [1.3, 1.0, 0.6], // low, middle, high: the share that goes on essentials
+        "care_children": 1.0,                    // a child's weight in who relies on schools and clinics
+        "care_seniors": 1.5,                     // a 65+ resident's
+      },
     },
   },
 }

@@ -125,6 +125,61 @@
     },
     {
       "args": {
+        "hood": "Castle Green"
+      },
+      "lead": {
+        "args": {
+          "hood": "Castle Green",
+          "to_hood": "Castle Green"
+        },
+        "key": "lead-notebook-canvass",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 92,
+          "to": {
+            "kind_key": "streets",
+            "location": {
+              "neighborhood": 92,
+              "type": "street"
+            },
+            "name": "",
+            "neighborhood": 92,
+            "neighborhood_name": "Castle Green"
+          }
+        },
+        "since": {
+          "day": 12,
+          "day_number": 737342,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "hood": 92,
+          "type": "hood_concerns"
+        },
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 92,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 92,
+          "neighborhood_name": "Castle Green"
+        }
+      },
+      "section": "neighbourhoods",
+      "subject": {
+        "hood": 92,
+        "type": "hood_concerns"
+      },
+      "title_key": "notebook-hood-concerns"
+    },
+    {
+      "args": {
         "hood": "Westwood"
       },
       "lead": {
@@ -174,61 +229,6 @@
       "section": "neighbourhoods",
       "subject": {
         "hood": 93,
-        "type": "hood_concerns"
-      },
-      "title_key": "notebook-hood-concerns"
-    },
-    {
-      "args": {
-        "hood": "Orchardrow"
-      },
-      "lead": {
-        "args": {
-          "hood": "Orchardrow",
-          "to_hood": "Orchardrow"
-        },
-        "key": "lead-notebook-canvass",
-        "level": "known",
-        "route": {
-          "action": "go",
-          "here": false,
-          "late_night": false,
-          "neighborhood": 95,
-          "to": {
-            "kind_key": "streets",
-            "location": {
-              "neighborhood": 95,
-              "type": "street"
-            },
-            "name": "",
-            "neighborhood": 95,
-            "neighborhood_name": "Orchardrow"
-          }
-        },
-        "since": {
-          "day": 12,
-          "day_number": 737342,
-          "month": 2,
-          "year": 2020
-        },
-        "subject": {
-          "hood": 95,
-          "type": "hood_concerns"
-        },
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 95,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 95,
-          "neighborhood_name": "Orchardrow"
-        }
-      },
-      "section": "neighbourhoods",
-      "subject": {
-        "hood": 95,
         "type": "hood_concerns"
       },
       "title_key": "notebook-hood-concerns"
@@ -353,12 +353,12 @@
     },
     {
       "args": {
-        "rival": "Rosa Brookwell",
+        "rival": "Nell Beckfield",
         "town": "Belenwick"
       },
       "lead": {
         "args": {
-          "rival": "Rosa Brookwell",
+          "rival": "Nell Beckfield",
           "to_kind_key": "place-party_office",
           "to_place_key": "talk-place-party_office",
           "town": "Belenwick"
@@ -836,53 +836,6 @@
         },
         {
           "args": {
-            "name": "Hal Nash",
-            "role_key": "role-councillor"
-          },
-          "as_of": null,
-          "history": [
-            {
-              "args": {
-                "profile": "start.sitting_councillor"
-              },
-              "exchange": null,
-              "key": "learned-start",
-              "level": "heard",
-              "on": {
-                "day": 1,
-                "day_number": 737300,
-                "month": 1,
-                "year": 2020
-              }
-            },
-            {
-              "args": {
-                "profile": "start.sitting_councillor"
-              },
-              "exchange": null,
-              "key": "learned-start",
-              "level": "known",
-              "on": {
-                "day": 1,
-                "day_number": 737300,
-                "month": 1,
-                "year": 2020
-              }
-            }
-          ],
-          "lead": null,
-          "level": "known",
-          "new_this_turn": false,
-          "stale": false,
-          "subject": {
-            "person": 354,
-            "type": "person"
-          },
-          "title_key": "notebook-person"
-        },
-        {
-          "args": {
-            "cares_key": "issue-environment",
             "name": "Nell Beckfield",
             "role_key": "occupation-park_keeper"
           },
@@ -911,6 +864,49 @@
                 "month": 2,
                 "year": 2020
               }
+            }
+          ],
+          "lead": null,
+          "level": "known",
+          "new_this_turn": true,
+          "stale": false,
+          "subject": {
+            "person": 355,
+            "type": "person"
+          },
+          "title_key": "notebook-person"
+        },
+        {
+          "args": {
+            "cares_key": "issue-tax_tolerance",
+            "name": "Silas Brackenwell",
+            "role_key": "occupation-hotel_manager"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "heard",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
+            },
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "known",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
             },
             {
               "args": {},
@@ -930,15 +926,15 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 355,
+            "person": 356,
             "type": "person"
           },
           "title_key": "notebook-person"
         },
         {
           "args": {
-            "name": "Silas Brackenwell",
-            "role_key": "occupation-hotel_manager"
+            "name": "Rosa Nashwell",
+            "role_key": "occupation-head_teacher"
           },
           "as_of": null,
           "history": [
@@ -960,15 +956,15 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 356,
+            "person": 357,
             "type": "person"
           },
           "title_key": "notebook-person"
         },
         {
           "args": {
-            "name": "Rosa Nashwell",
-            "role_key": "occupation-head_teacher"
+            "name": "Otto Tullwell",
+            "role_key": "occupation-teacher"
           },
           "as_of": null,
           "history": [
@@ -1002,7 +998,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 357,
+            "person": 358,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1010,36 +1006,32 @@
         {
           "args": {
             "cares_key": "issue-social_liberalism",
-            "name": "Otto Tullwell",
-            "role_key": "role-councillor"
+            "name": "Anouk Gallowaywell",
+            "role_key": "occupation-head_teacher"
           },
           "as_of": null,
           "history": [
             {
-              "args": {
-                "profile": "start.sitting_councillor"
-              },
+              "args": {},
               "exchange": null,
-              "key": "learned-start",
+              "key": "learned-lab",
               "level": "heard",
               "on": {
-                "day": 1,
-                "day_number": 737300,
-                "month": 1,
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
                 "year": 2020
               }
             },
             {
-              "args": {
-                "profile": "start.sitting_councillor"
-              },
+              "args": {},
               "exchange": null,
-              "key": "learned-start",
+              "key": "learned-lab",
               "level": "known",
               "on": {
-                "day": 1,
-                "day_number": 737300,
-                "month": 1,
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
                 "year": 2020
               }
             },
@@ -1058,36 +1050,6 @@
           ],
           "lead": null,
           "level": "detailed",
-          "new_this_turn": true,
-          "stale": false,
-          "subject": {
-            "person": 358,
-            "type": "person"
-          },
-          "title_key": "notebook-person"
-        },
-        {
-          "args": {
-            "name": "Anouk Gallowaywell",
-            "role_key": "occupation-head_teacher"
-          },
-          "as_of": null,
-          "history": [
-            {
-              "args": {},
-              "exchange": null,
-              "key": "learned-lab",
-              "level": "heard",
-              "on": {
-                "day": 12,
-                "day_number": 737342,
-                "month": 2,
-                "year": 2020
-              }
-            }
-          ],
-          "lead": null,
-          "level": "heard",
           "new_this_turn": true,
           "stale": false,
           "subject": {
@@ -1144,7 +1106,6 @@
         },
         {
           "args": {
-            "cares_key": "issue-redistribution",
             "name": "Ysolde Garrowley",
             "role_key": "occupation-shop_steward"
           },
@@ -1173,22 +1134,10 @@
                 "month": 2,
                 "year": 2020
               }
-            },
-            {
-              "args": {},
-              "exchange": null,
-              "key": "learned-lab",
-              "level": "detailed",
-              "on": {
-                "day": 12,
-                "day_number": 737342,
-                "month": 2,
-                "year": 2020
-              }
             }
           ],
           "lead": null,
-          "level": "detailed",
+          "level": "known",
           "new_this_turn": true,
           "stale": false,
           "subject": {
@@ -1199,38 +1148,9 @@
         },
         {
           "args": {
+            "cares_key": "issue-social_liberalism",
             "name": "Ilka Yateser",
             "role_key": "occupation-software_engineer"
-          },
-          "as_of": null,
-          "history": [
-            {
-              "args": {},
-              "exchange": null,
-              "key": "learned-lab",
-              "level": "heard",
-              "on": {
-                "day": 12,
-                "day_number": 737342,
-                "month": 2,
-                "year": 2020
-              }
-            }
-          ],
-          "lead": null,
-          "level": "heard",
-          "new_this_turn": true,
-          "stale": false,
-          "subject": {
-            "person": 362,
-            "type": "person"
-          },
-          "title_key": "notebook-person"
-        },
-        {
-          "args": {
-            "name": "Tobias Quill",
-            "role_key": "occupation-teacher"
           },
           "as_of": null,
           "history": [
@@ -1257,10 +1177,52 @@
                 "month": 2,
                 "year": 2020
               }
+            },
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "detailed",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
             }
           ],
           "lead": null,
-          "level": "known",
+          "level": "detailed",
+          "new_this_turn": true,
+          "stale": false,
+          "subject": {
+            "person": 362,
+            "type": "person"
+          },
+          "title_key": "notebook-person"
+        },
+        {
+          "args": {
+            "name": "Tobias Quill",
+            "role_key": "occupation-teacher"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "heard",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
+            }
+          ],
+          "lead": null,
+          "level": "heard",
           "new_this_turn": true,
           "stale": false,
           "subject": {
@@ -1271,7 +1233,6 @@
         },
         {
           "args": {
-            "cares_key": "issue-localism",
             "name": "Elsa Whit",
             "role_key": "occupation-farmhand"
           },
@@ -1300,22 +1261,10 @@
                 "month": 2,
                 "year": 2020
               }
-            },
-            {
-              "args": {},
-              "exchange": null,
-              "key": "learned-lab",
-              "level": "detailed",
-              "on": {
-                "day": 12,
-                "day_number": 737342,
-                "month": 2,
-                "year": 2020
-              }
             }
           ],
           "lead": null,
-          "level": "detailed",
+          "level": "known",
           "new_this_turn": true,
           "stale": false,
           "subject": {
@@ -1326,38 +1275,9 @@
         },
         {
           "args": {
+            "cares_key": "issue-redistribution",
             "name": "Rhea Asher",
             "role_key": "occupation-shop_steward"
-          },
-          "as_of": null,
-          "history": [
-            {
-              "args": {},
-              "exchange": null,
-              "key": "learned-lab",
-              "level": "heard",
-              "on": {
-                "day": 12,
-                "day_number": 737342,
-                "month": 2,
-                "year": 2020
-              }
-            }
-          ],
-          "lead": null,
-          "level": "heard",
-          "new_this_turn": true,
-          "stale": false,
-          "subject": {
-            "person": 648,
-            "type": "person"
-          },
-          "title_key": "notebook-person"
-        },
-        {
-          "args": {
-            "name": "Sana Ardenby",
-            "role_key": "occupation-tech_founder"
           },
           "as_of": null,
           "history": [
@@ -1384,10 +1304,52 @@
                 "month": 2,
                 "year": 2020
               }
+            },
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "detailed",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
             }
           ],
           "lead": null,
-          "level": "known",
+          "level": "detailed",
+          "new_this_turn": true,
+          "stale": false,
+          "subject": {
+            "person": 648,
+            "type": "person"
+          },
+          "title_key": "notebook-person"
+        },
+        {
+          "args": {
+            "name": "Sana Ardenby",
+            "role_key": "occupation-tech_founder"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "heard",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
+            }
+          ],
+          "lead": null,
+          "level": "heard",
           "new_this_turn": true,
           "stale": false,
           "subject": {
@@ -1398,7 +1360,6 @@
         },
         {
           "args": {
-            "cares_key": "issue-tax_tolerance",
             "name": "Wim Zeller",
             "role_key": "occupation-hotel_manager"
           },
@@ -1427,6 +1388,53 @@
                 "month": 2,
                 "year": 2020
               }
+            }
+          ],
+          "lead": null,
+          "level": "known",
+          "new_this_turn": true,
+          "stale": false,
+          "subject": {
+            "person": 650,
+            "type": "person"
+          },
+          "title_key": "notebook-person"
+        },
+        {
+          "args": {
+            "cares_key": "issue-social_liberalism",
+            "name": "Kalinda Alder",
+            "role_key": "role-councillor"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {
+                "profile": "start.sitting_councillor"
+              },
+              "exchange": null,
+              "key": "learned-start",
+              "level": "heard",
+              "on": {
+                "day": 1,
+                "day_number": 737300,
+                "month": 1,
+                "year": 2020
+              }
+            },
+            {
+              "args": {
+                "profile": "start.sitting_councillor"
+              },
+              "exchange": null,
+              "key": "learned-start",
+              "level": "known",
+              "on": {
+                "day": 1,
+                "day_number": 737300,
+                "month": 1,
+                "year": 2020
+              }
             },
             {
               "args": {},
@@ -1443,36 +1451,6 @@
           ],
           "lead": null,
           "level": "detailed",
-          "new_this_turn": true,
-          "stale": false,
-          "subject": {
-            "person": 650,
-            "type": "person"
-          },
-          "title_key": "notebook-person"
-        },
-        {
-          "args": {
-            "name": "Kalinda Alder",
-            "role_key": "occupation-teacher"
-          },
-          "as_of": null,
-          "history": [
-            {
-              "args": {},
-              "exchange": null,
-              "key": "learned-lab",
-              "level": "heard",
-              "on": {
-                "day": 12,
-                "day_number": 737342,
-                "month": 2,
-                "year": 2020
-              }
-            }
-          ],
-          "lead": null,
-          "level": "heard",
           "new_this_turn": true,
           "stale": false,
           "subject": {
@@ -1499,22 +1477,10 @@
                 "month": 2,
                 "year": 2020
               }
-            },
-            {
-              "args": {},
-              "exchange": null,
-              "key": "learned-lab",
-              "level": "known",
-              "on": {
-                "day": 12,
-                "day_number": 737342,
-                "month": 2,
-                "year": 2020
-              }
             }
           ],
           "lead": null,
-          "level": "known",
+          "level": "heard",
           "new_this_turn": true,
           "stale": false,
           "subject": {
@@ -1525,7 +1491,6 @@
         },
         {
           "args": {
-            "cares_key": "issue-social_liberalism",
             "name": "Damaris Novak",
             "role_key": "occupation-head_teacher"
           },
@@ -1554,6 +1519,49 @@
                 "month": 2,
                 "year": 2020
               }
+            }
+          ],
+          "lead": null,
+          "level": "known",
+          "new_this_turn": true,
+          "stale": false,
+          "subject": {
+            "person": 653,
+            "type": "person"
+          },
+          "title_key": "notebook-person"
+        },
+        {
+          "args": {
+            "cares_key": "issue-tradition",
+            "name": "Ines Black",
+            "role_key": "occupation-clergy"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "heard",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
+            },
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "known",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
             },
             {
               "args": {},
@@ -1573,15 +1581,15 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 653,
+            "person": 856,
             "type": "person"
           },
           "title_key": "notebook-person"
         },
         {
           "args": {
-            "name": "Ines Black",
-            "role_key": "occupation-clergy"
+            "name": "Liv Calder",
+            "role_key": "occupation-dean"
           },
           "as_of": null,
           "history": [
@@ -1603,15 +1611,15 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 859,
+            "person": 857,
             "type": "person"
           },
           "title_key": "notebook-person"
         },
         {
           "args": {
-            "name": "Liv Calder",
-            "role_key": "occupation-head_teacher"
+            "name": "Oona Wrenson",
+            "role_key": "occupation-clergy"
           },
           "as_of": null,
           "history": [
@@ -1645,16 +1653,16 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 860,
+            "person": 858,
             "type": "person"
           },
           "title_key": "notebook-person"
         },
         {
           "args": {
-            "cares_key": "issue-tradition",
-            "name": "Oona Wrenson",
-            "role_key": "occupation-clergy"
+            "cares_key": "issue-social_liberalism",
+            "name": "Ulric Pryce",
+            "role_key": "occupation-software_engineer"
           },
           "as_of": null,
           "history": [
@@ -1700,37 +1708,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 861,
-            "type": "person"
-          },
-          "title_key": "notebook-person"
-        },
-        {
-          "args": {
-            "name": "Ulric Pryce",
-            "role_key": "occupation-dean"
-          },
-          "as_of": null,
-          "history": [
-            {
-              "args": {},
-              "exchange": null,
-              "key": "learned-lab",
-              "level": "heard",
-              "on": {
-                "day": 12,
-                "day_number": 737342,
-                "month": 2,
-                "year": 2020
-              }
-            }
-          ],
-          "lead": null,
-          "level": "heard",
-          "new_this_turn": true,
-          "stale": false,
-          "subject": {
-            "person": 862,
+            "person": 859,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1776,16 +1754,62 @@
           "new_this_turn": false,
           "stale": false,
           "subject": {
-            "person": 863,
+            "person": 860,
             "type": "person"
           },
           "title_key": "notebook-person"
         },
         {
           "args": {
-            "cares_key": "issue-reform_appetite",
             "name": "Rosa Brookwell",
-            "role_key": "occupation-student"
+            "role_key": "role-councillor"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {
+                "profile": "start.sitting_councillor"
+              },
+              "exchange": null,
+              "key": "learned-start",
+              "level": "heard",
+              "on": {
+                "day": 1,
+                "day_number": 737300,
+                "month": 1,
+                "year": 2020
+              }
+            },
+            {
+              "args": {
+                "profile": "start.sitting_councillor"
+              },
+              "exchange": null,
+              "key": "learned-start",
+              "level": "known",
+              "on": {
+                "day": 1,
+                "day_number": 737300,
+                "month": 1,
+                "year": 2020
+              }
+            }
+          ],
+          "lead": null,
+          "level": "known",
+          "new_this_turn": false,
+          "stale": false,
+          "subject": {
+            "person": 861,
+            "type": "person"
+          },
+          "title_key": "notebook-person"
+        },
+        {
+          "args": {
+            "cares_key": "issue-tradition",
+            "name": "Olek Wexler",
+            "role_key": "occupation-clergy"
           },
           "as_of": null,
           "history": [
@@ -1831,37 +1855,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 864,
-            "type": "person"
-          },
-          "title_key": "notebook-person"
-        },
-        {
-          "args": {
-            "name": "Olek Wexler",
-            "role_key": "occupation-clergy"
-          },
-          "as_of": null,
-          "history": [
-            {
-              "args": {},
-              "exchange": null,
-              "key": "learned-lab",
-              "level": "heard",
-              "on": {
-                "day": 12,
-                "day_number": 737342,
-                "month": 2,
-                "year": 2020
-              }
-            }
-          ],
-          "lead": null,
-          "level": "heard",
-          "new_this_turn": true,
-          "stale": false,
-          "subject": {
-            "person": 865,
+            "person": 862,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1907,14 +1901,13 @@
           "new_this_turn": false,
           "stale": false,
           "subject": {
-            "person": 866,
+            "person": 863,
             "type": "person"
           },
           "title_key": "notebook-person"
         },
         {
           "args": {
-            "cares_key": "issue-reform_appetite",
             "name": "Osric Dell",
             "role_key": "role-mayor"
           },
@@ -1947,6 +1940,49 @@
                 "month": 1,
                 "year": 2020
               }
+            }
+          ],
+          "lead": null,
+          "level": "known",
+          "new_this_turn": false,
+          "stale": false,
+          "subject": {
+            "person": 1032,
+            "type": "person"
+          },
+          "title_key": "notebook-person"
+        },
+        {
+          "args": {
+            "cares_key": "issue-reform_appetite",
+            "name": "Sabine Gallowayby",
+            "role_key": "occupation-tech_founder"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "heard",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
+            },
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "known",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
             },
             {
               "args": {},
@@ -1966,15 +2002,15 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1044,
+            "person": 1033,
             "type": "person"
           },
           "title_key": "notebook-person"
         },
         {
           "args": {
-            "name": "Sabine Gallowayby",
-            "role_key": "occupation-software_engineer"
+            "name": "Senna Beckwood",
+            "role_key": "occupation-shop_steward"
           },
           "as_of": null,
           "history": [
@@ -1996,15 +2032,15 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1045,
+            "person": 1034,
             "type": "person"
           },
           "title_key": "notebook-person"
         },
         {
           "args": {
-            "name": "Senna Beckwood",
-            "role_key": "occupation-shop_steward"
+            "name": "Rafe Yates",
+            "role_key": "occupation-park_keeper"
           },
           "as_of": null,
           "history": [
@@ -2038,16 +2074,16 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1046,
+            "person": 1035,
             "type": "person"
           },
           "title_key": "notebook-person"
         },
         {
           "args": {
-            "cares_key": "issue-environment",
-            "name": "Rafe Yates",
-            "role_key": "occupation-park_keeper"
+            "cares_key": "issue-reform_appetite",
+            "name": "Otto Iron",
+            "role_key": "occupation-resident"
           },
           "as_of": null,
           "history": [
@@ -2093,37 +2129,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1047,
-            "type": "person"
-          },
-          "title_key": "notebook-person"
-        },
-        {
-          "args": {
-            "name": "Otto Iron",
-            "role_key": "occupation-organiser"
-          },
-          "as_of": null,
-          "history": [
-            {
-              "args": {},
-              "exchange": null,
-              "key": "learned-lab",
-              "level": "heard",
-              "on": {
-                "day": 12,
-                "day_number": 737342,
-                "month": 2,
-                "year": 2020
-              }
-            }
-          ],
-          "lead": null,
-          "level": "heard",
-          "new_this_turn": true,
-          "stale": false,
-          "subject": {
-            "person": 1216,
+            "person": 1200,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2169,7 +2175,49 @@
           "new_this_turn": false,
           "stale": false,
           "subject": {
-            "person": 1217,
+            "person": 1201,
+            "type": "person"
+          },
+          "title_key": "notebook-person"
+        },
+        {
+          "args": {
+            "name": "Hedda Garrowwood",
+            "role_key": "occupation-teacher"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "heard",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
+            },
+            {
+              "args": {},
+              "exchange": null,
+              "key": "learned-lab",
+              "level": "known",
+              "on": {
+                "day": 12,
+                "day_number": 737342,
+                "month": 2,
+                "year": 2020
+              }
+            }
+          ],
+          "lead": null,
+          "level": "known",
+          "new_this_turn": true,
+          "stale": false,
+          "subject": {
+            "person": 1202,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2177,8 +2225,8 @@
         {
           "args": {
             "cares_key": "issue-social_liberalism",
-            "name": "Hedda Garrowwood",
-            "role_key": "occupation-teacher"
+            "name": "Fen Galloway",
+            "role_key": "occupation-head_teacher"
           },
           "as_of": null,
           "history": [
@@ -2224,7 +2272,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1218,
+            "person": 1203,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2254,7 +2302,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1404,
+            "person": 1393,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2296,7 +2344,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1405,
+            "person": 1394,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2351,7 +2399,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1406,
+            "person": 1395,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2381,7 +2429,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1407,
+            "person": 1396,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2423,7 +2471,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1408,
+            "person": 1397,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2507,7 +2555,7 @@
           },
           "stale": false,
           "subject": {
-            "person": 1409,
+            "person": 1398,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2570,7 +2618,7 @@
           },
           "stale": false,
           "subject": {
-            "person": 1410,
+            "person": 1399,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2612,7 +2660,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1411,
+            "person": 1400,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2667,7 +2715,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1412,
+            "person": 1401,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2697,7 +2745,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1413,
+            "person": 1402,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2739,7 +2787,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1704,
+            "person": 1693,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2794,7 +2842,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1705,
+            "person": 1694,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2824,7 +2872,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1706,
+            "person": 1695,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2866,7 +2914,7 @@
           "new_this_turn": true,
           "stale": false,
           "subject": {
-            "person": 1707,
+            "person": 1696,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -2878,8 +2926,8 @@
       "entries": [
         {
           "args": {
-            "concern2_key": "concern-taxes",
-            "concern3_key": "concern-housing",
+            "concern2_key": "concern-young-leaving",
+            "concern3_key": "concern-taxes",
             "concern_key": "concern-recovery",
             "town": "Belenwick"
           },
@@ -2926,55 +2974,7 @@
         },
         {
           "args": {
-            "concern2_key": "concern-environment",
-            "concern3_key": "concern-taxes",
-            "concern_key": "concern-recovery",
-            "hood": "Castle Green"
-          },
-          "as_of": null,
-          "history": [
-            {
-              "args": {
-                "profile": "start.sitting_councillor"
-              },
-              "exchange": null,
-              "key": "learned-start",
-              "level": "heard",
-              "on": {
-                "day": 1,
-                "day_number": 737300,
-                "month": 1,
-                "year": 2020
-              }
-            },
-            {
-              "args": {
-                "profile": "start.sitting_councillor"
-              },
-              "exchange": null,
-              "key": "learned-start",
-              "level": "known",
-              "on": {
-                "day": 1,
-                "day_number": 737300,
-                "month": 1,
-                "year": 2020
-              }
-            }
-          ],
-          "lead": null,
-          "level": "known",
-          "new_this_turn": false,
-          "stale": false,
-          "subject": {
-            "hood": 92,
-            "type": "hood_concerns"
-          },
-          "title_key": "notebook-hood-concerns"
-        },
-        {
-          "args": {
-            "concern_key": "concern-recovery",
+            "concern_key": "concern-young-leaving",
             "hood": "Queens Cross"
           },
           "as_of": null,
@@ -2997,7 +2997,7 @@
           ],
           "lead": {
             "args": {
-              "concern_key": "concern-recovery",
+              "concern_key": "concern-young-leaving",
               "hood": "Queens Cross",
               "to_hood": "Queens Cross"
             },
@@ -3045,6 +3045,54 @@
           "stale": false,
           "subject": {
             "hood": 94,
+            "type": "hood_concerns"
+          },
+          "title_key": "notebook-hood-concerns"
+        },
+        {
+          "args": {
+            "concern2_key": "concern-taxes",
+            "concern3_key": "concern-housing",
+            "concern_key": "concern-young-leaving",
+            "hood": "Orchardrow"
+          },
+          "as_of": null,
+          "history": [
+            {
+              "args": {
+                "profile": "start.sitting_councillor"
+              },
+              "exchange": null,
+              "key": "learned-start",
+              "level": "heard",
+              "on": {
+                "day": 1,
+                "day_number": 737300,
+                "month": 1,
+                "year": 2020
+              }
+            },
+            {
+              "args": {
+                "profile": "start.sitting_councillor"
+              },
+              "exchange": null,
+              "key": "learned-start",
+              "level": "known",
+              "on": {
+                "day": 1,
+                "day_number": 737300,
+                "month": 1,
+                "year": 2020
+              }
+            }
+          ],
+          "lead": null,
+          "level": "known",
+          "new_this_turn": false,
+          "stale": false,
+          "subject": {
+            "hood": 95,
             "type": "hood_concerns"
           },
           "title_key": "notebook-hood-concerns"

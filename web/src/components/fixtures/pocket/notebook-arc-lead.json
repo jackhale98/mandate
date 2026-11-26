@@ -459,12 +459,12 @@
     },
     {
       "args": {
-        "rival": "Aurel Garrowby",
+        "rival": "Selma Rookley",
         "town": "Halobridge"
       },
       "lead": {
         "args": {
-          "rival": "Aurel Garrowby",
+          "rival": "Selma Rookley",
           "to_kind_key": "place-party_office",
           "to_place_key": "talk-place-party_office",
           "town": "Halobridge"
@@ -1369,13 +1369,9 @@
           "lead": null,
           "level": "heard",
           "new_this_turn": true,
-          "note": {
-            "args": {},
-            "key": "know-person-name-only"
-          },
           "stale": false,
           "subject": {
-            "person": 1406,
+            "person": 1418,
             "type": "person"
           },
           "title_key": "notebook-person"
@@ -1387,7 +1383,7 @@
       "entries": [
         {
           "args": {
-            "concern_key": "concern-housing",
+            "concern_key": "concern-young-leaving",
             "hood": "Bridgegate"
           },
           "as_of": null,
@@ -1410,7 +1406,7 @@
           ],
           "lead": {
             "args": {
-              "concern_key": "concern-housing",
+              "concern_key": "concern-young-leaving",
               "hood": "Bridgegate",
               "to_hood": "Bridgegate"
             },

@@ -12,7 +12,7 @@
       "action": "town_hall",
       "health": 1.0,
       "late_night": false,
-      "risk": 0.1400540182438143,
+      "risk": 0.13387751933243797,
       "shady": null,
       "slots": 1
     }
@@ -26,7 +26,7 @@
       },
       "asset": "drain",
       "cue": "drain_new",
-      "event": 2089,
+      "event": 2055,
       "fixed_on": {
         "day": 8,
         "day_number": 737366,
@@ -74,7 +74,7 @@
       },
       "asset": "drain",
       "cue": "drain_flooded",
-      "event": 2085,
+      "event": 2051,
       "here": false,
       "id": 2,
       "kind": "fault.drain",
@@ -116,7 +116,7 @@
       },
       "asset": "road",
       "cue": "pothole",
-      "event": 2086,
+      "event": 2052,
       "here": false,
       "id": 3,
       "kind": "fault.pothole",

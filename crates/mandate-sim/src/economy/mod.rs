@@ -196,6 +196,12 @@ pub struct MuniSnapshot {
     pub unemployment: f32,
     pub rent: f32,
     pub jobs: f32,
+    /// Each income class's mean income (`class_income`: wages, benefits
+    /// and transfers) over the price level (DEC-106: the cost-of-living
+    /// worry reads its change over a year). 0 in a snapshot from before it
+    /// was kept.
+    #[serde(default)]
+    pub real_income: [f32; CLASSES],
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -1039,6 +1045,7 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         let mods =
             crate::policy::mods_for(r.policy(), content, m as u32, &|id| fin.funded_share(id));
         settle_labour_and_incomes(econ, m, world, pop, content, fin.taxes.income, &mods);
+        let price = econ.national.price_level;
         let mu = &mut econ.munis[m];
         // Households form at this month's rent burden (next month's demand).
         mu.housing.households = housing::households(
@@ -1052,6 +1059,7 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             unemployment: mu.unemployment as f32,
             rent: mu.housing.rent as f32,
             jobs: mu.total_jobs() as f32,
+            real_income: mu.class_income.map(|x| (x / price.max(0.01)) as f32),
         });
         if mu.history.len() > 36 {
             mu.history.remove(0);

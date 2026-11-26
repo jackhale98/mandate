@@ -256,11 +256,18 @@ fn people_by_level() {
                 st,
                 Location::Place { place: p.id },
             );
-            // Someone whose regular place this is (not a councillor in the chamber).
+            // Someone whose regular place this is (not a councillor in the
+            // chamber), there now (the panel lists who is present).
+            let here = mandate_sim::characters::ambient::stored_at(
+                st,
+                e.content(),
+                Location::Place { place: p.id },
+            );
             at.into_iter()
                 .find(|c| {
                     mandate_sim::characters::profile(&st.politics, &st.world, *c)
                         .is_some_and(|x| x.place == Some(p.id))
+                        && here.contains(c)
                 })
                 .map(|c| (p.id, c))
         })

@@ -68,9 +68,53 @@
     { "id": "overheard.services.broke", "key": "heard-services-broke", "concern": "concern.services", "weight": 2.0,
       "when": [ { "type": "crisis", "kind": "crisis.fiscal_hole" } ], "teaches": [ { "type": "hood_concerns" }, { "type": "town_concerns" } ] },
     { "id": "overheard.services.bins", "key": "heard-services-bins", "concern": "concern.services", "teaches": [ { "type": "hood_concerns" } ] },
-    { "id": "overheard.services.clinic", "key": "heard-services-clinic", "concern": "concern.services", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.schools_health.clinic", "key": "heard-services-clinic", "concern": "concern.schools_health", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.services.office", "key": "heard-services-office", "concern": "concern.services", "teaches": [ { "type": "hood_concerns" } ] },
     { "id": "overheard.services.bus", "key": "heard-services-bus", "concern": "concern.services", "teaches": [ { "type": "hood_concerns" } ] },
-    { "id": "overheard.services.school", "key": "heard-services-school", "concern": "concern.services", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.schools_health.school", "key": "heard-services-school", "concern": "concern.schools_health", "teaches": [ { "type": "hood_concerns" } ] },
+
+    // --- The DEC-106 worries ---------------------------------------------------------
+    // The cost of living.
+    { "id": "overheard.cost_of_living.shop", "key": "heard-cost-shop", "concern": "concern.cost_of_living", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.cost_of_living.wages", "key": "heard-cost-wages", "concern": "concern.cost_of_living", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.cost_of_living.heating", "key": "heard-cost-heating", "concern": "concern.cost_of_living", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.cost_of_living.bills", "key": "heard-cost-bills", "concern": "concern.cost_of_living", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.cost_of_living.treat", "key": "heard-cost-treat", "concern": "concern.cost_of_living", "teaches": [ { "type": "hood_concerns" } ] },
+    // Newcomers and change (DEC-106: change, never blame).
+    { "id": "overheard.newcomers.faces", "key": "heard-newcomers-faces", "concern": "concern.newcomers", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.newcomers.school_gate", "key": "heard-newcomers-school-gate", "concern": "concern.newcomers", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.newcomers.welcome", "key": "heard-newcomers-welcome", "concern": "concern.newcomers", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.newcomers.house_prices", "key": "heard-newcomers-house-prices", "concern": "concern.newcomers", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.newcomers.old_place", "key": "heard-newcomers-old-place", "concern": "concern.newcomers", "teaches": [ { "type": "hood_concerns" } ] },
+    // Young people leaving and an ageing town.
+    { "id": "overheard.young_leaving.kids", "key": "heard-young-kids", "concern": "concern.young_leaving", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.young_leaving.club", "key": "heard-young-club", "concern": "concern.young_leaving", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.young_leaving.grey", "key": "heard-young-grey", "concern": "concern.young_leaving", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.young_leaving.school_rolls", "key": "heard-young-school-rolls", "concern": "concern.young_leaving", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.young_leaving.grandchildren", "key": "heard-young-grandchildren", "concern": "concern.young_leaving", "teaches": [ { "type": "hood_concerns" } ] },
+    // Schools and health care.
+    { "id": "overheard.schools_health.waiting", "key": "heard-care-waiting", "concern": "concern.schools_health", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.schools_health.teachers", "key": "heard-care-teachers", "concern": "concern.schools_health", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.schools_health.pharmacy", "key": "heard-care-pharmacy", "concern": "concern.schools_health", "teaches": [ { "type": "hood_concerns" } ] },
+    // Roads and upkeep.
+    { "id": "overheard.upkeep.potholes", "key": "heard-upkeep-potholes", "concern": "concern.upkeep", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.upkeep.lights", "key": "heard-upkeep-lights", "concern": "concern.upkeep", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.upkeep.drains", "key": "heard-upkeep-drains", "concern": "concern.upkeep", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.upkeep.pavement", "key": "heard-upkeep-pavement", "concern": "concern.upkeep", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.upkeep.playground", "key": "heard-upkeep-playground", "concern": "concern.upkeep", "teaches": [ { "type": "hood_concerns" } ] },
+    // Trust in the town hall.
+    { "id": "overheard.trust.all_same", "key": "heard-trust-all-same", "concern": "concern.trust", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.trust.court", "key": "heard-trust-court", "concern": "concern.trust", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.trust.scandal", "key": "heard-trust-scandal", "concern": "concern.trust", "weight": 1.5,
+      "when": [ { "type": "scandal" } ], "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.trust.paper", "key": "heard-trust-paper", "concern": "concern.trust", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.trust.vote", "key": "heard-trust-vote", "concern": "concern.trust", "teaches": [ { "type": "hood_concerns" } ] },
+    // Development and the town's character.
+    { "id": "overheard.development.cranes", "key": "heard-development-cranes", "concern": "concern.development", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.development.field", "key": "heard-development-field", "concern": "concern.development", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.development.dust", "key": "heard-development-dust", "concern": "concern.development", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.development.views", "key": "heard-development-views", "concern": "concern.development", "teaches": [ { "type": "hood_concerns" } ] },
+    { "id": "overheard.development.traffic", "key": "heard-development-traffic", "concern": "concern.development", "teaches": [ { "type": "hood_concerns" } ] },
 
     // --- Rebuilding after a disaster -----------------------------------------------------
     { "id": "overheard.recovery.insurance", "key": "heard-recovery-insurance", "concern": "concern.recovery", "teaches": [ { "type": "hood_concerns" } ] },

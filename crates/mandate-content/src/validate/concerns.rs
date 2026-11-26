@@ -40,6 +40,22 @@ pub(super) fn validate_concerns(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 ));
             }
         }
+        for t in &c.also {
+            if !in_range(t.slope, -1000.0, 1000.0) {
+                issues.push(Issue::error(
+                    &c.id,
+                    &format!("also: slope {} outside [-1000, 1000]", t.slope),
+                ));
+            }
+            if t.indicator == c.indicator
+                || c.also.iter().filter(|x| x.indicator == t.indicator).count() > 1
+            {
+                issues.push(Issue::error(
+                    &c.id,
+                    &format!("also: {:?} is read twice", t.indicator),
+                ));
+            }
+        }
         if l.min > l.max {
             issues.push(Issue::error(&c.id, "level.min must not exceed level.max"));
         }

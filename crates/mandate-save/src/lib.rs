@@ -42,7 +42,10 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// and faults (B2, DEC-114): the upkeep domain, a fault an ask is about,
 /// fault events on the spine. (The arcs' infrastructure added a root a
 /// cause can name, `Pressure::Worry`, with no change to the state's shape.)
-pub const SAVE_FORMAT_VERSION: u16 = 33;
+/// v34: the first batch of new worries (DEC-106): each town's moves over
+/// the last year (`population.flows`) and each class's real income in the
+/// economy's monthly snapshots.
+pub const SAVE_FORMAT_VERSION: u16 = 34;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -274,6 +277,10 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Renumber only this key if another bump merges first (the step
         // names no version).
         (32, upkeep_faults),
+        // The first batch of new worries (DEC-106): the previous format to
+        // the next. Renumber only this key if another bump merges first (the
+        // step names no version).
+        (33, worry_signals),
     ];
     let mut value = value;
     let mut v = from;
@@ -1093,6 +1100,16 @@ fn calendar_familiarity(value: serde_json::Value) -> Result<serde_json::Value, S
 /// keeps the focus's condition from the next month on; no ask in it is
 /// about a fault.
 fn upkeep_faults(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    Ok(value)
+}
+
+/// The first batch of new worries (DEC-106). Nothing to rewrite: the
+/// towns' moves (`population.flows`) start empty and fill from the next
+/// month, and the economy's real incomes (`MuniSnapshot::real_income`) read
+/// 0 in older snapshots, so the cost-of-living worry reads no change until
+/// a year of them is kept; the worries themselves are derived and
+/// recomputed on load for the new registry.
+fn worry_signals(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
     Ok(value)
 }
 

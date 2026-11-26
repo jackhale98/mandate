@@ -11,12 +11,12 @@
       "show": 12
     },
     {
-      "count": 25,
+      "count": 27,
       "group": "rest",
       "show": 12
     },
     {
-      "count": 21,
+      "count": 19,
       "group": "gone",
       "show": 12
     }
@@ -47,7 +47,7 @@
       },
       "group": "now",
       "here": false,
-      "id": 1411,
+      "id": 1400,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -79,7 +79,7 @@
               "crisis_key": "ask-crisis-disaster_recovery",
               "days": "3",
               "history": "none",
-              "player": "Fen Galloway",
+              "player": "Hal Nash",
               "town": "Belenwick"
             },
             "key": "ask-say-something"
@@ -121,7 +121,7 @@
       },
       "group": "now",
       "here": true,
-      "id": 1409,
+      "id": 1398,
       "is_rival": false,
       "last_seen": {
         "args": {
@@ -180,7 +180,7 @@
               "history": "none",
               "official": "Osric Dell",
               "official_role_key": "role-mayor",
-              "player": "Fen Galloway",
+              "player": "Hal Nash",
               "town": "Belenwick"
             },
             "key": "ask-flood-shelter"
@@ -209,7 +209,7 @@
               "official_role_key": "role-mayor",
               "organiser": "Neve Oak",
               "organiser_role_key": "occupation-organiser",
-              "player": "Fen Galloway",
+              "player": "Hal Nash",
               "town": "Belenwick"
             },
             "key": "dilemma-flood-money"
@@ -267,12 +267,12 @@
       },
       "group": "now",
       "here": false,
-      "id": 1044,
+      "id": 1032,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
+      "level": "known",
       "name": "Osric Dell",
-      "new_this_turn": true,
+      "new_this_turn": false,
       "note": null,
       "now": [
         {
@@ -301,7 +301,7 @@
               "history": "none",
               "official": "Osric Dell",
               "official_role_key": "role-mayor",
-              "player": "Fen Galloway",
+              "player": "Hal Nash",
               "town": "Belenwick"
             },
             "key": "ask-flood-shelter"
@@ -330,7 +330,7 @@
               "official_role_key": "role-mayor",
               "organiser": "Neve Oak",
               "organiser_role_key": "occupation-organiser",
-              "player": "Fen Galloway",
+              "player": "Hal Nash",
               "town": "Belenwick"
             },
             "key": "dilemma-flood-money"
@@ -372,7 +372,7 @@
       },
       "group": "now",
       "here": true,
-      "id": 1410,
+      "id": 1399,
       "is_rival": false,
       "last_seen": {
         "args": {
@@ -442,40 +442,44 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 95,
+        "neighborhood": 90,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "diner",
           "location": {
-            "neighborhood": 95,
-            "type": "street"
+            "place": 123,
+            "type": "place"
           },
-          "name": "",
-          "neighborhood": 95,
-          "neighborhood_name": "Orchardrow"
+          "name": "Cora's",
+          "neighborhood": 90,
+          "neighborhood_args": {
+            "centre_town": "Belenwick"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Belenwick"
         }
       },
       "group": "office",
       "here": false,
-      "id": 354,
+      "id": 360,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Hal Nash",
+      "name": "Bodil Sedge",
       "new_this_turn": false,
       "note": null,
       "now": [],
-      "opinion_band": "warm",
+      "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
       "rank": 0,
       "role_key": "role-councillor",
       "stance": {
-        "band": "warm",
-        "shape": "up"
+        "band": "neutral",
+        "shape": "level"
       },
       "trust_band": "some",
       "usually": null,
-      "ward_number": 1,
+      "ward_number": 5,
       "you_owe": 0
     },
     {
@@ -485,25 +489,29 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 93,
+        "neighborhood": 90,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "diner",
           "location": {
-            "neighborhood": 93,
-            "type": "street"
+            "place": 123,
+            "type": "place"
           },
-          "name": "",
-          "neighborhood": 93,
-          "neighborhood_name": "Westwood"
+          "name": "Cora's",
+          "neighborhood": 90,
+          "neighborhood_args": {
+            "centre_town": "Belenwick"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Belenwick"
         }
       },
       "group": "office",
       "here": false,
-      "id": 358,
+      "id": 651,
       "is_rival": false,
       "last_seen": null,
       "level": "detailed",
-      "name": "Otto Tullwell",
+      "name": "Kalinda Alder",
       "new_this_turn": true,
       "note": null,
       "now": [],
@@ -546,11 +554,11 @@
       },
       "group": "office",
       "here": false,
-      "id": 360,
+      "id": 860,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Bodil Sedge",
+      "name": "Hector Achter",
       "new_this_turn": false,
       "note": null,
       "now": [],
@@ -565,7 +573,7 @@
       },
       "trust_band": "some",
       "usually": null,
-      "ward_number": 5,
+      "ward_number": 4,
       "you_owe": 0
     },
     {
@@ -575,31 +583,35 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 94,
+        "neighborhood": 90,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "diner",
           "location": {
-            "neighborhood": 94,
-            "type": "street"
+            "place": 123,
+            "type": "place"
           },
-          "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
+          "name": "Cora's",
+          "neighborhood": 90,
+          "neighborhood_args": {
+            "centre_town": "Belenwick"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Belenwick"
         }
       },
       "group": "office",
       "here": false,
-      "id": 863,
+      "id": 861,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Hector Achter",
+      "name": "Rosa Brookwell",
       "new_this_turn": false,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 0,
+      "party": 2,
       "rank": 3,
       "role_key": "role-councillor",
       "stance": {
@@ -608,7 +620,7 @@
       },
       "trust_band": "some",
       "usually": null,
-      "ward_number": 4,
+      "ward_number": 6,
       "you_owe": 0
     },
     {
@@ -632,7 +644,7 @@
       },
       "group": "office",
       "here": false,
-      "id": 866,
+      "id": 863,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -675,7 +687,7 @@
       },
       "group": "office",
       "here": false,
-      "id": 1217,
+      "id": 1201,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -772,7 +784,7 @@
       "id": 356,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
+      "level": "detailed",
       "name": "Silas Brackenwell",
       "new_this_turn": true,
       "note": null,
@@ -819,7 +831,7 @@
       "id": 357,
       "is_rival": false,
       "last_seen": null,
-      "level": "known",
+      "level": "heard",
       "name": "Rosa Nashwell",
       "new_this_turn": true,
       "note": null,
@@ -866,7 +878,7 @@
       "id": 359,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
+      "level": "detailed",
       "name": "Anouk Gallowaywell",
       "new_this_turn": true,
       "note": null,
@@ -913,7 +925,7 @@
       "id": 361,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
+      "level": "known",
       "name": "Ysolde Garrowley",
       "new_this_turn": true,
       "note": null,
@@ -956,7 +968,7 @@
       "id": 363,
       "is_rival": false,
       "last_seen": null,
-      "level": "known",
+      "level": "heard",
       "name": "Tobias Quill",
       "new_this_turn": true,
       "note": null,
@@ -999,7 +1011,7 @@
       "id": 364,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
+      "level": "known",
       "name": "Elsa Whit",
       "new_this_turn": true,
       "note": null,
@@ -1046,7 +1058,7 @@
       "id": 650,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
+      "level": "known",
       "name": "Wim Zeller",
       "new_this_turn": true,
       "note": null,
@@ -1089,7 +1101,7 @@
       "id": 653,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
+      "level": "known",
       "name": "Damaris Novak",
       "new_this_turn": true,
       "note": null,
@@ -1115,24 +1127,28 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 96,
+        "neighborhood": 90,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "market",
           "location": {
-            "neighborhood": 96,
-            "type": "street"
+            "place": 124,
+            "type": "place"
           },
           "name": "",
-          "neighborhood": 96,
-          "neighborhood_name": "Greentown"
+          "neighborhood": 90,
+          "neighborhood_args": {
+            "centre_town": "Belenwick"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Belenwick"
         }
       },
       "group": "rest",
       "here": false,
-      "id": 859,
+      "id": 856,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
+      "level": "detailed",
       "name": "Ines Black",
       "new_this_turn": true,
       "note": null,
@@ -1142,6 +1158,49 @@
       "party": 0,
       "rank": 9,
       "role_key": "occupation-clergy",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 93,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 93,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 93,
+          "neighborhood_name": "Westwood"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 859,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Ulric Pryce",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 10,
+      "role_key": "occupation-software_engineer",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -1179,16 +1238,16 @@
       "id": 862,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
-      "name": "Ulric Pryce",
+      "level": "detailed",
+      "name": "Olek Wexler",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 10,
-      "role_key": "occupation-dean",
+      "rank": 11,
+      "role_key": "occupation-clergy",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -1223,19 +1282,19 @@
       },
       "group": "rest",
       "here": false,
-      "id": 865,
+      "id": 1034,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
-      "name": "Olek Wexler",
+      "name": "Senna Beckwood",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 11,
-      "role_key": "occupation-clergy",
+      "rank": 12,
+      "role_key": "occupation-shop_steward",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -1266,10 +1325,10 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1216,
+      "id": 1200,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
+      "level": "detailed",
       "name": "Otto Iron",
       "new_this_turn": true,
       "note": null,
@@ -1277,8 +1336,8 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 1,
-      "rank": 12,
-      "role_key": "occupation-organiser",
+      "rank": 13,
+      "role_key": "occupation-resident",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -1313,10 +1372,10 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1218,
+      "id": 1202,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
+      "level": "known",
       "name": "Hedda Garrowwood",
       "new_this_turn": true,
       "note": null,
@@ -1324,7 +1383,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 1,
-      "rank": 13,
+      "rank": 14,
       "role_key": "occupation-teacher",
       "stance": {
         "band": "neutral",
@@ -1344,12 +1403,12 @@
         "late_night": false,
         "neighborhood": 90,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "market",
           "location": {
-            "place": 123,
+            "place": 124,
             "type": "place"
           },
-          "name": "Cora's",
+          "name": "",
           "neighborhood": 90,
           "neighborhood_args": {
             "centre_town": "Belenwick"
@@ -1360,7 +1419,54 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1404,
+      "id": 1203,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Fen Galloway",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "cool",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 15,
+      "role_key": "occupation-head_teacher",
+      "stance": {
+        "band": "cool",
+        "shape": "down"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 90,
+        "to": {
+          "kind_key": "party_office",
+          "location": {
+            "place": 122,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 90,
+          "neighborhood_args": {
+            "centre_town": "Belenwick"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Belenwick"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1393,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
@@ -1371,7 +1477,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": null,
-      "rank": 14,
+      "rank": 16,
       "role_key": "occupation-party_chair",
       "stance": {
         "band": "neutral",
@@ -1407,7 +1513,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1405,
+      "id": 1394,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -1418,7 +1524,7 @@
       "opinion_band": "warm",
       "owes_you": 0,
       "party": null,
-      "rank": 15,
+      "rank": 17,
       "role_key": "occupation-diner_owner",
       "stance": {
         "band": "warm",
@@ -1454,7 +1560,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1406,
+      "id": 1395,
       "is_rival": false,
       "last_seen": null,
       "level": "detailed",
@@ -1465,7 +1571,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": null,
-      "rank": 16,
+      "rank": 18,
       "role_key": "occupation-shopkeeper",
       "stance": {
         "band": "neutral",
@@ -1497,7 +1603,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1407,
+      "id": 1396,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
@@ -1508,7 +1614,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": null,
-      "rank": 17,
+      "rank": 19,
       "role_key": "occupation-teacher",
       "stance": {
         "band": "neutral",
@@ -1544,7 +1650,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1408,
+      "id": 1397,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -1555,7 +1661,7 @@
       "opinion_band": "cool",
       "owes_you": 0,
       "party": null,
-      "rank": 18,
+      "rank": 20,
       "role_key": "occupation-nurse",
       "stance": {
         "band": "cool",
@@ -1591,7 +1697,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1412,
+      "id": 1401,
       "is_rival": false,
       "last_seen": null,
       "level": "detailed",
@@ -1602,7 +1708,7 @@
       "opinion_band": "cool",
       "owes_you": 0,
       "party": null,
-      "rank": 19,
+      "rank": 21,
       "role_key": "occupation-business_leader",
       "stance": {
         "band": "cool",
@@ -1620,25 +1726,21 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 92,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "union_hall",
           "location": {
-            "place": 123,
+            "place": 131,
             "type": "place"
           },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "name": "",
+          "neighborhood": 92,
+          "neighborhood_name": "Castle Green"
         }
       },
       "group": "rest",
       "here": false,
-      "id": 1413,
+      "id": 1402,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
@@ -1649,7 +1751,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": null,
-      "rank": 20,
+      "rank": 22,
       "role_key": "occupation-union_steward",
       "stance": {
         "band": "neutral",
@@ -1681,7 +1783,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1704,
+      "id": 1693,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -1692,7 +1794,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": null,
-      "rank": 21,
+      "rank": 23,
       "role_key": "occupation-head_teacher",
       "stance": {
         "band": "neutral",
@@ -1728,7 +1830,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1705,
+      "id": 1694,
       "is_rival": false,
       "last_seen": null,
       "level": "detailed",
@@ -1739,7 +1841,7 @@
       "opinion_band": "warm",
       "owes_you": 0,
       "party": null,
-      "rank": 22,
+      "rank": 24,
       "role_key": "occupation-gp",
       "stance": {
         "band": "warm",
@@ -1775,7 +1877,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1706,
+      "id": 1695,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
@@ -1786,7 +1888,7 @@
       "opinion_band": "cool",
       "owes_you": 0,
       "party": null,
-      "rank": 23,
+      "rank": 25,
       "role_key": "occupation-park_keeper",
       "stance": {
         "band": "cool",
@@ -1818,7 +1920,7 @@
       },
       "group": "rest",
       "here": false,
-      "id": 1707,
+      "id": 1696,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
@@ -1829,7 +1931,7 @@
       "opinion_band": "cool",
       "owes_you": 0,
       "party": null,
-      "rank": 24,
+      "rank": 26,
       "role_key": "occupation-shop_steward",
       "stance": {
         "band": "cool",
@@ -2273,18 +2375,61 @@
       "group": "gone",
       "here": false,
       "id": 355,
+      "is_rival": true,
+      "last_seen": null,
+      "level": "known",
+      "name": "Nell Beckfield",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "cool",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 9,
+      "role_key": "occupation-park_keeper",
+      "stance": {
+        "band": "cool",
+        "shape": "down"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 93,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 93,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 93,
+          "neighborhood_name": "Westwood"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 358,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
-      "name": "Nell Beckfield",
+      "level": "known",
+      "name": "Otto Tullwell",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 1,
-      "rank": 9,
-      "role_key": "occupation-park_keeper",
+      "rank": 10,
+      "role_key": "occupation-teacher",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -2322,7 +2467,7 @@
       "id": 362,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
+      "level": "detailed",
       "name": "Ilka Yateser",
       "new_this_turn": true,
       "note": null,
@@ -2330,7 +2475,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 10,
+      "rank": 11,
       "role_key": "occupation-software_engineer",
       "stance": {
         "band": "neutral",
@@ -2365,7 +2510,7 @@
       "id": 648,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
+      "level": "detailed",
       "name": "Rhea Asher",
       "new_this_turn": true,
       "note": null,
@@ -2373,7 +2518,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 11,
+      "rank": 12,
       "role_key": "occupation-shop_steward",
       "stance": {
         "band": "neutral",
@@ -2412,7 +2557,7 @@
       "id": 649,
       "is_rival": false,
       "last_seen": null,
-      "level": "known",
+      "level": "heard",
       "name": "Sana Ardenby",
       "new_this_turn": true,
       "note": null,
@@ -2420,51 +2565,8 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 12,
-      "role_key": "occupation-tech_founder",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 93,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 93,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 93,
-          "neighborhood_name": "Westwood"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 651,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Kalinda Alder",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 1,
       "rank": 13,
-      "role_key": "occupation-teacher",
+      "role_key": "occupation-tech_founder",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -2498,7 +2600,7 @@
       "id": 652,
       "is_rival": false,
       "last_seen": null,
-      "level": "known",
+      "level": "heard",
       "name": "Cosmo Achterer",
       "new_this_turn": true,
       "note": null,
@@ -2538,10 +2640,10 @@
       },
       "group": "gone",
       "here": false,
-      "id": 860,
+      "id": 857,
       "is_rival": false,
       "last_seen": null,
-      "level": "known",
+      "level": "heard",
       "name": "Liv Calder",
       "new_this_turn": true,
       "note": null,
@@ -2550,7 +2652,7 @@
       "owes_you": 0,
       "party": 1,
       "rank": 15,
-      "role_key": "occupation-head_teacher",
+      "role_key": "occupation-dean",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -2567,28 +2669,24 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 91,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "streets",
           "location": {
-            "place": 123,
-            "type": "place"
+            "neighborhood": 91,
+            "type": "street"
           },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "name": "",
+          "neighborhood": 91,
+          "neighborhood_name": "East Hill"
         }
       },
       "group": "gone",
       "here": false,
-      "id": 861,
+      "id": 858,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
+      "level": "known",
       "name": "Oona Wrenson",
       "new_this_turn": true,
       "note": null,
@@ -2614,6 +2712,49 @@
         "action": "talk",
         "here": false,
         "late_night": false,
+        "neighborhood": 91,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 91,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 91,
+          "neighborhood_name": "East Hill"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 1033,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Sabine Gallowayby",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 17,
+      "role_key": "occupation-tech_founder",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
         "neighborhood": 90,
         "to": {
           "kind_key": "diner",
@@ -2632,147 +2773,10 @@
       },
       "group": "gone",
       "here": false,
-      "id": 864,
-      "is_rival": true,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Rosa Brookwell",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "cool",
-      "owes_you": 0,
-      "party": 2,
-      "rank": 17,
-      "role_key": "occupation-student",
-      "stance": {
-        "band": "cool",
-        "shape": "down"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "market",
-          "location": {
-            "place": 124,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 1045,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Sabine Gallowayby",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 1,
-      "rank": 18,
-      "role_key": "occupation-software_engineer",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 93,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 93,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 93,
-          "neighborhood_name": "Westwood"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 1046,
+      "id": 1035,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Senna Beckwood",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 0,
-      "rank": 19,
-      "role_key": "occupation-shop_steward",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 90,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 1047,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
       "name": "Rafe Yates",
       "new_this_turn": true,
       "note": null,
@@ -2780,7 +2784,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 1,
-      "rank": 20,
+      "rank": 18,
       "role_key": "occupation-park_keeper",
       "stance": {
         "band": "neutral",
