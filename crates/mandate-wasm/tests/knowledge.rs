@@ -1000,6 +1000,8 @@ fn views_do_not_change_the_state_hash() {
         QueryDto::PolicyPreview {
             template,
             params: vec![],
+            proposal: None,
+            choices: None,
         },
         QueryDto::Diagnostics,
         QueryDto::TownGeography { id: m },

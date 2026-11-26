@@ -985,7 +985,21 @@ pub(crate) fn subject_args(gate: &Gate<'_>, s: &Subject, level: Level) -> BTreeM
                 put!("proposal", proposal.0.to_string());
             }
         }
-        Subject::Proposal { proposal } => put!("proposal", proposal.0.to_string()),
+        Subject::Proposal { proposal } => {
+            put!("proposal", proposal.0.to_string());
+            // Its title (`policy_key`) and the names it takes (F3).
+            if let Some((key, names)) = st
+                .policy
+                .families
+                .get(*proposal)
+                .and_then(|i| crate::proposals::title(engine, i))
+            {
+                put!("policy_key", key);
+                for (k, a) in names {
+                    args.entry(k).or_insert(a);
+                }
+            }
+        }
         Subject::Situational { template, .. } => {
             if let Some(t) = content.policies.get(template) {
                 put!("policy_key", t.name_key.clone());

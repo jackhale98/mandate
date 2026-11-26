@@ -22,6 +22,7 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
     case "file":
       return k("file");
     case "draft_policy":
+    case "draft_family": // a proposal is drafted at the clerk's desk too (DEC-092)
       return k("draft");
     case "amend_policy": {
       // Drafts are revised at the clerk's desk, bills on the chamber floor.

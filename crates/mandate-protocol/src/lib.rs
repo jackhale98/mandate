@@ -23,6 +23,7 @@ pub mod people;
 pub mod places;
 pub mod pocket;
 pub mod post;
+pub mod proposals;
 pub mod talk;
 pub mod town;
 pub mod town_layers;
@@ -48,6 +49,7 @@ pub use people::*;
 pub use places::*;
 pub use pocket::*;
 pub use post::*;
+pub use proposals::*;
 use serde::{Deserialize, Serialize};
 pub use talk::*;
 pub use town::*;
@@ -183,6 +185,24 @@ pub enum CommandDto {
         policy: u32,
         params: Vec<ParamValue>,
         clauses: Vec<ClauseDto>,
+        /// A family bill's choices (`BillView.family`): missing axes keep
+        /// theirs. Refused on a standard bill. Moving away from an adopted
+        /// sponsor's version costs goodwill with them.
+        #[ts(optional)]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        choices: Option<Vec<ChoiceValue>>,
+    },
+    /// Draft a policy-family proposal (DEC-092 §2.11; `ProposalView`): one
+    /// option per axis (missing: the axis default, or the sponsor's), the
+    /// sliders, and optionally a sponsor whose version is adopted as it is
+    /// (`SponsorTermsView`; its price is paid now). At the town hall, free.
+    /// Refused unless `ProposalView.can_draft`. The result's `created` is
+    /// the bill.
+    DraftFamily {
+        proposal: u32,
+        choices: Vec<ChoiceValue>,
+        params: Vec<ParamValue>,
+        sponsor: Option<String>,
     },
     IntroducePolicy {
         policy: u32,
@@ -378,10 +398,19 @@ pub enum QueryDto {
     /// The storyteller profiles a new game can choose (no game needed).
     Storytellers,
     /// What a draft of a policy with these parameters would cost and do
-    /// (the catalogue's sliders; the engine computes it).
+    /// (the catalogue's sliders; the engine computes it). With `proposal`,
+    /// a family proposal's sheet (`template`: its family id, or empty):
+    /// the package at these `choices` (missing axes: their defaults), each
+    /// option with its cost, support and impact, and the sponsors' terms.
     PolicyPreview {
         template: String,
         params: Vec<ParamValue>,
+        #[ts(optional)]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        proposal: Option<u32>,
+        #[ts(optional)]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        choices: Option<Vec<ChoiceValue>>,
     },
     Diagnostics,
     /// The town layout v2 registries (no game needed; cache by `content_hash`).

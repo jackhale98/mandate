@@ -581,6 +581,10 @@ pub struct PlacePanelView {
     /// Pending decisions whose scene happens here (DEC-079: going there adds
     /// the conversation; they can always be answered from the pocket).
     pub decisions_here: Vec<crate::narrative::DecisionView>,
+    /// Open policy-family proposals the player has heard of that are about
+    /// this place (DEC-092): bound to it, or to the neighbourhood whose
+    /// streets these are, or brought by a sponsor who works here.
+    pub proposals_here: Vec<crate::proposals::ProposalView>,
 }
 
 pub fn location_view(st: &State, loc: Location) -> LocationView {
@@ -1376,6 +1380,7 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
                     .is_some_and(|p| p.location == LocationDto::of(loc))
             })
             .collect(),
+        proposals_here: crate::proposals::proposals_here(engine, loc),
         services,
     })
 }

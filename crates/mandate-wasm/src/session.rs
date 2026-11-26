@@ -294,16 +294,28 @@ impl Session {
                 QueryDto::Storytellers => {
                     Ok(ResponseBody::Storytellers(storyteller_list(&self.content)))
                 }
-                QueryDto::PolicyPreview { template, params } => {
-                    policy_preview(self.engine_mut()?, &template, &params)
-                        .map(ResponseBody::PolicyPreview)
-                        .ok_or_else(|| {
-                            err(
-                                ErrorCode::BadRequest,
-                                format!("no policy `{template}` to preview here"),
-                            )
-                        })
-                }
+                QueryDto::PolicyPreview {
+                    template,
+                    params,
+                    proposal,
+                    choices,
+                } => policy_preview_of(
+                    self.engine_mut()?,
+                    &template,
+                    &params,
+                    proposal,
+                    choices.as_deref().unwrap_or_default(),
+                )
+                .map(ResponseBody::PolicyPreview)
+                .ok_or_else(|| {
+                    err(
+                        ErrorCode::BadRequest,
+                        match proposal {
+                            Some(id) => format!("no proposal {id} you know of to preview"),
+                            None => format!("no policy `{template}` to preview here"),
+                        },
+                    )
+                }),
                 QueryDto::Locale { lang } => Ok(ResponseBody::Locale(LocaleView {
                     ftl: self.content.locale_text(&lang),
                     lang,
@@ -521,6 +533,11 @@ fn params(v: Vec<ParamValue>) -> std::collections::BTreeMap<String, f64> {
     v.into_iter().map(|p| (p.id, p.value)).collect()
 }
 
+/// A family draft's choices, axis → option.
+fn choice_map(v: Vec<ChoiceValue>) -> std::collections::BTreeMap<String, String> {
+    v.into_iter().map(|c| (c.axis, c.option)).collect()
+}
+
 /// Protocol DTO → simulation command (the protocol never exposes lab commands).
 fn player_command(
     engine: Option<&mandate_sim::Engine>,
@@ -560,10 +577,22 @@ fn player_command(
             template,
             params: params(p),
         },
+        CommandDto::DraftFamily {
+            proposal,
+            choices: c,
+            params: p,
+            sponsor,
+        } => P::DraftFamily {
+            proposal,
+            choices: choice_map(c),
+            params: params(p),
+            sponsor,
+        },
         CommandDto::AmendPolicy {
             policy,
             params: p,
             clauses,
+            choices: c,
         } => P::AmendPolicy {
             policy,
             params: params(p),
@@ -579,8 +608,8 @@ fn player_command(
                     ClauseDto::Pilot { neighborhood } => Clause::Pilot { neighborhood },
                 })
                 .collect(),
-            // A family bill's choices come with the proposal sheet (F3, F6).
-            choices: None,
+            // A family bill's choices (`BillView.family`).
+            choices: c.map(choice_map),
         },
         CommandDto::IntroducePolicy { policy } => P::IntroducePolicy { policy },
         CommandDto::CastVote { policy, vote } => P::CastVote {
