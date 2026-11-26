@@ -1,0 +1,13 @@
+{
+  "world": {
+    "code": "M1.3.S0.-.B2GE.BR43.-.C4T27.CU3",
+    "same_build": true,
+    "seed": "3",
+    "size": "small",
+    "scenario_key": null,
+    "storyteller_key": "storyteller-classic",
+    "local_knowledge": false,
+    "opening": null
+  },
+  "error": null
+}

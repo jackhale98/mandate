@@ -1,0 +1,160 @@
+{
+  "unfinished": true,
+  "name": "Lio Flint",
+  "party": "New Dawn League",
+  "town": "Belenmouth",
+  "world": {
+    "size": "small",
+    "scenario_key": null,
+    "constitution_key": "constitution-federal_presidential"
+  },
+  "opening": {
+    "town": "Belenmouth",
+    "arc": null,
+    "months_ahead": 0,
+    "began": {
+      "day_number": 737300,
+      "year": 2020,
+      "month": 1,
+      "day": 1
+    },
+    "post": {
+      "kind": "seat",
+      "id": "council",
+      "at": {
+        "kind": "municipality",
+        "tier": "local",
+        "id": 8,
+        "name": "Belenmouth",
+        "name_key": "jurisdiction-municipality"
+      },
+      "constituency_number": 1,
+      "label_key": "body-council",
+      "role_key": "role-councillor"
+    },
+    "rating": {
+      "plays": 4,
+      "wins": 4,
+      "win_pm": 1000,
+      "on_ballot": 4,
+      "rated_on": {
+        "day_number": 737300,
+        "year": 2020,
+        "month": 1,
+        "day": 1
+      },
+      "facts": [
+        {
+          "factor": "record",
+          "key": "factor-record",
+          "margin_pm": 443
+        },
+        {
+          "factor": "campaign",
+          "key": "factor-campaign",
+          "margin_pm": 45
+        },
+        {
+          "factor": "issues",
+          "key": "factor-issues",
+          "margin_pm": -38
+        }
+      ]
+    }
+  },
+  "races": [],
+  "highest_post": {
+    "kind": "seat",
+    "id": "council",
+    "at": {
+      "kind": "municipality",
+      "tier": "local",
+      "id": 8,
+      "name": "Belenmouth",
+      "name_key": "jurisdiction-municipality"
+    },
+    "constituency_number": 1,
+    "label_key": "body-council",
+    "role_key": "role-councillor"
+  },
+  "days_served": 0,
+  "years_tenths": 0,
+  "decisions": [],
+  "arcs": [],
+  "ending": {
+    "id": "ending.stepped_away",
+    "title_key": "ending-stepped_away",
+    "text_key": "ending-stepped_away-text",
+    "tone": "neutral",
+    "date": {
+      "day_number": 737300,
+      "year": 2020,
+      "month": 1,
+      "day": 1
+    },
+    "facts": [
+      {
+        "fact": "years",
+        "label_key": "epilogue-fact-years",
+        "value": 0
+      },
+      {
+        "fact": "posts_held",
+        "label_key": "epilogue-fact-posts_held",
+        "value": 1
+      },
+      {
+        "fact": "elections_won",
+        "label_key": "epilogue-fact-elections_won",
+        "value": 0
+      },
+      {
+        "fact": "laws_passed",
+        "label_key": "epilogue-fact-laws_passed",
+        "value": 0
+      },
+      {
+        "fact": "decisions",
+        "label_key": "epilogue-fact-decisions",
+        "value": 0
+      }
+    ],
+    "args": {
+      "decisions": "0",
+      "elections_won": "0",
+      "laws_passed": "0",
+      "posts_held": "1",
+      "years": "0"
+    }
+  },
+  "ended_on": {
+    "day_number": 737300,
+    "year": 2020,
+    "month": 1,
+    "day": 1
+  },
+  "ended_posts": [
+    {
+      "kind": "seat",
+      "id": "council",
+      "at": {
+        "kind": "municipality",
+        "tier": "local",
+        "id": 8,
+        "name": "Belenmouth",
+        "name_key": "jurisdiction-municipality"
+      },
+      "constituency_number": 1,
+      "label_key": "body-council",
+      "role_key": "role-councillor"
+    }
+  ],
+  "figure": {
+    "rated": 0,
+    "wins": 0,
+    "expected_pm": 0,
+    "over_pm": 0
+  },
+  "code": "M1.3.S0.-.B2GE.BR43.-.C4T27.CU3",
+  "build": "0.1.0 · e1f7ad61"
+}

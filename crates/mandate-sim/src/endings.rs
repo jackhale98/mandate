@@ -57,6 +57,7 @@ fn holds(state: &crate::State, c: &ConstitutionDef, rec: &LegacyRecord, w: &Endi
         }),
         EndingWhen::TrackAtMost { track: t, value } => track(pl, *t) <= *value,
         EndingWhen::Served { terms } => posts.iter().any(|p| served(state, c, rec, *p, *terms)),
+        EndingWhen::SteppedAway => state.act.stepped_away.is_some(),
         EndingWhen::Any { any } => any.iter().any(|x| holds(state, c, rec, x)),
     }
 }

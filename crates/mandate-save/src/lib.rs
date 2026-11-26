@@ -41,7 +41,9 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// the player was at this turn, familiarity on a relationship. v33: upkeep
 /// and faults (B2, DEC-114): the upkeep domain, a fault an ask is about,
 /// fault events on the spine. (The arcs' infrastructure added a root a
-/// cause can name, `Pressure::Worry`, with no change to the state's shape.)
+/// cause can name, `Pressure::Worry`, with no change to the state's shape.
+/// The career card, M6 note 23, added optional fields only: the day the
+/// player stepped away, two Legacy entry kinds, the run log's ratings.)
 pub const SAVE_FORMAT_VERSION: u16 = 33;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;

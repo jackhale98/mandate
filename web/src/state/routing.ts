@@ -66,6 +66,7 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
     case "set_directives": // time skips (DEC-012): no place, no slot
     case "skip":
     case "cancel_skip":
+    case "step_away": // stepping away from politics (M6 note 23): from anywhere, at any time
     case "respond_ask": // asks are answered from anywhere (DEC-097 §2)
     case "promise": // a promise is made from anywhere while campaigning
     case "arc_exchange": // a scene (DEC-112): begun inside `go` at its place, then played there

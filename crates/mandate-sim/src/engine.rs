@@ -408,7 +408,28 @@ impl Engine {
         ) {
             self.finish_skip(crate::skip::SkipStop::Cancelled);
         }
+        // Stepped away from politics (M6 note 23): the career is over.
+        if self.state.act.stepped_away.is_some()
+            && matches!(
+                command,
+                Command::EndTurn | Command::Player(_) | Command::Skip { .. } | Command::StepAway
+            )
+        {
+            return Err(EngineError::InvalidCommand(
+                "you have stepped away from politics".into(),
+            ));
+        }
         let outcome = match &command {
+            Command::StepAway => {
+                crate::act::step_away(&mut self.state, &self.content)
+                    .map_err(EngineError::InvalidCommand)?;
+                CommandOutcome {
+                    days_advanced: 0,
+                    turn: self.state.calendar.turn,
+                    result: None,
+                    skip: None,
+                }
+            }
             Command::EndTurn => {
                 if self
                     .state

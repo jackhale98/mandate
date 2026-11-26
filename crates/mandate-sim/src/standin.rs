@@ -1063,7 +1063,15 @@ pub fn rate(
         let mut e =
             Engine::from_state(state.clone(), content.clone()).map_err(|x| x.to_string())?;
         e.setup(|st| reluck(st, luck));
-        if !held.contains(&post) {
+        // Already standing in the open race (a race rated as it opens, the
+        // career card): nothing to file.
+        let standing = state
+            .politics
+            .elections
+            .races
+            .iter()
+            .any(|r| r.seat == post && r.candidates.iter().any(|c| c.politician == me));
+        if !held.contains(&post) && !standing {
             // Filed where filing is done, as a player would.
             let file = e.route(PlayerCommand::File {
                 filing: crate::politics::elections::Filing::Stand { post },

@@ -7,6 +7,7 @@ pub mod arcs;
 pub mod asks;
 pub mod calendar;
 pub mod campaign;
+pub mod card;
 pub mod characters;
 #[cfg(feature = "dev-tools")]
 pub mod dev;
@@ -37,6 +38,7 @@ pub use arcs::*;
 pub use asks::*;
 pub use calendar::*;
 pub use campaign::*;
+pub use card::*;
 pub use characters::*;
 pub use draft::*;
 pub use exchange::*;
@@ -281,6 +283,11 @@ pub enum CommandDto {
     },
     /// Stop the skip in progress (between turns).
     CancelSkip,
+    /// Step away from politics (M6 note 23), after the client's one
+    /// confirmation: the run closes now, unfinished, with its epilogue and
+    /// Legacy record (a race under way is walked away from); then
+    /// `QueryDto::CareerCard`. Any time while the act runs.
+    StepAway,
     /// Answer an ask (DEC-097 §2): accept it (a promise to the asker) or
     /// decline it. Free, from anywhere.
     RespondAsk {
@@ -490,6 +497,17 @@ pub enum QueryDto {
     DraftStep,
     /// The promises the player could make now (campaigning only).
     PromiseMenu,
+    /// The career card (M6 note 23), once the act is over (`None` before):
+    /// the run's facts, ratings and world code. The first time, the
+    /// opening is rated on the world as play began, rebuilt from the run
+    /// file (seconds of work, with progress `progress-card`); the rating
+    /// is then kept in the run file.
+    CareerCard,
+    /// Read a world code (no game needed): what it would start, whether it
+    /// was made under this build, or why it cannot be read.
+    WorldCode {
+        code: String,
+    },
     /// Why an event happened (S1, the causal spine): the chain of what led
     /// to it, at most `depth` links back (default 6, at most 12), as facts
     /// and the engine's own text keys. Read-only.
@@ -528,6 +546,13 @@ pub enum RequestBody {
     /// answers `GameStarted`.
     ChooseOpening {
         index: u32,
+    },
+    /// Start a new game from a world code (M6 note 23; `QueryDto::WorldCode`
+    /// reads it first): the same seed, size, scenario, storyteller,
+    /// starting knowledge and opening, so the first turn is the one the
+    /// code was made from. Answers `GameStarted`.
+    StartFromCode {
+        code: String,
     },
     Command(CommandDto),
     Query(QueryDto),
@@ -598,6 +623,9 @@ pub enum ResponseBody {
     ArcExchange(ArcSceneView),
     Draft(DraftView),
     DraftProgress(DraftProgressView),
+    /// `None` while the act runs.
+    CareerCard(Option<CareerCardView>),
+    WorldCode(WorldCodeCheckView),
     #[cfg(feature = "dev-tools")]
     #[ts(skip)]
     DevCatalog(dev::DevCatalogView),

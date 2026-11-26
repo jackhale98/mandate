@@ -9153,6 +9153,20 @@
         },
         {
           "additionalProperties": false,
+          "description": "The player stepped away from politics (M6 note 23: the run is\nabandoned, after one confirmation, at any time).",
+          "properties": {
+            "type": {
+              "const": "stepped_away",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Any of these.",
           "properties": {
             "any": {
@@ -13581,6 +13595,14 @@
             "$ref": "#/$defs/WeightKey"
           },
           "type": "array"
+        },
+        "rating_plays": {
+          "default": 4,
+          "description": "The career card (M6 note 23): plays of a race per rating, each on a\nfork under its own luck, by the engaged stand-in (DEC-102 clause 6).\nA race is rated when it opens with the player in it, and the\nopening as play began.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
         },
         "works_categories": {
           "description": "Laws whose budget category counts them among the player's works.",

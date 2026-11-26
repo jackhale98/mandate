@@ -336,6 +336,16 @@ pub struct LegacyParams {
     pub notable: Vec<WeightKey>,
     /// Entries kept (the oldest notable decisions go first).
     pub max_entries: u16,
+    /// The career card (M6 note 23): plays of a race per rating, each on a
+    /// fork under its own luck, by the engaged stand-in (DEC-102 clause 6).
+    /// A race is rated when it opens with the player in it, and the
+    /// opening as play began.
+    #[serde(default = "default_rating_plays")]
+    pub rating_plays: u8,
+}
+
+fn default_rating_plays() -> u8 {
+    4
 }
 
 /// The act flow (DEC-005, DEC-012): directives, interrupts, skip targets,
@@ -369,6 +379,7 @@ impl Default for ActFlowParams {
                 works_categories: Vec::new(),
                 notable: Vec::new(),
                 max_entries: 0,
+                rating_plays: default_rating_plays(),
             },
         }
     }
@@ -423,6 +434,9 @@ pub enum EndingWhen {
     /// The act has lasted `terms` full terms of the post the player holds
     /// (its `term_years` in the constitution), and they hold it.
     Served { terms: u8 },
+    /// The player stepped away from politics (M6 note 23: the run is
+    /// abandoned, after one confirmation, at any time).
+    SteppedAway,
     /// Any of these.
     Any { any: Vec<EndingWhen> },
 }

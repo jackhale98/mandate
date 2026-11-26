@@ -84,6 +84,19 @@ pub enum LegacyKind {
         years: u32,
     },
     Released,
+    /// A staged arc in the player's focus reached an exit (DEC-109; the
+    /// career card's "how each arc ended", M6 note 23).
+    ArcEnded {
+        arc: u32,
+        template: String,
+        exit: String,
+    },
+    /// The player stepped away from politics (M6 note 23); `race`: the
+    /// race they were standing in, walked away from.
+    SteppedAway {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        race: Option<Post>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -220,6 +233,7 @@ pub fn observe(state: &mut crate::State, content: &ContentBundle) {
         return;
     };
     let me = pl.politician;
+    let focus = pl.focus();
     let my_char = state.politics.get(me).map(|p| p.character);
     let date = state.calendar.date;
     let legacy = &content.act_flow.legacy;
@@ -356,6 +370,20 @@ pub fn observe(state: &mut crate::State, content: &ContentBundle) {
                 push(ev.date, LegacyKind::Imprisoned { years: *years })
             }
             EventKind::PlayerReleased => push(ev.date, LegacyKind::Released),
+            EventKind::ArcEnded {
+                arc,
+                template,
+                exit,
+                at,
+                ..
+            } if focus.contains(at) => push(
+                ev.date,
+                LegacyKind::ArcEnded {
+                    arc: *arc,
+                    template: template.clone(),
+                    exit: exit.clone(),
+                },
+            ),
             // Campaign promises (an ask's to a person is remembered by them,
             // below).
             EventKind::AskResolved {
