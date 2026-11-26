@@ -10,6 +10,7 @@ pub mod campaign;
 pub mod characters;
 #[cfg(feature = "dev-tools")]
 pub mod dev;
+pub mod draft;
 pub mod exchange;
 pub mod impact;
 pub mod knowledge;
@@ -37,6 +38,7 @@ pub use asks::*;
 pub use calendar::*;
 pub use campaign::*;
 pub use characters::*;
+pub use draft::*;
 pub use exchange::*;
 pub use impact::*;
 pub use knowledge::*;
@@ -470,6 +472,14 @@ pub enum QueryDto {
         arc: u32,
         beat: String,
     },
+    /// The opening draft (DEC-101 §3, task A7): the world auditioned as
+    /// it stands, and the best openings, as day-0 facts. Seconds of work;
+    /// the state is only read. `recent`: the device's last openings (up to
+    /// three, oldest first), for variety.
+    Draft {
+        #[serde(default)]
+        recent: Vec<OpeningTagDto>,
+    },
     /// The promises the player could make now (campaigning only).
     PromiseMenu,
     /// Why an event happened (S1, the causal spine): the chain of what led
@@ -571,6 +581,7 @@ pub enum ResponseBody {
     People(PeopleView),
     Arc(ArcView),
     ArcExchange(ArcSceneView),
+    Draft(DraftView),
     #[cfg(feature = "dev-tools")]
     #[ts(skip)]
     DevCatalog(dev::DevCatalogView),

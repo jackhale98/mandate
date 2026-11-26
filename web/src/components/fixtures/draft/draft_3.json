@@ -1,0 +1,72 @@
+{
+  "openings": [
+    {
+      "town": 1,
+      "town_name": "Pellenwick",
+      "town_class": "city",
+      "template": "arc.budget_round",
+      "title_key": "arc-budget",
+      "args": {},
+      "live": false,
+      "post": {
+        "kind": "seat",
+        "id": "council",
+        "at": {
+          "kind": "municipality",
+          "tier": "local",
+          "id": 1,
+          "name": "Pellenwick",
+          "name_key": "jurisdiction-municipality"
+        },
+        "constituency_number": 9,
+        "label_key": "body-council",
+        "role_key": "role-councillor"
+      },
+      "pitch_key": null,
+      "tag": {
+        "template": "arc.budget_round",
+        "matter": "sector.manufacturing",
+        "post": "councillor",
+        "town_class": "city"
+      }
+    },
+    {
+      "town": 8,
+      "town_name": "Belenmouth",
+      "town_class": "town",
+      "template": "arc.budget_round",
+      "title_key": "arc-budget",
+      "args": {},
+      "live": true,
+      "post": {
+        "kind": "seat",
+        "id": "council",
+        "at": {
+          "kind": "municipality",
+          "tier": "local",
+          "id": 8,
+          "name": "Belenmouth",
+          "name_key": "jurisdiction-municipality"
+        },
+        "constituency_number": 1,
+        "label_key": "body-council",
+        "role_key": "role-councillor"
+      },
+      "pitch_key": null,
+      "tag": {
+        "template": "arc.budget_round",
+        "matter": "sector.retail",
+        "post": "councillor",
+        "town_class": "town"
+      }
+    }
+  ],
+  "months_ahead": 4,
+  "scan_step_days": 30,
+  "opens": {
+    "day_number": 737420,
+    "year": 2020,
+    "month": 5,
+    "day": 1
+  }
+}
