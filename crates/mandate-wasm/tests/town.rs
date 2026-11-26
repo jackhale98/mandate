@@ -247,12 +247,16 @@ fn town_state_is_rounded_except_at_the_town_hall() {
         at_home
             .places
             .iter()
-            .all(|p| p.status == TownPlaceStatus::Open && p.months == 0),
+            // As play begins nothing is new and nothing open has changed;
+            // a place may have closed in the world's history.
+            .all(|p| p.status != TownPlaceStatus::New
+                && (p.status == TownPlaceStatus::Closed || p.months == 0)),
         "{:?}",
         at_home
             .places
             .iter()
-            .filter(|p| p.status != TownPlaceStatus::Open || p.months != 0)
+            .filter(|p| p.status == TownPlaceStatus::New
+                || (p.status == TownPlaceStatus::Open && p.months != 0))
             .collect::<Vec<_>>()
     );
     // At the town hall: precise.

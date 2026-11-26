@@ -1384,10 +1384,16 @@ fn every_variant_evaluates_in_a_synthetic_state() {
                 at,
             );
             assert_eq!(holds, open, "{}", f.id);
-            for s in f.slots.iter().filter(|s| {
-                s.bind.kind() == mandate_content::policy_family::SlotKind::Person
-            }) {
-                assert!(!args.contains_key(&format!("proposal_{}", s.id)), "{}", f.id);
+            for s in f
+                .slots
+                .iter()
+                .filter(|s| s.bind.kind() == mandate_content::policy_family::SlotKind::Person)
+            {
+                assert!(
+                    !args.contains_key(&format!("proposal_{}", s.id)),
+                    "{}",
+                    f.id
+                );
             }
         }
         for k in [

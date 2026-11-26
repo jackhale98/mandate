@@ -243,7 +243,9 @@ pub fn ensure_decks(
             for f in &content.policy_families {
                 let had = deck.contains(&f.id);
                 let new = !fam.family_keys.contains(&f.id);
-                if had || (new && !f.disabled && f.tier == at.tier() && drawn(seed, content, f, *at)) {
+                if had
+                    || (new && !f.disabled && f.tier == at.tier() && drawn(seed, content, f, *at))
+                {
                     next.push(f.id.clone());
                 }
             }
