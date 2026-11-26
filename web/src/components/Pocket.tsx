@@ -419,7 +419,6 @@ function Today({ p }: { p: PocketView }) {
         </p>
       )}
       {p.legal && <Legal l={p.legal} />}
-      <Fortnight p={p} />
       {p.needs_you.length > 0 ? (
         <Section id="today-needs" title={tr.t("ui-needs-you")} testId="pocket-needs">
           <RowList testId="pocket-needs-list">
@@ -431,6 +430,8 @@ function Today({ p }: { p: PocketView }) {
       ) : (
         <NextUp p={p} />
       )}
+      {/* What waits on the player is Today's first section (POCKET_REWORK, L5); the fortnight follows. */}
+      <Fortnight p={p} />
       <UnderWay p={p} />
       <section className="rw-sec" aria-label={tr.t("ui-today-do")}>
         {p.can_promise && (

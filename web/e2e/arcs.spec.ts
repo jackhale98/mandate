@@ -18,7 +18,8 @@ async function arcSheet(page: Page) {
   const sheet = page.getByTestId("arc-sheet");
   if ((await sheet.count()) === 0) {
     const pocket = await openPocket(page, "today");
-    await pocket.locator("[data-testid^='arc-row-'] .rw-main").first().click();
+    // The budget round's row: other arcs (the zoning fight) may run beside it.
+    await pocket.locator("[data-testid^='arc-row-']").filter({ hasText: /budget round/i }).locator(".rw-main").first().click();
   }
   await expect(sheet).toBeVisible();
   await expect(sheet).not.toContainText("⟦");
