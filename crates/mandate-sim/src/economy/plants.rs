@@ -10,14 +10,22 @@
 //! in the town as policy leaves it:
 //!
 //! 1. *Short time* when `m` is under the short line for some months running.
+//!    It ends early in full time when `m` is back over the full-time line
+//!    for as long.
 //! 2. *A notice with a date* when `m` is under the notice line for longer.
 //!    The only draw is the notice's length (keyed by plant and day), so the
 //!    date shown is the date used.
-//! 3. *A reprieve* when `m` is back over the reprieve line for some months
+//! 3. *The review* when short time has run `review_months` (amended
+//!    2026-11-26): `m` still under the review line gives the notice (where
+//!    the industry can close and the town is free of a recent notice; else
+//!    the review waits a month); otherwise full time again, shedding
+//!    `review_cut` of its capacity if `m` is still under the full-time line.
+//! 4. *A reprieve* when `m` is back over the reprieve line for some months
 //!    before the date; else *the closure* on the date.
 //!
 //! Each step is an event whose cause is the weakest smoothed factor of the
-//! industry's demand (the spine's `Pressure`); the four share a thread. The
+//! industry's demand (the spine's `Pressure`); they share a thread, and a
+//! notice from a review names the review as its cause. The
 //! review belongs to the economy: others read it ([`facts`]) and push on it
 //! only through requests (`Effect::PlantRelief`).
 
@@ -97,6 +105,27 @@ impl PlantStatus {
             PlantStatus::ShortTime { .. } => "short_time",
             PlantStatus::Threatened { .. } => "threatened",
             PlantStatus::Closed { .. } => "closed",
+        }
+    }
+}
+
+/// How a short-time review ended (DEC-110, amended 2026-11-26).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewOutcome {
+    /// Demand still under the review line: a dated notice follows.
+    Notice,
+    /// Full time again (with fewer jobs when demand is still under the
+    /// full-time line).
+    FullTime,
+}
+
+impl ReviewOutcome {
+    /// Snake-case key, as serde writes it (the lab's tallies).
+    pub fn key(self) -> &'static str {
+        match self {
+            ReviewOutcome::Notice => "notice",
+            ReviewOutcome::FullTime => "full_time",
         }
     }
 }
@@ -274,7 +303,7 @@ pub(super) fn process(
                 );
             }
         }
-        PlantStatus::ShortTime { .. } => {
+        PlantStatus::ShortTime { since } => {
             plant.strain = if m < p.notice_line {
                 bump(plant.strain)
             } else {
@@ -290,41 +319,42 @@ pub(super) fn process(
             let free = step.in_recession
                 || last_notice
                     .is_none_or(|d| industries::add_months(d, p.notice_gap_months as u32) <= date);
-            if step.def.plants.closes && plant.strain >= p.notice_after_months && free {
-                let mut rng = keyed(
-                    step.seed,
-                    Stream::Economy,
-                    &[KEY_NOTICE, plant.id.0 as u64, date.0 as u64],
-                );
-                let months = rng.range_i64(p.notice_months[0] as i64, p.notice_months[1] as i64);
-                let closes_on = industries::add_months(date, months.max(1) as u32);
-                plant.status = PlantStatus::Threatened {
-                    since: date,
-                    closes_on,
-                };
-                plant.strain = 0;
-                plant.turn = 0;
-                *last_notice = Some(date);
-                let (factor, causes) = blame(st, step, good);
-                out.events.record(
-                    date,
-                    EventKind::PlantThreatened {
-                        municipality: town,
-                        plant: plant.id.0,
-                        industry: plant.industry.clone(),
-                        jobs: jobs_of(plant, st),
-                        closes_on,
-                        factor,
-                    },
-                    causes,
-                );
+            let closes = step.def.plants.closes;
+            let due = industries::add_months(since, p.review_months as u32) <= date;
+            if closes && plant.strain >= p.notice_after_months && free {
+                notice(step, p, plant, st, last_notice, None, out);
             } else if plant.turn >= p.short_months {
                 // Full time again: no event (the status says so).
                 plant.status = PlantStatus::Running;
                 plant.turn = 0;
+            } else if due && m < p.review_line && closes {
+                // The review finds demand still short: a notice, once the
+                // town is free (until then the review waits on short time).
+                if free {
+                    let (factor, causes) = blame(st, step, good);
+                    let ev = out.events.record(
+                        date,
+                        EventKind::PlantReviewed {
+                            municipality: town,
+                            plant: plant.id.0,
+                            industry: plant.industry.clone(),
+                            jobs: jobs_of(plant, st),
+                            months: months_between(since, date),
+                            demand_pct: pct(m),
+                            line_pct: pct(p.review_line),
+                            outcome: ReviewOutcome::Notice,
+                            jobs_cut: 0,
+                            factor,
+                        },
+                        causes,
+                    );
+                    notice(step, p, plant, st, last_notice, Some(ev), out);
+                }
+            } else if due {
+                review_to_full_time(step, p, plant, st, since, m, out);
             }
         }
-        PlantStatus::Threatened { since, closes_on } => {
+        PlantStatus::Threatened { closes_on, .. } => {
             plant.turn = if m >= p.reprieve_line {
                 bump(plant.turn)
             } else {
@@ -332,8 +362,9 @@ pub(super) fn process(
             };
             if plant.turn >= p.reprieve_months && date <= closes_on {
                 // Demand came back in time: the notice is lifted. The plant
-                // stays on short time until its hours recover.
-                plant.status = PlantStatus::ShortTime { since };
+                // stays on short time until its hours recover, or a review
+                // `review_months` from now.
+                plant.status = PlantStatus::ShortTime { since: date };
                 plant.strain = 0;
                 plant.turn = 0;
                 out.events.record(
@@ -351,6 +382,108 @@ pub(super) fn process(
             }
         }
     }
+}
+
+/// Whole months from one date to a later one (by the calendar's months).
+fn months_between(from: SimDate, to: SimDate) -> u16 {
+    let (a, b) = (from.calendar(), to.calendar());
+    let n = (b.year as i64 - a.year as i64) * 12 + b.month as i64 - a.month as i64;
+    n.clamp(0, u16::MAX as i64) as u16
+}
+
+/// A level as a whole percent of normal (for the event's arguments).
+fn pct(x: f64) -> u32 {
+    whole(x * 100.0)
+}
+
+/// Serve a closure notice: the one draw (its length, keyed by plant and
+/// day), the town's notice date, and the event. `review`: the review that
+/// gave it, named as its cause beside the weakest factor.
+fn notice(
+    step: &Step<'_>,
+    p: &IndustryParams,
+    plant: &mut Plant,
+    st: &IndustryState,
+    last_notice: &mut Option<SimDate>,
+    review: Option<EventId>,
+    out: &mut Outs<'_>,
+) {
+    let date = step.date;
+    let mut rng = keyed(
+        step.seed,
+        Stream::Economy,
+        &[KEY_NOTICE, plant.id.0 as u64, date.0 as u64],
+    );
+    let months = rng.range_i64(p.notice_months[0] as i64, p.notice_months[1] as i64);
+    let closes_on = industries::add_months(date, months.max(1) as u32);
+    plant.status = PlantStatus::Threatened {
+        since: date,
+        closes_on,
+    };
+    plant.strain = 0;
+    plant.turn = 0;
+    *last_notice = Some(date);
+    let (factor, causes) = blame(st, step, plant.good);
+    out.events.record(
+        date,
+        EventKind::PlantThreatened {
+            municipality: plant.municipality.0,
+            plant: plant.id.0,
+            industry: plant.industry.clone(),
+            jobs: jobs_of(plant, st),
+            closes_on,
+            factor,
+        },
+        causes.and_event(review, Link::Caused),
+    );
+}
+
+/// A review that puts a plant back on full time. Demand still under the
+/// full-time line: it sheds `review_cut` of its capacity, and that share
+/// of its jobs goes now (the jobs that would not come back with orders).
+fn review_to_full_time(
+    step: &Step<'_>,
+    p: &IndustryParams,
+    plant: &mut Plant,
+    st: &mut IndustryState,
+    since: SimDate,
+    m: f64,
+    out: &mut Outs<'_>,
+) {
+    let date = step.date;
+    let cut = if m < p.full_line {
+        plant.capacity * p.review_cut
+    } else {
+        0.0
+    };
+    let mut jobs_cut = 0;
+    if cut > 0.0 && st.capacity > 0.0 {
+        let lost = st.jobs * (cut / st.capacity).min(1.0);
+        jobs_cut = whole(lost);
+        st.jobs -= lost;
+        st.capacity = (st.capacity - cut).max(0.0);
+        plant.capacity -= cut;
+    }
+    plant.status = PlantStatus::Running;
+    plant.strain = 0;
+    plant.turn = 0;
+    let (factor, causes) = blame(st, step, plant.good);
+    out.events.record(
+        date,
+        EventKind::PlantReviewed {
+            municipality: plant.municipality.0,
+            plant: plant.id.0,
+            industry: plant.industry.clone(),
+            jobs: jobs_of(plant, st),
+            months: months_between(since, date),
+            demand_pct: pct(m),
+            line_pct: pct(p.review_line),
+            outcome: ReviewOutcome::FullTime,
+            jobs_cut,
+            factor,
+        },
+        causes,
+    );
 }
 
 /// Close a plant: its capacity leaves the industry, its share of the

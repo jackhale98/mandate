@@ -10,6 +10,10 @@ define_id!(
     EventId
 );
 
+fn is_zero_u32(x: &u32) -> bool {
+    *x == 0
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EventKind {
@@ -67,6 +71,27 @@ pub enum EventKind {
         industry: mandate_content::ContentKey,
         jobs: u32,
         closes_on: SimDate,
+        factor: crate::economy::industries::Factor,
+    },
+    /// Short time ran its course (DEC-110, amended 2026-11-26): the review.
+    /// Demand still under the review line gives a notice (the notice that
+    /// follows names this as its cause); else full time again, with
+    /// `jobs_cut` fewer jobs when demand is still under the full-time line.
+    PlantReviewed {
+        municipality: u32,
+        plant: u32,
+        industry: mandate_content::ContentKey,
+        /// Its jobs after the review.
+        jobs: u32,
+        /// Months it had been on short time.
+        months: u16,
+        /// Its margin-adjusted demand and the review line, in percent of
+        /// normal.
+        demand_pct: u32,
+        line_pct: u32,
+        outcome: crate::economy::plants::ReviewOutcome,
+        #[serde(default, skip_serializing_if = "is_zero_u32")]
+        jobs_cut: u32,
         factor: crate::economy::industries::Factor,
     },
     /// The notice was lifted before its date.

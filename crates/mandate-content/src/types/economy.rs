@@ -953,6 +953,15 @@ pub struct IndustryParams {
     pub notice_after_months: u8,
     /// A notice's length in months, [least, most]: the one draw.
     pub notice_months: [u8; 2],
+    /// Short time ends in a review after this many months (DEC-110,
+    /// amended 2026-11-26): demand still under `review_line` gives a
+    /// notice where the industry can close; else full time again.
+    pub review_months: u16,
+    pub review_line: f64,
+    /// The share of its capacity a plant sheds when a review puts it back
+    /// on full time while its demand is still under `full_line`: the jobs
+    /// that do not come back when orders do.
+    pub review_cut: f64,
     /// A notice is lifted when demand is at or over this for
     /// `reprieve_months` months before the date.
     pub reprieve_line: f64,
@@ -1014,6 +1023,9 @@ impl Default for IndustryParams {
             notice_line: 0.78,
             notice_after_months: 9,
             notice_months: [4, 9],
+            review_months: 12,
+            review_line: 0.88,
+            review_cut: 0.10,
             reprieve_line: 0.84,
             reprieve_months: 2,
             notice_gap_months: 12,

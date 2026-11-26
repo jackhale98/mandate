@@ -77,6 +77,9 @@
       "notice_line": 0.78,          // under this for notice_after_months: a closure notice
       "notice_after_months": 9,
       "notice_months": [4, 9],      // the notice's length: the one draw
+      "review_months": 12,          // short time ends in a review after this many months
+      "review_line": 0.88,          // at the review, under this: a notice (where the industry closes)
+      "review_cut": 0.10,           // else full time again; under full_line it sheds this share of its capacity
       "reprieve_line": 0.84,        // at or over this for reprieve_months before the date: lifted
       "reprieve_months": 2,
       "notice_gap_months": 12,      // one new notice a town in this time, outside a recession

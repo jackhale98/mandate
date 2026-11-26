@@ -299,6 +299,9 @@ fn named_people_work_at_these_places_and_routines_bring_them_there() {
             .iter()
             .copied()
             .filter(|p| kinds.contains(&e.state().world.places[p.index()].kind))
+            // A works shut in the town's history keeps its people's record
+            // but has no day there.
+            .filter(|p| e.state().world.places[p.index()].is_open())
             .collect();
         // Who works where, and whether routines ever put them there by day.
         let staff = |e: &Engine, p: PlaceId| -> Vec<mandate_sim::characters::CharacterId> {

@@ -522,6 +522,13 @@ pub fn thread(kind: &EventKind, date: SimDate) -> Option<(Thread, Role)> {
             (Thread::Plant(*plant), Role::Opens)
         }
         K::PlantThreatened { plant, .. } => (Thread::Plant(*plant), Role::Advances),
+        K::PlantReviewed { plant, outcome, .. } => (
+            Thread::Plant(*plant),
+            match outcome {
+                crate::economy::plants::ReviewOutcome::Notice => Role::Advances,
+                crate::economy::plants::ReviewOutcome::FullTime => Role::Closes,
+            },
+        ),
         K::PlantReprieved { plant, .. }
         | K::PlantClosure {
             plant: Some(plant), ..
@@ -609,6 +616,7 @@ pub fn salience(kind: &EventKind) -> Salience {
         | K::GlobalRecoveryBegan
         | K::PlantClosure { .. }
         | K::PlantThreatened { .. }
+        | K::PlantReviewed { .. }
         | K::PlantReprieved { .. }
         | K::PlantOpened { .. }
         | K::Disaster { .. }
@@ -659,6 +667,7 @@ pub fn kind_key(kind: &EventKind) -> &'static str {
         K::PlantClosure { .. } => "plant_closure",
         K::PlantShortTime { .. } => "plant_short_time",
         K::PlantThreatened { .. } => "plant_threatened",
+        K::PlantReviewed { .. } => "plant_reviewed",
         K::PlantReprieved { .. } => "plant_reprieved",
         K::PlantOpened { .. } => "plant_opened",
         K::IndustryShock { .. } => "industry_shock",

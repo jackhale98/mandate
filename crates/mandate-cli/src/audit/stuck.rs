@@ -274,8 +274,8 @@ fn industries(hs: &[History], end: usize) -> Value {
                         }
                     }
                 }
-                k @ ("plant_short_time" | "plant_threatened" | "plant_reprieved"
-                | "plant_opened") => {
+                k @ ("plant_short_time" | "plant_reviewed" | "plant_threatened"
+                | "plant_reprieved" | "plant_opened") => {
                     *steps.entry(k.to_string()).or_default() += 1;
                     if !(pressure || e.cause_class == "process" || e.cause_class == "linked") {
                         unexplained_steps += 1;

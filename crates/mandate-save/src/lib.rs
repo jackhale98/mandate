@@ -44,7 +44,9 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// cause can name, `Pressure::Worry`, with no change to the state's shape.) v34: doors (B3,
 /// DEC-114): households met at their doors and what each remembers. (The career card, M6 note 23, added optional
 /// fields only: the day the player stepped away, two Legacy entry kinds.)
-pub const SAVE_FORMAT_VERSION: u16 = 34;
+/// v35: the short-time review (DEC-110, amended 2026-11-26): the
+/// `plant_reviewed` event.
+pub const SAVE_FORMAT_VERSION: u16 = 35;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -280,6 +282,10 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // only this key if another bump merges first (the step names no
         // version).
         (33, doorsteps),
+        // The short-time review (DEC-110 amended): the previous format to
+        // the next. Renumber only this key if another bump merges first (the
+        // step names no version).
+        (34, plant_review),
     ];
     let mut value = value;
     let mut v = from;
@@ -1106,6 +1112,8 @@ fn upkeep_faults(value: serde_json::Value) -> Result<serde_json::Value, SaveErro
 /// state, an older save has no doorstep records and no canvass under way
 /// (the field's default), so every household starts as not yet met.
 fn doorsteps(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+/// v35: the short-time review (DEC-110, amended 2026-11-26): the
+/// `plant_reviewed` event.
     Ok(value)
 }
 
