@@ -435,7 +435,9 @@ pub struct ExitDef {
     /// A story the outlets may run as it ends.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub headline_key: Option<String>,
-    /// The Legacy record's line (task A2).
+    /// The Legacy record's line for how the arc ended (its `ArcEnded`
+    /// entry; the career card, M6 note 23). Without one, the exit's own
+    /// text (`key`) stands for it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub legacy_key: Option<String>,
     /// An arc that may follow (task A2).
@@ -917,16 +919,12 @@ pub fn inert(a: &ArcDef) -> Vec<String> {
                 s.id
             ));
         }
-        if let Some(x) = &s.exit {
-            if x.legacy_key.is_some() {
-                out.push(format!(
-                    "exit `{}`: `legacy_key` (the Legacy record, A3)",
-                    s.id
-                ));
-            }
-            if x.follow_up.is_some() {
-                out.push(format!("exit `{}`: `follow_up` (with the buyer, A6)", s.id));
-            }
+        // An exit's `legacy_key` is the Legacy record's line for how the
+        // arc ended (the career card, M6 note 23).
+        if let Some(x) = &s.exit
+            && x.follow_up.is_some()
+        {
+            out.push(format!("exit `{}`: `follow_up` (with the buyer, A6)", s.id));
         }
     }
     out

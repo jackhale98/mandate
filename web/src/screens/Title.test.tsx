@@ -32,7 +32,8 @@ describe("the title screen", () => {
     setup([run("b", 2, { player: zeno }), run("a", 1)]);
     render(<Title />);
     const heads = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(heads).toEqual(["Your runs", "New career"]);
+    // Then starting from a world code (M6 note 23).
+    expect(heads).toEqual(["Your runs", "New career", "Start from a code"]);
     const rows = screen.getAllByTestId("run-row");
     const buttons = rows.map((r) => within(r).getByRole("button", { name: "Continue" }));
     expect(buttons[0]?.className).toContain("btn-primary");

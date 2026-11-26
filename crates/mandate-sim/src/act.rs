@@ -44,6 +44,10 @@ pub struct ActState {
     pub skip: Option<SkipRun>,
     /// The last finished skip: the interrupt or homecoming summary (REQ-010).
     pub last_skip: Option<SkipSummary>,
+    /// The day the player stepped away from politics (M6 note 23,
+    /// `Command::StepAway`): the run is over, unfinished.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stepped_away: Option<SimDate>,
 }
 
 impl ActState {
@@ -53,6 +57,48 @@ impl ActState {
     }
     pub fn over(&self) -> bool {
         self.ending.is_some()
+    }
+}
+
+/// Step away from politics (M6 note 23): the run closes now, at any point
+/// of a turn (a race under way, a scene begun), with the ending the content
+/// gives for it (`EndingWhen::SteppedAway`). The record takes in what
+/// happened since the last turn, then the step away itself and the race
+/// walked away from, if any; then it closes. Refused once the act is over.
+pub fn step_away(state: &mut crate::State, content: &ContentBundle) -> Result<(), String> {
+    if state.player.is_none() {
+        return Err("no player".into());
+    }
+    if state.act.over() || state.act.stepped_away.is_some() {
+        return Err("the act is over".into());
+    }
+    if !content
+        .endings
+        .iter()
+        .any(|e| matches!(e.when, mandate_content::act::EndingWhen::SteppedAway))
+    {
+        return Err("the content has no ending for stepping away".into());
+    }
+    if state.act.records.is_empty() {
+        crate::legacy::begin(state, content);
+    }
+    crate::legacy::observe(state, content);
+    let date = state.calendar.date;
+    let race = crate::career::race_under_way(state);
+    if let Some(rec) = state.act.records.last_mut() {
+        rec.entries.push(crate::legacy::LegacyEntry {
+            date,
+            kind: crate::legacy::LegacyKind::SteppedAway { race },
+            source_event: None,
+        });
+    }
+    state.act.stepped_away = Some(date);
+    match crate::endings::check(state, content) {
+        Some(e) => {
+            crate::legacy::close(state, content, e);
+            Ok(())
+        }
+        None => Err("no ending holds".into()),
     }
 }
 

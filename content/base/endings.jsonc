@@ -8,6 +8,14 @@
   "kind": "endings",
   "items": [
     {
+      // The player stepped away from politics (M6 note 23): the run is
+      // abandoned, at any time, after one confirmation. First, so that it
+      // names the close whatever else holds that day.
+      "id": "ending.stepped_away", "title_key": "ending-stepped_away", "text_key": "ending-stepped_away-text", "tone": "neutral",
+      "when": { "type": "stepped_away" },
+      "facts": ["years", "posts_held", "elections_won", "laws_passed", "decisions"],
+    },
+    {
       // Prison for years, or a ban from office (the justice path).
       "id": "ending.jailed", "title_key": "ending-jailed", "text_key": "ending-jailed-text", "tone": "defeat",
       "when": { "type": "status", "status": ["imprisoned", "ended"] },

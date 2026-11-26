@@ -4,6 +4,8 @@ import { useSheetClose } from "../useSheetClose";
 import { capital } from "../DecisionSheet";
 import { actArgs } from "./actArgs";
 import { WhyButton } from "../why/WhyButton";
+import { CareerCard } from "../card/CareerCard";
+import { useEffect, useRef } from "react";
 
 /**
  * The act epilogue and its Legacy record (DEC-006, DEC-100: a record, no
@@ -18,6 +20,18 @@ export function Epilogue() {
   const quit = useGame((s) => s.saveAndQuit);
   const openDecision = useGame((s) => s.openDecision);
   const [closing, requestClose, sheetRef] = useSheetClose(() => void open(false));
+  const card = useGame((s) => s.careerCard);
+  const cardLoading = useGame((s) => s.cardLoading);
+  const loadCard = useGame((s) => s.loadCard);
+  const over = l?.ending != null;
+  const asked = useRef(false);
+  // Once the act is over, the epilogue carries the career card (M6 note 23): asked for once.
+  useEffect(() => {
+    if (over && !card && !cardLoading && !asked.current) {
+      asked.current = true;
+      void loadCard();
+    }
+  }, [over, card, cardLoading, loadCard]);
   if (!l) return null;
   const e = l.ending;
   return (
@@ -52,6 +66,7 @@ export function Epilogue() {
               </dl>
             </section>
           )}
+          {e && <CareerCard />}
           {l.final_standing && (
             <section className="card">
               <h3 className="sub">{tr.t("ui-epilogue-final")}</h3>

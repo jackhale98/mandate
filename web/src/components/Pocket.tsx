@@ -472,7 +472,7 @@ function Today({ p }: { p: PocketView }) {
   );
 }
 
-/** The ⋯ menu (owner's answer 3): the maps, the story so far, skip ahead, Legacy, save and leave, report a problem, privacy. */
+/** The ⋯ menu (owner's answer 3): the maps, the story so far, skip ahead, Legacy, save and leave, step away from politics (M6 note 23), report a problem, privacy. */
 function MoreMenu() {
   const tr = useGame((s) => s.tr);
   const o = useGame((s) => s.office);
@@ -483,6 +483,7 @@ function MoreMenu() {
   const openStory = useGame((s) => s.openStory);
   const openTermReview = useGame((s) => s.openTermReview);
   const openLegacy = useGame((s) => s.openLegacy);
+  const openStepAway = useGame((s) => s.openStepAway);
   const actOver = useGame((s) => s.overview?.act?.ended_key != null);
   const openReport = useReport((s) => s.openReport);
   const [open, setOpen] = useState(false);
@@ -550,6 +551,11 @@ function MoreMenu() {
           <button type="button" className="btn" disabled={busy} onClick={act(() => void saveAndQuit())}>
             {tr.t("ui-save-quit")}
           </button>
+          {!actOver && (
+            <button type="button" className="btn" disabled={busy} onClick={act(() => openStepAway(true))} data-testid="open-step-away">
+              {tr.t("ui-step-away")}
+            </button>
+          )}
           <button type="button" className="btn" onClick={act(() => openReport("menu"))} data-testid="report-problem">
             {tr.t("ui-report")}
           </button>

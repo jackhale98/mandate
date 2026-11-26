@@ -342,6 +342,7 @@ Done since 2026-11-24 (live): the power broker (note 27), conversations narrowed
     - **Sharing, with no server:** "Copy" gives a short text block; "Share" opens the device's share sheet with an image. The card carries a world code (seed, scenario, constitution, opening) so someone else can play the same opening; it also carries the build, and a code from another build says so.
     - **Stepping away:** the player may abandon a run at any time ("step away from politics"), after one confirmation. The run closes with a short epilogue, enters the Legacy record, and gives the same card marked as unfinished, with the year and post; a race under way is named as one walked away from.
     - Nothing personal is on the card: the character and the world only.
+    - Built 2026-11-26 (`progress/2026-11-26-the-career-card-and-stepping-away.md`): ratings by the engaged stand-in (a race as it opens, the opening from the rebuilt start), the card in the epilogue, Copy and Share, the world code, Step away from politics.
 
 24. **"Why?" panels** (built 2026-11-25, on the causal spine). Follow-ups, small, for the next web batch:
     - A chain that starts from the storyteller's spotlight on an event shows that event's sentence twice.

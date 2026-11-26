@@ -48,6 +48,9 @@ import { deviceId, randomHex, type RunSummary } from "../persistence/saveStore";
 import { noteCommand, recordError } from "./reportStore";
 import { isWide, placeTab, readFolds, readMapScope, readNotebookTab, readPocketDocked, readPocketTab, readRecentOpenings, rememberOpening, writeFolds, writeMapScope, writeNotebookTab, writePocketDocked, writePocketTab, type MapScope, type NotebookTab, type PocketSide, type PocketTab } from "./devicePrefs";
 import type { DraftView } from "../engine/protocol/DraftView";
+import type { CareerCardView } from "../engine/protocol/CareerCardView";
+import type { WorldCodeCheckView } from "../engine/protocol/WorldCodeCheckView";
+import { useScene } from "../components/exchange/sceneStore";
 
 export type { MapScope, NotebookTab, PocketSide, PocketTab } from "./devicePrefs";
 
@@ -153,6 +156,12 @@ interface GameState {
   skipSummary: SkipSummaryView | null;
   /** The act's Legacy record and epilogue (DEC-006), when open. */
   legacy: LegacyView | null;
+  /** The career card (M6 note 23), once the act is over and it has been asked for. */
+  careerCard: CareerCardView | null;
+  /** The engine is making the card (the first time, it rates the opening). */
+  cardLoading: boolean;
+  /** The "Step away from politics" confirmation is open. */
+  stepAwayOpen: boolean;
   /** Asks and promises on record (DEC-097 §2): loaded with the story so far (its promises). */
   asks: AsksView | null;
   /** The promise picker (campaigning), when open. */
@@ -291,6 +300,16 @@ interface GameState {
   closeSkipSummary(): void;
   /** Open (or close) the Legacy record and epilogue. */
   openLegacy(open: boolean): Promise<void>;
+  /** Ask the engine for the career card (once the act is over); kept in the run file. */
+  loadCard(): Promise<void>;
+  /** Open (or close) the one confirmation before stepping away. */
+  openStepAway(open: boolean): void;
+  /** Step away from politics (M6 note 23): the run closes, unfinished; the epilogue opens with the card. */
+  stepAway(): Promise<void>;
+  /** Read a world code (no game needed): what it starts, or why it cannot. */
+  readCode(code: string): Promise<WorldCodeCheckView>;
+  /** Start a new game from a world code: the same opening as the card it came from. */
+  startFromCode(code: string, mode: RunModeDto): Promise<void>;
   /** Accept or decline an ask (free, from anywhere; DEC-097 §2). */
   respondAsk(ask: number, accept: boolean): Promise<void>;
   /** Casework on an accepted ask ("Sort it out", one slot): walks to where it is done first. */
@@ -434,6 +453,9 @@ export const useGame = create<GameState>((set, get) => {
     skipCancel: false,
     skipSummary: null,
     legacy: null,
+    careerCard: null,
+    cardLoading: false,
+    stepAwayOpen: false,
     asks: null,
     promiseMenu: null,
     notebook: null,
@@ -527,7 +549,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: localKnowledge ?? false, recent_openings: [] } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, careerCard: null, stepAwayOpen: false, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -578,7 +600,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const overview = expectKind(await engine().request({ kind: "choose_opening", payload: { index } }), "game_started");
         rememberOpening(chosen.tag);
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode: opts.mode, revision: 0 }, screen: "game", draft: null, draftOpts: null });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, careerCard: null, stepAwayOpen: false, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode: opts.mode, revision: 0 }, screen: "game", draft: null, draftOpts: null });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -927,6 +949,66 @@ export const useGame = create<GameState>((set, get) => {
       }
     },
 
+    async loadCard() {
+      if (get().cardLoading) return;
+      set({ cardLoading: true, progress: null });
+      const off = engine().onProgress((stage, fraction) => set({ progress: { stage, fraction } }));
+      try {
+        const card = expectKind(await engine().request({ kind: "query", payload: { type: "career_card" } }), "career_card");
+        set({ careerCard: card });
+        // The opening's rating is kept in the run file once measured.
+        if (card) await persist("ended");
+      } catch (e) {
+        set({ error: errText(e) });
+      } finally {
+        off();
+        set({ cardLoading: false, progress: null });
+      }
+    },
+
+    openStepAway(open) {
+      set({ stepAwayOpen: open });
+    },
+
+    async stepAway() {
+      if (!get().run || get().busy) return;
+      set({ busy: true, error: null });
+      noteCommand({ type: "step_away" });
+      try {
+        const applied = expectKind(await engine().request({ kind: "command", payload: { type: "step_away" } }), "command_applied");
+        await persist("ended");
+        // Whatever was open (a scene, a talk, a sheet) closes: the run is over.
+        useScene.getState().close();
+        set({ overview: applied.overview, stepAwayOpen: false, toast: null, decision: null, character: null, talk: null, talkTo: null, exchange: null, openPlace: null, place: null, interior: null, interiorPlace: null, termReview: null, skipSummary: null, promiseMenu: null, story: null, arc: null, pocketOpen: false, townMapOpen: false });
+        await get().refreshDesk();
+      } catch (e) {
+        set({ error: errText(e), stepAwayOpen: false });
+      } finally {
+        set({ busy: false });
+      }
+      if (get().overview?.act?.ended_key) await get().openLegacy(true);
+    },
+
+    async readCode(code) {
+      return expectKind(await engine().request({ kind: "query", payload: { type: "world_code", code } }), "world_code");
+    },
+
+    async startFromCode(code, mode) {
+      set({ busy: true, error: null, map: null, progress: { stage: "progress-terrain", fraction: 0 } });
+      const off = engine().onProgress((stage, fraction) => set({ progress: { stage, fraction } }));
+      try {
+        const overview = expectKind(await engine().request({ kind: "start_from_code", payload: { code } }), "game_started");
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, careerCard: null, stepAwayOpen: false, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        await persist();
+        await get().refreshDesk();
+      } catch (e) {
+        set({ error: errText(e) });
+      } finally {
+        off();
+        set({ busy: false, progress: null });
+      }
+    },
+
     async openTalk(to) {
       if (to === null) {
         set({ talk: null, talkTo: null, exchange: null, talkLate: false, talkAsked: null });
@@ -1196,7 +1278,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, arc: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, careerCard: null, stepAwayOpen: false, asks: null, promiseMenu: null, arc: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -1211,7 +1293,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, careerCard: null, stepAwayOpen: false, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });

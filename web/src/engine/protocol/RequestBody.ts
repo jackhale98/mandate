@@ -3,4 +3,4 @@ import type { CommandDto } from "./CommandDto";
 import type { NewGameParams } from "./NewGameParams";
 import type { QueryDto } from "./QueryDto";
 
-export type RequestBody = { "kind": "new_game", "payload": NewGameParams } | { "kind": "choose_opening", "payload": { index: number, } } | { "kind": "command", "payload": CommandDto } | { "kind": "query", "payload": QueryDto };
+export type RequestBody = { "kind": "new_game", "payload": NewGameParams } | { "kind": "choose_opening", "payload": { index: number, } } | { "kind": "start_from_code", "payload": { code: string, } } | { "kind": "command", "payload": CommandDto } | { "kind": "query", "payload": QueryDto };

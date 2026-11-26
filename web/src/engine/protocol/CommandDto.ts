@@ -22,4 +22,4 @@ choices?: Array<ChoiceValue>, } | { "type": "draft_family", proposal: number, ch
 /**
  * Topic content id (`TopicView.id`).
  */
-topic: string, about: AboutRefDto | null, late_night: boolean, } | { "type": "set_directives", choices: Array<DirectiveChoiceDto>, } | { "type": "skip", target: SkipTargetDto, limit: number | null, } | { "type": "cancel_skip" } | { "type": "respond_ask", ask: number, accept: boolean, } | { "type": "promise", template: string, answer: string | null, } | { "type": "arc_exchange", arc: number, beat: string, act: SceneActDto, };
+topic: string, about: AboutRefDto | null, late_night: boolean, } | { "type": "set_directives", choices: Array<DirectiveChoiceDto>, } | { "type": "skip", target: SkipTargetDto, limit: number | null, } | { "type": "cancel_skip" } | { "type": "step_away" } | { "type": "respond_ask", ask: number, accept: boolean, } | { "type": "promise", template: string, answer: string | null, } | { "type": "arc_exchange", arc: number, beat: string, act: SceneActDto, };

@@ -7,6 +7,8 @@ use mandate_save::runlog::{ReplayOutcome, replay};
 use mandate_save::{DraftLog, NewGameSetup, RunLog, RunMode, SaveRequest};
 use mandate_sim::arcs::audition::{Audition, Draft};
 use mandate_sim::arcs::opening::{self, OpeningChoice};
+use mandate_sim::career::code::{WorldCode, this_build};
+use mandate_sim::career::{self, RaceRating};
 use mandate_sim::{Command, Engine};
 use mandate_worldgen::{WorldConfig, WorldSize, generate_with_progress, rebuild_terrain};
 use serde::{Deserialize, Serialize};
@@ -28,6 +30,10 @@ pub struct Session {
     /// The new game's opening draft (DEC-101 §3): under way one fork a
     /// message, or made (once a game: a second query reads it).
     draft: Option<DraftWork>,
+    /// Races the stand-ins could not rate (not kept: asked again next game).
+    unratable: Vec<(mandate_sim::politics::Post, mandate_core::SimDate)>,
+    /// The opening could not be rated (its world could not be rebuilt).
+    opening_unratable: bool,
 }
 
 /// The audition of a new game.
@@ -125,6 +131,8 @@ impl Session {
             layout: None,
             log: None,
             draft: None,
+            unratable: Vec::new(),
+            opening_unratable: false,
         })
     }
 
@@ -213,12 +221,13 @@ impl Session {
                 };
                 let engine = start_game(&self.content, &setup, progress)?;
                 let view = overview(&engine);
-                self.log = Some(RunLog::start(setup, &engine));
-                self.engine = Some(engine);
+                let log = RunLog::start(setup, &engine);
+                self.begin(engine, log);
                 self.draft = None;
                 Ok(ResponseBody::GameStarted(view))
             }
             RequestBody::ChooseOpening { index } => self.choose_opening(index as usize),
+            RequestBody::StartFromCode { code } => self.start_from_code(&code),
             RequestBody::Command(c) => {
                 let command = match c {
                     CommandDto::EndTurn => Command::EndTurn,
@@ -236,6 +245,7 @@ impl Session {
                         limit: Some(limit.unwrap_or(26).clamp(1, 26)),
                     },
                     CommandDto::CancelSkip => Command::CancelSkip,
+                    CommandDto::StepAway => Command::StepAway,
                     other => Command::Player(player_command(self.engine.as_ref(), other)?),
                 };
                 let engine = self
@@ -250,6 +260,11 @@ impl Session {
                     && let Some(log) = self.log.as_mut()
                 {
                     log.checkpoint(engine);
+                }
+                // A race the player now stands in is rated as it opens
+                // (the career card, M6 note 23).
+                if let Some(log) = self.log.as_mut() {
+                    rate_open_races(engine, log, &mut self.unratable);
                 }
                 Ok(ResponseBody::CommandApplied(CommandAppliedView {
                     days_advanced: outcome.days_advanced,
@@ -404,6 +419,11 @@ impl Session {
                         }))
                     }
                 }
+                QueryDto::CareerCard => self.career_card().map(ResponseBody::CareerCard),
+                QueryDto::WorldCode { code } => Ok(ResponseBody::WorldCode(world_code_view(
+                    &self.content,
+                    &code,
+                ))),
                 QueryDto::Arc { id } => arc_view(self.engine_mut()?, id)
                     .map(ResponseBody::Arc)
                     .ok_or_else(|| err(ErrorCode::BadRequest, format!("no arc {id}"))),
@@ -551,9 +571,116 @@ impl Session {
         let mut log = RunLog::start(setup, engine);
         log.draft = Some(scores);
         let view = overview(engine);
+        self.reset_ratings();
+        if let Some(engine) = self.engine.as_ref() {
+            rate_open_races(engine, &mut log, &mut self.unratable);
+        }
         self.log = Some(log);
         self.draft = None;
         Ok(ResponseBody::GameStarted(view))
+    }
+
+    /// A new game's engine and run log: the races open as play begins are
+    /// rated (a run can begin in a campaign).
+    fn begin(&mut self, engine: Engine, mut log: RunLog) {
+        self.reset_ratings();
+        rate_open_races(&engine, &mut log, &mut self.unratable);
+        self.engine = Some(engine);
+        self.log = Some(log);
+    }
+
+    fn reset_ratings(&mut self) {
+        self.unratable.clear();
+        self.opening_unratable = false;
+    }
+
+    /// Start a new game from a world code (`RequestBody::StartFromCode`):
+    /// the setup it carries, through the one path to a new game.
+    fn start_from_code(&mut self, code: &str) -> Result<ResponseBody, ProtocolError> {
+        let w = WorldCode::decode(code, &self.content).map_err(|e| {
+            err(
+                ErrorCode::BadRequest,
+                format!("this code cannot be read ({})", e.key()),
+            )
+        })?;
+        // Worldgen makes a world under the content's first constitution.
+        if self.content.constitutions.keys().next() != Some(&w.constitution) {
+            return Err(err(
+                ErrorCode::BadRequest,
+                "this code needs a constitution this build does not start worlds under",
+            ));
+        }
+        let setup = NewGameSetup::from_code(&w);
+        let mut noop = |_: &str, _: f64| {};
+        let progress: &mut dyn FnMut(&str, f64) = match self.progress.as_mut() {
+            Some(f) => f.as_mut(),
+            None => &mut noop,
+        };
+        let engine = start_game(&self.content, &setup, progress)?;
+        let view = overview(&engine);
+        let log = RunLog::start(setup, &engine);
+        self.begin(engine, log);
+        self.draft = None;
+        Ok(ResponseBody::GameStarted(view))
+    }
+
+    /// The career card (`QueryDto::CareerCard`): `None` while the act runs.
+    /// The first time, the opening is rated on the world as play began,
+    /// rebuilt from the run file, and the rating kept in it.
+    fn career_card(&mut self) -> Result<Option<CareerCardView>, ProtocolError> {
+        let engine = self
+            .engine
+            .as_ref()
+            .ok_or_else(|| err(ErrorCode::NoGame, "no game is running"))?;
+        if !engine.state().act.over() {
+            return Ok(None);
+        }
+        if let Some(log) = self.log.as_mut()
+            && log.opening_rating.is_none()
+            && !self.opening_unratable
+        {
+            match log.new_game.clone() {
+                Some(setup) => {
+                    let mut noop = |_: &str, _: f64| {};
+                    let progress: &mut dyn FnMut(&str, f64) = match self.progress.as_mut() {
+                        Some(f) => f.as_mut(),
+                        None => &mut noop,
+                    };
+                    let rated = start_game(&self.content, &setup, &mut |_, x| {
+                        progress("progress-card", x * 0.6)
+                    })
+                    .ok()
+                    .and_then(|start| {
+                        let r = career::rate_race(start.state(), &start.content_arc(), None).ok();
+                        progress("progress-card", 1.0);
+                        r
+                    });
+                    match rated {
+                        Some(r) => log.opening_rating = Some(r),
+                        None => self.opening_unratable = true,
+                    }
+                }
+                None => self.opening_unratable = true,
+            }
+        }
+        let log = self.log.as_ref();
+        let st = engine.state();
+        let code = log.and_then(|l| l.new_game.as_ref()).map(|s| {
+            s.world_code(&st.meta.constitution, &this_build(&self.content))
+                .encode()
+        });
+        let no_ratings: Vec<RaceRating> = Vec::new();
+        Ok(career_card_view(
+            engine,
+            &CardInputs {
+                ratings: log.map_or(&no_ratings, |l| &l.ratings),
+                opening_rating: log.and_then(|l| l.opening_rating.as_ref()),
+                opening: log
+                    .and_then(|l| l.new_game.as_ref())
+                    .and_then(|s| s.opening.as_ref()),
+                code,
+            },
+        ))
     }
 
     /// Encode the running game as a save file.
@@ -651,12 +778,43 @@ impl Session {
                 engine.restore_log(std::mem::take(&mut log.commands));
                 log
             }
-            Some(_) => RunLog::unreplayable(&engine, rules),
+            // The ratings are facts of the run so far: kept (the opening's
+            // world can no longer be rebuilt, so it is rated only if it was).
+            Some(old) => RunLog {
+                ratings: old.ratings,
+                opening_rating: old.opening_rating,
+                ..RunLog::unreplayable(&engine, rules)
+            },
             None => RunLog::unreplayable(&engine, "the run began before run logs were kept"),
         });
+        self.unratable.clear();
+        self.opening_unratable = false;
         let view = overview(&engine);
         self.engine = Some(engine);
         Ok(view)
+    }
+}
+
+/// Rate each race the player stands in that the log has no rating of yet
+/// (the career card, M6 note 23): by the stand-ins, on forks of the state
+/// as it stands, which is only read. Not while the act is over.
+fn rate_open_races(
+    engine: &Engine,
+    log: &mut RunLog,
+    unratable: &mut Vec<(mandate_sim::politics::Post, mandate_core::SimDate)>,
+) {
+    let st = engine.state();
+    if st.act.over() {
+        return;
+    }
+    for (post, day) in career::races_open(st) {
+        if log.ratings.iter().any(|r| r.is(post, day)) || unratable.contains(&(post, day)) {
+            continue;
+        }
+        match career::rate_race(st, &engine.content_arc(), Some(post)) {
+            Ok(r) => log.ratings.push(r),
+            Err(_) => unratable.push((post, day)),
+        }
     }
 }
 
@@ -851,7 +1009,8 @@ fn player_command(
         | CommandDto::NotebookSeen
         | CommandDto::SetDirectives { .. }
         | CommandDto::Skip { .. }
-        | CommandDto::CancelSkip => {
+        | CommandDto::CancelSkip
+        | CommandDto::StepAway => {
             return Err(err(
                 ErrorCode::InvalidCommand,
                 "time cannot pass as part of a move",

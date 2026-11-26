@@ -343,7 +343,7 @@ fn people_of(c: &[ArcCastEntry]) -> Vec<CastEntry> {
 /// role word, `<role>_role_key`), where it runs (`place`), the player's
 /// home (`town`) and the given readings. An arc the player knows names its
 /// cast, as its stages' lines do wherever they are told.
-fn text_args(
+pub(crate) fn text_args(
     engine: &Engine,
     c: &[ArcCastEntry],
     at: Jurisdiction,

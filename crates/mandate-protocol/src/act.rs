@@ -242,7 +242,7 @@ pub struct SkipSummaryView {
     pub items: Vec<ActLineView>,
 }
 
-fn post_key(engine: &Engine, post: Post) -> String {
+pub(crate) fn post_key(engine: &Engine, post: Post) -> String {
     engine
         .content()
         .constitutions
@@ -705,7 +705,7 @@ fn person_name(engine: &Engine, person: u32) -> String {
         .unwrap_or_default()
 }
 
-fn entry_line(
+pub(crate) fn entry_line(
     engine: &Engine,
     date: mandate_core::SimDate,
     k: &LegacyKind,
@@ -786,6 +786,24 @@ fn entry_line(
             "legacy-imprisoned"
         }
         LegacyKind::Released => "legacy-released",
+        LegacyKind::ArcEnded {
+            arc,
+            template,
+            exit,
+        } => {
+            let (title, text) = crate::card::arc_ended_text(engine, *arc, template, exit, source);
+            args.extend(text.args);
+            args.insert("title_key".into(), title.key);
+            args.insert("ending_key".into(), text.key);
+            "legacy-arc_ended"
+        }
+        LegacyKind::SteppedAway { race } => match race {
+            Some(p) => {
+                args.insert("post_key".into(), post_key(engine, *p));
+                "legacy-stepped_away-race"
+            }
+            None => "legacy-stepped_away",
+        },
     };
     ActLineView {
         date: Some(DateView::of(date)),
@@ -796,8 +814,9 @@ fn entry_line(
     }
 }
 
-fn record_view(engine: &Engine, rec: &LegacyRecord) -> LegacyView {
-    let ending = rec.ending.as_ref().map(|e| EndingView {
+/// A closed record's ending, as the epilogue shows it.
+pub(crate) fn ending_view(engine: &Engine, rec: &LegacyRecord) -> Option<EndingView> {
+    rec.ending.as_ref().map(|e| EndingView {
         id: e.id.clone(),
         title_key: e.title_key.clone(),
         text_key: e.text_key.clone(),
@@ -817,7 +836,11 @@ fn record_view(engine: &Engine, rec: &LegacyRecord) -> LegacyView {
             .iter()
             .map(|(k, v)| (k.clone(), v.to_string()))
             .collect(),
-    });
+    })
+}
+
+fn record_view(engine: &Engine, rec: &LegacyRecord) -> LegacyView {
+    let ending = ending_view(engine, rec);
     let final_standing = rec.final_standing.as_ref().map(|f| FinalStandingView {
         mandate: f.mandate.round() as i64,
         standing: f.standing.round() as i64,

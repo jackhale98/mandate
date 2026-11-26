@@ -31,6 +31,11 @@ pub enum Command {
     },
     /// Cancel the skip in progress (a safe point: between turns).
     CancelSkip,
+    /// Step away from politics (M6 note 23): the run closes now, unfinished,
+    /// with its epilogue and Legacy record; a race under way is walked away
+    /// from. Allowed at any time while the act runs (mid-turn, mid-race,
+    /// mid-scene, mid-skip); after it, time no longer passes for the player.
+    StepAway,
     /// Lab only (never exposed to players): inject a sector demand shock.
     LabSectorShock {
         municipality: u32,

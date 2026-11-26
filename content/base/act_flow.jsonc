@@ -128,6 +128,9 @@
       "works_categories": ["infrastructure", "housing", "environment"],
       "notable": ["climax", "significant"],
       "max_entries": 200,
+      // The career card's ratings (M6 note 23, DEC-102 clause 6): plays of
+      // a race by the engaged stand-in, each on a fork under its own luck.
+      "rating_plays": 4,
     },
   },
 }

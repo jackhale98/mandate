@@ -20,6 +20,7 @@ import { DoorSheet } from "../components/doors/DoorSheet";
 import { TermReview } from "../components/act/TermReview";
 import { SkipSummary } from "../components/act/SkipSummary";
 import { Epilogue } from "../components/act/Epilogue";
+import { StepAway } from "../components/card/StepAway";
 import { PromisePicker } from "../components/asks/PromisePicker";
 import { WhyPanel } from "../components/why/WhyPanel";
 import { WhyButton } from "../components/why/WhyButton";
@@ -188,6 +189,7 @@ export function Game() {
       <SkipSummary />
       <PromisePicker />
       <Epilogue />
+      <StepAway />
       <WhyPanel />
       <Walking />
       <TurnPassage />

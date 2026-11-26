@@ -9,6 +9,7 @@ import { Loader, LogoMark } from "../components/Brand";
 import type { Translator } from "../i18n/fluent";
 import type { RunPlayer } from "../persistence/saveStore";
 import { ExportRunButton, ImportRun, TransferStatus, type TransferNotice } from "../components/RunTransfer";
+import { CodeStart } from "../components/card/CodeStart";
 
 /** Whose run it is, as the pocket's header says it: name, post, home (the post's word and the home come from the engine's view of the save). */
 export function runWho(tr: Translator, p: RunPlayer): string {
@@ -209,6 +210,8 @@ export function Title() {
           {runsSection}
         </>
       )}
+      {/* Someone's career card carries a world code: the same opening, here (M6 note 23). */}
+      <CodeStart mode={mode} />
       <footer className="foot muted">
         <p className="fiction">{tr.t("app-fiction")}</p>
         <span className="small build-id" data-testid="build-id" title={tr.t("ui-build-id-hint")}>

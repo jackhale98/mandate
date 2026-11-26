@@ -9,6 +9,8 @@
 use mandate_sim::arcs::audition::Draft;
 use mandate_sim::arcs::opening::OpeningChoice;
 use mandate_sim::arcs::score::Opening;
+use mandate_sim::career::RaceRating;
+use mandate_sim::career::code::WorldCode;
 use mandate_sim::engine::LoggedCommand;
 use mandate_sim::state::WorldSize;
 use mandate_sim::{Command, Engine, EngineError};
@@ -56,6 +58,36 @@ impl NewGameSetup {
             mandate_sim::arcs::opening::open(engine, o).map_err(EngineError::InvalidCommand)?;
         }
         Ok(())
+    }
+
+    /// The world code that plays this setup again (M6 note 23): its seed,
+    /// size, scenario, storyteller, starting knowledge and opening, the
+    /// constitution the world was made under, and this build. The device's
+    /// recent openings are not carried (a shared seed passes none).
+    pub fn world_code(&self, constitution: &str, build: &str) -> WorldCode {
+        WorldCode {
+            seed: self.seed,
+            size: self.size,
+            scenario: self.scenario.clone(),
+            constitution: constitution.to_string(),
+            storyteller: self.storyteller.clone(),
+            local_knowledge: self.local_knowledge,
+            opening: self.opening.clone(),
+            build: build.to_string(),
+        }
+    }
+
+    /// The setup a world code describes.
+    pub fn from_code(code: &WorldCode) -> Self {
+        NewGameSetup {
+            seed: code.seed,
+            size: code.size,
+            scenario: code.scenario.clone(),
+            storyteller: code.storyteller.clone(),
+            local_knowledge: code.local_knowledge,
+            recent_openings: Vec::new(),
+            opening: code.opening.clone(),
+        }
     }
 }
 
@@ -157,6 +189,17 @@ pub struct RunLog {
     /// The audition's scores, when the run began on a drafted opening.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub draft: Option<DraftLog>,
+    /// The career card's ratings (M6 note 23, DEC-102 clause 6): each race
+    /// the player entered, rated by the stand-ins as it opened, in the
+    /// order rated. Facts of the run kept beside it (the state hash does
+    /// not cover them); a pure function of the state each was taken from.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ratings: Vec<RaceRating>,
+    /// The opening's rating: its next election, rated on the world as
+    /// play began (rebuilt from `new_game` when the card is first asked
+    /// for). `None`: not yet measured, or the run cannot be rebuilt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opening_rating: Option<RaceRating>,
 }
 
 impl RunLog {
@@ -176,6 +219,8 @@ impl RunLog {
             }],
             note: None,
             draft: None,
+            ratings: Vec::new(),
+            opening_rating: None,
         }
     }
 
@@ -191,6 +236,8 @@ impl RunLog {
             checkpoints: Vec::new(),
             note: Some(note.into()),
             draft: None,
+            ratings: Vec::new(),
+            opening_rating: None,
         }
     }
 
