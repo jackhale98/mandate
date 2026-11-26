@@ -1,7 +1,7 @@
 {
   "groups": [
     {
-      "count": 3,
+      "count": 4,
       "group": "now",
       "show": 8
     },
@@ -11,7 +11,7 @@
       "show": 12
     },
     {
-      "count": 26,
+      "count": 25,
       "group": "rest",
       "show": 12
     },
@@ -22,6 +22,84 @@
     }
   ],
   "rows": [
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 90,
+        "to": {
+          "kind_key": "news_office",
+          "location": {
+            "place": 129,
+            "type": "place"
+          },
+          "name": "The Belenwick Post",
+          "neighborhood": 90,
+          "neighborhood_args": {
+            "centre_town": "Belenwick"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Belenwick"
+        }
+      },
+      "group": "now",
+      "here": false,
+      "id": 1411,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "known",
+      "name": "Mara Uedawood",
+      "new_this_turn": true,
+      "note": null,
+      "now": [
+        {
+          "arc": null,
+          "args": {},
+          "ask": 1,
+          "bill": null,
+          "days_left": 3,
+          "decision": null,
+          "due": {
+            "day": 15,
+            "day_number": 737345,
+            "month": 2,
+            "year": 2020
+          },
+          "key": "now-ask-offer",
+          "kind": "ask",
+          "title": {
+            "args": {
+              "asker": "Mara Uedawood",
+              "asker_hood": "Queens Cross",
+              "asker_occupation": "editor",
+              "asker_role_key": "occupation-editor",
+              "crisis_key": "ask-crisis-disaster_recovery",
+              "days": "3",
+              "history": "none",
+              "player": "Fen Galloway",
+              "town": "Belenwick"
+            },
+            "key": "ask-say-something"
+          }
+        }
+      ],
+      "opinion_band": "warm",
+      "owes_you": 0,
+      "party": null,
+      "rank": 0,
+      "role_key": "occupation-editor",
+      "stance": {
+        "band": "warm",
+        "shape": "up"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
     {
       "can_talk": true,
       "familiar_key": null,
@@ -77,15 +155,15 @@
       "note": null,
       "now": [
         {
-          "arc": null,
+          "arc": 0,
           "args": {},
-          "ask": 1,
+          "ask": 2,
           "bill": null,
-          "days_left": 3,
+          "days_left": 7,
           "decision": null,
           "due": {
-            "day": 15,
-            "day_number": 737345,
+            "day": 19,
+            "day_number": 737349,
             "month": 2,
             "year": 2020
           },
@@ -98,12 +176,14 @@
               "asker_occupation": "organiser",
               "asker_role_key": "occupation-organiser",
               "crisis_key": "ask-crisis-disaster_recovery",
-              "days": "3",
+              "days": "7",
               "history": "none",
+              "official": "Osric Dell",
+              "official_role_key": "role-mayor",
               "player": "Fen Galloway",
               "town": "Belenwick"
             },
-            "key": "ask-town-hall-here"
+            "key": "ask-flood-shelter"
           }
         },
         {
@@ -151,7 +231,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": null,
-      "rank": 0,
+      "rank": 1,
       "role_key": "occupation-organiser",
       "stance": {
         "band": "neutral",
@@ -198,6 +278,38 @@
         {
           "arc": 0,
           "args": {},
+          "ask": 2,
+          "bill": null,
+          "days_left": 7,
+          "decision": null,
+          "due": {
+            "day": 19,
+            "day_number": 737349,
+            "month": 2,
+            "year": 2020
+          },
+          "key": "now-ask-talk",
+          "kind": "ask",
+          "title": {
+            "args": {
+              "asker": "Neve Oak",
+              "asker_hood": "Orchardrow",
+              "asker_occupation": "organiser",
+              "asker_role_key": "occupation-organiser",
+              "crisis_key": "ask-crisis-disaster_recovery",
+              "days": "7",
+              "history": "none",
+              "official": "Osric Dell",
+              "official_role_key": "role-mayor",
+              "player": "Fen Galloway",
+              "town": "Belenwick"
+            },
+            "key": "ask-flood-shelter"
+          }
+        },
+        {
+          "arc": 0,
+          "args": {},
           "ask": null,
           "bill": null,
           "days_left": 10,
@@ -228,7 +340,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 1,
+      "rank": 2,
       "role_key": "role-mayor",
       "stance": {
         "band": "neutral",
@@ -312,7 +424,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": null,
-      "rank": 2,
+      "rank": 3,
       "role_key": "occupation-clergy",
       "stance": {
         "band": "neutral",
@@ -1463,53 +1575,6 @@
         "late_night": false,
         "neighborhood": 90,
         "to": {
-          "kind_key": "news_office",
-          "location": {
-            "place": 129,
-            "type": "place"
-          },
-          "name": "The Belenwick Post",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1411,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "known",
-      "name": "Mara Uedawood",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "warm",
-      "owes_you": 0,
-      "party": null,
-      "rank": 19,
-      "role_key": "occupation-editor",
-      "stance": {
-        "band": "warm",
-        "shape": "up"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
           "kind_key": "market",
           "location": {
             "place": 124,
@@ -1537,7 +1602,7 @@
       "opinion_band": "cool",
       "owes_you": 0,
       "party": null,
-      "rank": 20,
+      "rank": 19,
       "role_key": "occupation-business_leader",
       "stance": {
         "band": "cool",
@@ -1584,7 +1649,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": null,
-      "rank": 21,
+      "rank": 20,
       "role_key": "occupation-union_steward",
       "stance": {
         "band": "neutral",
@@ -1627,7 +1692,7 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": null,
-      "rank": 22,
+      "rank": 21,
       "role_key": "occupation-head_teacher",
       "stance": {
         "band": "neutral",
@@ -1674,7 +1739,7 @@
       "opinion_band": "warm",
       "owes_you": 0,
       "party": null,
-      "rank": 23,
+      "rank": 22,
       "role_key": "occupation-gp",
       "stance": {
         "band": "warm",
@@ -1721,7 +1786,7 @@
       "opinion_band": "cool",
       "owes_you": 0,
       "party": null,
-      "rank": 24,
+      "rank": 23,
       "role_key": "occupation-park_keeper",
       "stance": {
         "band": "cool",
@@ -1764,7 +1829,7 @@
       "opinion_band": "cool",
       "owes_you": 0,
       "party": null,
-      "rank": 25,
+      "rank": 24,
       "role_key": "occupation-shop_steward",
       "stance": {
         "band": "cool",

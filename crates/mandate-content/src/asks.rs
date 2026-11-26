@@ -286,6 +286,11 @@ pub enum NeedDef {
     },
     /// "Sort it out" at the town hall (`Action::Casework`).
     Casework,
+    /// A fault on the streets where the neighbourhood (or the person, by
+    /// their home) cast in `role` is repaired (DEC-114, upkeep): cast on the
+    /// oldest open fault there that no other ask is about, met whoever
+    /// fixes it. "Sort it out" moves it up the repair queue.
+    Fixed { role: String },
     /// None of the player's own hidden facts comes to light before the
     /// deadline: kept at the deadline unless broken.
     NoSurfacedHiddenFact,
@@ -309,6 +314,7 @@ impl NeedDef {
             NeedDef::Vote { role, .. }
             | NeedDef::Canvass { role, .. }
             | NeedDef::Talk { role, .. }
+            | NeedDef::Fixed { role }
             | NeedDef::Quiet { role } => vec![role.as_str()],
             NeedDef::TownHall { role, .. } | NeedDef::Visit { role, .. } => {
                 role.iter().map(|s| s.as_str()).collect()
@@ -541,6 +547,11 @@ pub const COMMON_ARGS: [&str; 10] = [
     "answer",
 ];
 
+/// Arguments an ask with a fault need may use besides those: the fault's
+/// name, what is wrong, its neighbourhood (`hood` too) and the month it
+/// opened.
+pub const FAULT_ARGS: [&str; 5] = ["fault", "fault_what", "fault_hood", "fault_month", "hood"];
+
 pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
     let p = &b.ask_params;
     let err =
@@ -681,6 +692,12 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             provided.insert(r.to_string());
             provided.insert(format!("{r}_role"));
             provided.insert(format!("{r}_occupation"));
+        }
+        // A fault need names its fault (DEC-114).
+        if a.needs.iter().any(|n| matches!(n, NeedDef::Fixed { .. })) {
+            for x in FAULT_ARGS {
+                provided.insert(x.to_string());
+            }
         }
         for key in [
             &a.name_key,
@@ -966,6 +983,12 @@ fn check_needs(
                 }
                 _ => {}
             },
+            NeedDef::Fixed { role } if !is_hood(role) => {
+                err(
+                    issues,
+                    &format!("a fault need names a neighbourhood or a person (`{role}` is not)"),
+                );
+            }
             NeedDef::Canvass { role, .. } if !is_hood(role) => {
                 err(
                     issues,

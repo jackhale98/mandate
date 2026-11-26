@@ -1,0 +1,232 @@
+{
+  "actions": [
+    {
+      "action": "canvass",
+      "health": 4.0,
+      "late_night": false,
+      "risk": null,
+      "shady": null,
+      "slots": 2
+    },
+    {
+      "action": "town_hall",
+      "health": 1.0,
+      "late_night": false,
+      "risk": 0.1400540182438143,
+      "shady": null,
+      "slots": 1
+    }
+  ],
+  "budget": null,
+  "decisions_here": [],
+  "faults": [
+    {
+      "args": {
+        "hood": "Belenwick"
+      },
+      "asset": "drain",
+      "cue": "drain_new",
+      "event": 2089,
+      "fixed_on": {
+        "day": 8,
+        "day_number": 737366,
+        "month": 3,
+        "year": 2020
+      },
+      "here": false,
+      "id": 0,
+      "kind": "fault.drain",
+      "moved_up": false,
+      "name_key": "fault-drain-name",
+      "neighborhood": 90,
+      "next_in_queue": false,
+      "opened": {
+        "day": 1,
+        "day_number": 737331,
+        "month": 2,
+        "year": 2020
+      },
+      "see": {
+        "kind_key": "streets",
+        "location": {
+          "neighborhood": 90,
+          "type": "street"
+        },
+        "name": "",
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
+      },
+      "spot": {
+        "kind": "kerb",
+        "slot": 2,
+        "slots": 4
+      },
+      "status": "fixed",
+      "what_key": "fault-drain-what"
+    },
+    {
+      "args": {
+        "hood": "Belenwick"
+      },
+      "asset": "drain",
+      "cue": "drain_flooded",
+      "event": 2085,
+      "here": false,
+      "id": 2,
+      "kind": "fault.drain",
+      "moved_up": false,
+      "name_key": "fault-drain-name",
+      "neighborhood": 90,
+      "next_in_queue": true,
+      "opened": {
+        "day": 1,
+        "day_number": 737359,
+        "month": 3,
+        "year": 2020
+      },
+      "see": {
+        "kind_key": "streets",
+        "location": {
+          "neighborhood": 90,
+          "type": "street"
+        },
+        "name": "",
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
+      },
+      "spot": {
+        "kind": "kerb",
+        "slot": 3,
+        "slots": 4
+      },
+      "status": "open",
+      "what_key": "fault-drain-what"
+    },
+    {
+      "args": {
+        "hood": "Belenwick"
+      },
+      "asset": "road",
+      "cue": "pothole",
+      "event": 2086,
+      "here": false,
+      "id": 3,
+      "kind": "fault.pothole",
+      "moved_up": false,
+      "name_key": "fault-pothole-name",
+      "neighborhood": 90,
+      "next_in_queue": false,
+      "opened": {
+        "day": 1,
+        "day_number": 737359,
+        "month": 3,
+        "year": 2020
+      },
+      "see": {
+        "kind_key": "streets",
+        "location": {
+          "neighborhood": 90,
+          "type": "street"
+        },
+        "name": "",
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
+      },
+      "spot": {
+        "kind": "road",
+        "slot": 4,
+        "slots": 5
+      },
+      "status": "open",
+      "what_key": "fault-pothole-what"
+    }
+  ],
+  "here": false,
+  "here_as": [
+    "visitor",
+    "visitor",
+    "visitor",
+    "visitor"
+  ],
+  "interior": null,
+  "internal_poll": null,
+  "location": {
+    "kind_key": "streets",
+    "location": {
+      "neighborhood": 90,
+      "type": "street"
+    },
+    "name": "",
+    "neighborhood": 90,
+    "neighborhood_args": {
+      "centre_town": "Belenwick"
+    },
+    "neighborhood_key": "ui-hood-centre",
+    "neighborhood_name": "Belenwick"
+  },
+  "newspaper": null,
+  "overheard": null,
+  "people": [
+    {
+      "ambient_slot": null,
+      "can_talk": false,
+      "has_news": true,
+      "id": 91,
+      "level": "known",
+      "name": "Emeric Bircher",
+      "role_key": "occupation-retiree",
+      "rumoured": false,
+      "tier": "named"
+    },
+    {
+      "ambient_slot": null,
+      "can_talk": false,
+      "has_news": true,
+      "id": 352,
+      "level": "detailed",
+      "name": "Nadia Mercerwood",
+      "role_key": "occupation-shopkeeper",
+      "rumoured": false,
+      "tier": "named"
+    },
+    {
+      "ambient_slot": null,
+      "can_talk": false,
+      "has_news": true,
+      "id": 360,
+      "level": "known",
+      "name": "Bodil Sedge",
+      "role_key": "role-councillor",
+      "rumoured": false,
+      "tier": "principal"
+    },
+    {
+      "ambient_slot": 0,
+      "can_talk": false,
+      "has_news": false,
+      "id": null,
+      "level": "unknown",
+      "name": "",
+      "role_key": "occupation-retiree",
+      "rumoured": false,
+      "tier": "ambient"
+    }
+  ],
+  "plant": null,
+  "proposals_here": [],
+  "services": [],
+  "town_data": null,
+  "verbs": []
+}

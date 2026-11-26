@@ -886,6 +886,7 @@ pub fn generate_with_progress(
         asks: Default::default(),
         act: Default::default(),
         arcs: Default::default(),
+        upkeep: Default::default(),
     };
     let years = content.tuning.burn_in_years as u32;
     let mut engine = Engine::from_state(state, content)?;

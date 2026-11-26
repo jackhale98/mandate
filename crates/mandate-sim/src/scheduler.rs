@@ -21,6 +21,7 @@ use crate::politics::PoliticsState;
 use crate::population::PopulationState;
 use crate::spine::Cause;
 use crate::state::{Calendar, State, WorldMeta};
+use crate::upkeep::UpkeepState;
 use crate::world::World;
 use mandate_content::{ContentBundle, ContentKey};
 use mandate_core::{Cadence, RngStreams, SimDate};
@@ -218,6 +219,9 @@ pub enum Effect {
         category: Option<usize>,
         factor: f64,
     },
+    /// Move a fault up its repair queue (the upkeep domain applies;
+    /// DEC-114): casework, never money.
+    Expedite { fault: u32 },
     /// An arc's ask beat (DEC-109): the asks offer this template from the
     /// run's cast person, if they are free to ask and it can be kept.
     OfferAsk {
@@ -282,6 +286,7 @@ pub struct Reads<'a> {
     justice: Option<&'a JusticeState>,
     asks: Option<&'a AskState>,
     arcs: Option<&'a ArcsState>,
+    upkeep: Option<&'a UpkeepState>,
     /// The player, if one exists (lab runs may have none).
     pub player: Option<&'a PlayerState>,
 }
@@ -310,6 +315,7 @@ impl<'a> Reads<'a> {
             justice: Some(&state.justice),
             asks: Some(&state.asks),
             arcs: Some(&state.arcs),
+            upkeep: Some(&state.upkeep),
             player: state.player.as_ref(),
         }
     }
@@ -378,6 +384,11 @@ impl<'a> Reads<'a> {
     pub fn arcs(&self) -> Option<&'a ArcsState> {
         self.arcs
     }
+    /// The upkeep domain: `None` inside its own systems (readers treat that
+    /// as no faults).
+    pub fn upkeep(&self) -> Option<&'a UpkeepState> {
+        self.upkeep
+    }
 }
 
 /// Shared outputs every system may use.
@@ -420,6 +431,8 @@ pub enum SystemFn {
     Asks(fn(&mut AskState, &Reads<'_>, &mut Outs<'_>)),
     /// Staged arcs (DEC-109).
     Arcs(fn(&mut ArcsState, &Reads<'_>, &mut Outs<'_>)),
+    /// Upkeep and faults (DEC-114).
+    Upkeep(fn(&mut UpkeepState, &Reads<'_>, &mut Outs<'_>)),
     /// Writes nothing but the event log.
     Log(fn(&Reads<'_>, &mut Outs<'_>)),
 }
@@ -538,6 +551,7 @@ fn run_one(
         // The act domain is engine turn code, not a scheduled system.
         act: _,
         arcs,
+        upkeep,
     } = state;
     let mut outs = Outs {
         rng,
@@ -593,6 +607,23 @@ fn run_one(
             )
         };
         ($pop:expr, $eco:expr, $fin:expr, $env:expr, $pol:expr, $poly:expr, $ply:expr, $narr:expr, $med:expr, $jus:expr, $asks:expr, $arcs:expr) => {
+            reads!(
+                $pop,
+                $eco,
+                $fin,
+                $env,
+                $pol,
+                $poly,
+                $ply,
+                $narr,
+                $med,
+                $jus,
+                $asks,
+                $arcs,
+                Some(&*upkeep)
+            )
+        };
+        ($pop:expr, $eco:expr, $fin:expr, $env:expr, $pol:expr, $poly:expr, $ply:expr, $narr:expr, $med:expr, $jus:expr, $asks:expr, $arcs:expr, $upk:expr) => {
             Reads {
                 content,
                 date,
@@ -610,6 +641,7 @@ fn run_one(
                 justice: $jus,
                 asks: $asks,
                 arcs: $arcs,
+                upkeep: $upk,
                 player: $ply,
             }
         };
@@ -778,6 +810,24 @@ fn run_one(
                 None
             );
             g(arcs, &r, &mut outs)
+        }
+        SystemFn::Upkeep(g) => {
+            let r = reads!(
+                Some(&*population),
+                Some(&*economy),
+                Some(&*finance),
+                Some(&*environment),
+                Some(&*politics),
+                Some(&*policy),
+                player.as_ref(),
+                Some(&*narrative),
+                Some(&*media),
+                Some(&*justice),
+                Some(&*asks),
+                Some(&*arcs),
+                None
+            );
+            g(upkeep, &r, &mut outs)
         }
         SystemFn::Log(g) => {
             let r = reads!(

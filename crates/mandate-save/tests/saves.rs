@@ -167,7 +167,12 @@ fn state_shape_matches_format_version() {
     // as the state loads).
     // Re-recorded on the merge with lobbying (note 29).
     // Re-recorded on the merge with the pilot arc (the zoning fight).
-    const EXPECTED: (u16, &str) = (32, "75e9d04e73ba81f2");
+    // 75e9d04e73ba81f2 (v32) -> bcfaa0736e82adba (v33): upkeep and faults
+    // (B2, DEC-114). The state gained `upkeep` (the focus's condition and
+    // its faults; absent while empty), an ask's need `fixed`, the log the
+    // event `fault`, and the effect `expedite`. Migration: `upkeep_faults`
+    // (no change: the domain starts empty).
+    const EXPECTED: (u16, &str) = (33, "0c4e6ceb189381f3");
     let c = content();
     let mut e = generate(
         &WorldConfig {

@@ -520,11 +520,17 @@ fn compute_town(
                 .iter()
                 .zip(&town_levels)
                 .map(|(c, tl)| {
-                    if c.indicator == Indicator::RecentDisaster {
+                    let level = if c.indicator == Indicator::RecentDisaster {
                         // Felt by how hard the disaster hit here (DEC-090 D8).
                         (tl * pop.impact(h.index())).min(1.0)
                     } else {
                         c.level.of(v[slot(c.indicator)])
+                    };
+                    let add = faults_felt(r, h, c);
+                    if add > 0.0 {
+                        (level + add).min(c.level.max.max(level))
+                    } else {
+                        level
                     }
                 })
                 .collect();
@@ -553,6 +559,22 @@ fn compute_town(
         },
         hoods,
     )
+}
+
+/// What the faults open on a neighbourhood's streets add to its level of a
+/// worry they feed (DEC-114: the services worry reads open faults): each
+/// adds `worry_per_fault`, within the concern's level range. Felt only:
+/// the town's measured levels, which drive its politics, are the
+/// indicators'. Nothing without upkeep's faults.
+fn faults_felt(r: &Reads<'_>, h: NeighborhoodId, c: &mandate_content::ConcernDef) -> f64 {
+    let Some(u) = r.upkeep().filter(|u| !u.faults.is_empty()) else {
+        return 0.0;
+    };
+    let n = u.open_feeding(r.content, h, &c.id);
+    if n == 0 {
+        return 0.0;
+    }
+    f64::from(n) * r.content.upkeep.params.worry_per_fault
 }
 
 /// Each neighbourhood's unemployment against its town's (residents' mean

@@ -250,6 +250,15 @@ pub fn apply_now(
             } => {
                 crate::player::knowledge::teach_one(state, subject, level, source);
             }
+            Effect::Expedite { fault } => {
+                crate::upkeep::expedite(
+                    &mut state.upkeep,
+                    &mut state.events,
+                    date,
+                    crate::upkeep::FaultId(fault),
+                    r.cause,
+                );
+            }
             _ => {}
         }
     }

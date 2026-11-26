@@ -387,6 +387,18 @@ pub enum EventKind {
         result_pm: i32,
         facts: Vec<(String, String)>,
     },
+    /// A fault on a neighbourhood's streets (DEC-114, upkeep): opened,
+    /// moved up the repair queue, paid for and being repaired (`other`: the
+    /// fault it went ahead of), put back (`other`: the fault that took its
+    /// money), or fixed.
+    Fault {
+        fault: u32,
+        template: mandate_content::ContentKey,
+        hood: u32,
+        stage: crate::upkeep::FaultStage,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        other: Option<u32>,
+    },
 }
 
 /// How long an event is kept in full detail.

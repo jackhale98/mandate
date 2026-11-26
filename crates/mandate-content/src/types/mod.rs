@@ -156,6 +156,10 @@ pub enum ContentFile {
     Calendar {
         items: Vec<crate::calendar::CalendarEventDef>,
     },
+    /// Upkeep made visible (DEC-114): the rules and the fault kinds.
+    Faults {
+        value: Box<crate::faults::UpkeepDef>,
+    },
     /// Knowledge is earned (DEC-091): start profiles, the local option, the
     /// party primer, place introductions, and the effectiveness terms.
     Knowledge {

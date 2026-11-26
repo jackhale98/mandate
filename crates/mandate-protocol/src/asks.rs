@@ -132,6 +132,11 @@ pub struct AskView {
     pub break_lines: Vec<EffectLineView>,
     /// Offers only: what saying no (or not answering) does.
     pub decline_lines: Vec<EffectLineView>,
+    /// The fault it is about (DEC-114): what is wrong and where ("See it"),
+    /// how it stands in the repair queue.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fault: Option<crate::upkeep::FaultView>,
     /// The event of its ending (kept, broken, declined, void), to ask
     /// "Why?" about (`QueryDto::Why`); none while it is open, or once the
     /// log no longer keeps it.
@@ -472,6 +477,8 @@ fn need_route(engine: &Engine, a: &Ask, n: &Need) -> Option<RouteView> {
         Need::Introduce { .. } => route(engine, "introduce", None, None),
         Need::Enacted { .. } => route(engine, "draft", None, None),
         Need::Casework => route(engine, "casework", None, None),
+        // The services desk moves it up the queue (once).
+        Need::Fixed { .. } => route(engine, "casework", None, None),
         // Where they are now (their routine), and the ask's own choice in
         // the conversation (talk hooks, S4).
         Need::Talk { person } => {
@@ -574,6 +581,9 @@ pub fn ask_view(engine: &Engine, a: &Ask) -> AskView {
     };
     let odds = match current {
         Some(Need::Casework) => Some(mandate_sim::asks::casework_odds(st, content)),
+        Some(Need::Fixed { .. }) if mandate_sim::asks::can_casework(st, a.id.0) => {
+            Some(mandate_sim::asks::casework_odds(st, content))
+        }
         _ => None,
     };
     let mut args = args_of(engine, a);
@@ -589,6 +599,7 @@ pub fn ask_view(engine: &Engine, a: &Ask) -> AskView {
         event: crate::why::thread_event(&st.events, mandate_sim::spine::Thread::Ask(a.id.0), |k| {
             matches!(k, mandate_sim::events::EventKind::AskResolved { .. })
         }),
+        fault: crate::upkeep::fault_of_ask(engine, a),
         id: a.id.0,
         template: a.template.clone(),
         promise: a.promise,

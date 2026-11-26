@@ -16,6 +16,7 @@ import { capital } from "../DecisionSheet";
 import { personName } from "../Knowing";
 import { TalkButton } from "../talk/TalkButton";
 import { WhyButton } from "../why/WhyButton";
+import { FaultLine } from "../faults/Faults";
 
 /** The ask in a few words, as a heading. */
 export function askTitle(tr: Translator, a: AskView): string {
@@ -198,6 +199,7 @@ export function AskBody({ a }: { a: AskView }) {
       </p>
       {a.outcome_key && <p className="small">{tr.event(a.outcome_key, a.args)}</p>}
       {open && <p className="small">{tr.event(a.detail_key, a.args)}</p>}
+      {a.fault && (open || a.status === "kept") && <FaultLine f={a.fault} />}
       {a.status === "accepted" && <NextStep a={a} />}
       {offered && (
         <>

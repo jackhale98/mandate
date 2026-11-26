@@ -6604,6 +6604,27 @@
       ],
       "type": "object"
     },
+    "CueDef": {
+      "additionalProperties": false,
+      "description": "The street cues of a fault (S7; drawn by the client in B4): while it is\nopen, while it is being repaired, and once repaired (for `new_days`).",
+      "properties": {
+        "new": {
+          "type": "string"
+        },
+        "open": {
+          "type": "string"
+        },
+        "repairing": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "open",
+        "repairing",
+        "new"
+      ],
+      "type": "object"
+    },
     "Curve": {
       "description": "Response curve mapping an input (0..1) to a score (0..1).",
       "oneOf": [
@@ -10280,6 +10301,61 @@
           "type": "object"
         }
       ]
+    },
+    "FaultDef": {
+      "additionalProperties": false,
+      "description": "One kind of fault (`fault.<name>`).",
+      "properties": {
+        "asset": {
+          "description": "What it is on (`street_light`, `drain`): the asset, for cues.",
+          "type": "string"
+        },
+        "cue": {
+          "$ref": "#/$defs/CueDef"
+        },
+        "feeds": {
+          "description": "The worry it adds to while open (a concern id).",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "pays": {
+          "$ref": "#/$defs/BudgetCategory",
+          "description": "The budget line of the town's treasury that repairs it."
+        },
+        "raise": {
+          "$ref": "#/$defs/RaiseDef"
+        },
+        "repair": {
+          "$ref": "#/$defs/RepairDef"
+        },
+        "restore": {
+          "description": "Condition (0–1) the neighbourhood gains when it is repaired.",
+          "format": "double",
+          "type": "number"
+        },
+        "spot": {
+          "$ref": "#/$defs/SpotDef2"
+        },
+        "text": {
+          "description": "Its Fluent prefix: `<text>name` (\"the street light\"), `<text>what`\n(\"the light on { $hood }'s streets is out\").",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "asset",
+        "spot",
+        "raise",
+        "pays",
+        "repair",
+        "restore",
+        "feeds",
+        "cue",
+        "text"
+      ],
+      "type": "object"
     },
     "FavourParams": {
       "additionalProperties": false,
@@ -14907,6 +14983,24 @@
         },
         {
           "additionalProperties": false,
+          "description": "A fault on the streets where the neighbourhood (or the person, by\ntheir home) cast in `role` is repaired (DEC-114, upkeep): cast on the\noldest open fault there that no other ask is about, met whoever\nfixes it. \"Sort it out\" moves it up the repair queue.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "fixed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "None of the player's own hidden facts comes to light before the\ndeadline: kept at the deadline unless broken.",
           "properties": {
             "type": {
@@ -17331,6 +17425,33 @@
       ],
       "type": "object"
     },
+    "RaiseDef": {
+      "additionalProperties": false,
+      "description": "When a fault opens: each month, in each neighbourhood whose condition is\nbelow `below`, with the chance `chance × (below − condition) / below`,\n× `winter` in December, January and February.",
+      "properties": {
+        "below": {
+          "description": "Condition (0–1) below which it can open.",
+          "format": "double",
+          "type": "number"
+        },
+        "chance": {
+          "description": "The monthly chance at a condition of 0 (0–1).",
+          "format": "double",
+          "type": "number"
+        },
+        "winter": {
+          "default": 1.0,
+          "description": "× in winter (1: no season).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "below",
+        "chance"
+      ],
+      "type": "object"
+    },
     "RaisedBy": {
       "description": "What raises a decision other than the director's spotlight: a story\nabout the player, or an investigation of them. Raised decisions are\nfairness first (DEC-006): never budgeted.",
       "enum": [
@@ -17506,6 +17627,26 @@
         "election",
         "concern",
         "jitter"
+      ],
+      "type": "object"
+    },
+    "RepairDef": {
+      "additionalProperties": false,
+      "description": "What a repair costs (money at the starting price level; the engine\nscales it by prices) and how long it takes once paid for.",
+      "properties": {
+        "cost": {
+          "format": "double",
+          "type": "number"
+        },
+        "days": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cost",
+        "days"
       ],
       "type": "object"
     },
@@ -19037,6 +19178,57 @@
         "facing"
       ],
       "type": "object"
+    },
+    "SpotDef2": {
+      "additionalProperties": false,
+      "description": "A fault's spot kind and how many such spots a neighbourhood has.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/SpotKind"
+        },
+        "slots": {
+          "description": "Spots of this kind on a neighbourhood's streets (1–16).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "slots"
+      ],
+      "type": "object"
+    },
+    "SpotKind": {
+      "description": "Where on a neighbourhood's streets a fault is (the client maps a kind\nand a slot to a cell of the street).",
+      "oneOf": [
+        {
+          "const": "road",
+          "description": "The carriageway: potholes, a sunken manhole.",
+          "type": "string"
+        },
+        {
+          "const": "pavement",
+          "description": "The pavement and what stands on it: lamps, signs, bins.",
+          "type": "string"
+        },
+        {
+          "const": "kerb",
+          "description": "The kerb and the gutter: drains.",
+          "type": "string"
+        },
+        {
+          "const": "stop",
+          "description": "A bus stop or a shelter.",
+          "type": "string"
+        },
+        {
+          "const": "green",
+          "description": "A green, a play area, a bench.",
+          "type": "string"
+        }
+      ]
     },
     "StageDef": {
       "oneOf": [
@@ -21274,6 +21466,90 @@
       ],
       "type": "object"
     },
+    "UpkeepDef": {
+      "additionalProperties": false,
+      "description": "The `faults` file.",
+      "properties": {
+        "faults": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FaultDef"
+          },
+          "type": "array"
+        },
+        "params": {
+          "$ref": "#/$defs/UpkeepParams"
+        }
+      },
+      "required": [
+        "params"
+      ],
+      "type": "object"
+    },
+    "UpkeepParams": {
+      "additionalProperties": false,
+      "description": "Upkeep's rules.",
+      "properties": {
+        "decay": {
+          "description": "Condition lost each month.",
+          "format": "double",
+          "type": "number"
+        },
+        "maintain": {
+          "description": "Condition kept up each month by routine maintenance, × the\nInfrastructure line against need (1 at need; at most `maintain_cap`).",
+          "format": "double",
+          "type": "number"
+        },
+        "maintain_cap": {
+          "format": "double",
+          "type": "number"
+        },
+        "max_open": {
+          "description": "Open faults a neighbourhood can have at once.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "new_days": {
+          "description": "Days a repaired spot looks new (then the fault is forgotten).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "repair_share": {
+          "description": "The share of a budget line's month that pays its repair queue.",
+          "format": "double",
+          "type": "number"
+        },
+        "start": {
+          "description": "A neighbourhood's condition when the engine first keeps it: a keyed\nvalue in this range.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "worry_per_fault": {
+          "description": "Added to a neighbourhood's level of the worry a fault feeds, for\neach such fault open there.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "decay",
+        "maintain",
+        "maintain_cap",
+        "max_open",
+        "repair_share",
+        "worry_per_fault",
+        "new_days"
+      ],
+      "type": "object"
+    },
     "VisitAmong": {
       "additionalProperties": false,
       "description": "Which residents an effect reaches: cohorts of `reach`, filtered by income\nclass, age band (0: 18–29, 1: 30–44, 2: 45–64, 3: 65+) and community\n(ids from `communities.jsonc`). An empty filter takes everyone.\nCohorts have no occupation: \"the works' people\" are its neighbourhood's\nworking classes.",
@@ -23216,6 +23492,24 @@
       "required": [
         "kind",
         "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Upkeep made visible (DEC-114): the rules and the fault kinds.",
+      "properties": {
+        "kind": {
+          "const": "faults",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/UpkeepDef"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
       ],
       "type": "object"
     },

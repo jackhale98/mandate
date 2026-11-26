@@ -81,10 +81,7 @@ pub(super) fn perform(
         }
         Action::Casework { ask } => {
             // Checked before the slot is spent; the roll is the asks'.
-            let ok = state.asks.get(crate::asks::AskId(*ask)).is_some_and(|a| {
-                a.accepted() && matches!(a.current(), Some(crate::asks::Need::Casework))
-            });
-            if !ok {
+            if !crate::asks::can_casework(state, *ask) {
                 return Err(bad("there is no casework to sort out for that ask"));
             }
             spend(state, content, "casework", false)?;

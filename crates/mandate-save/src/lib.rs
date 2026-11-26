@@ -38,8 +38,10 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// scene under way and the scenes finished on an arc run, a story's source
 /// that is a scene, the community filter of an approval request. v32: the
 /// town calendar and familiarity (B1, DEC-114): the day played, the events
-/// the player was at this turn, familiarity on a relationship.
-pub const SAVE_FORMAT_VERSION: u16 = 32;
+/// the player was at this turn, familiarity on a relationship. v33: upkeep
+/// and faults (B2, DEC-114): the upkeep domain, a fault an ask is about,
+/// fault events on the spine.
+pub const SAVE_FORMAT_VERSION: u16 = 33;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -267,6 +269,10 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // the next. Renumber only this key if another bump merges first (the
         // step names no version).
         (31, calendar_familiarity),
+        // Upkeep and faults (B2, DEC-114): the previous format to the next.
+        // Renumber only this key if another bump merges first (the step
+        // names no version).
+        (32, upkeep_faults),
     ];
     let mut value = value;
     let mut v = from;
@@ -1078,6 +1084,14 @@ fn frozen_estimates(mut value: serde_json::Value) -> Result<serde_json::Value, S
 /// event attended this turn, and no day played kept, so the engine chooses
 /// this turn's day as it loads the state (`Engine::from_state`).
 fn calendar_familiarity(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    Ok(value)
+}
+
+/// Upkeep and faults (B2, DEC-114). Nothing to rewrite: the upkeep
+/// domain is new and empty in an older save (its default), and the engine
+/// keeps the focus's condition from the next month on; no ask in it is
+/// about a fault.
+fn upkeep_faults(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
     Ok(value)
 }
 

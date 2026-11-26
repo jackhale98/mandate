@@ -114,19 +114,42 @@ pub fn casework_odds(state: &State, content: &ContentBundle) -> f64 {
     }
 }
 
+/// Whether "Sort it out" can be done for an ask now: an accepted ask whose
+/// next need is casework, or a fault still waiting in the repair queue and
+/// not moved up yet (DEC-114). Checked before the slot is spent.
+pub fn can_casework(state: &State, ask: u32) -> bool {
+    state.asks.get(AskId(ask)).is_some_and(|a| {
+        a.accepted()
+            && match a.current() {
+                Some(super::Need::Casework) => true,
+                Some(super::Need::Fixed { fault }) => state
+                    .upkeep
+                    .get(*fault)
+                    .is_some_and(|f| f.open() && f.expedited.is_none()),
+                _ => false,
+            }
+    })
+}
+
 /// "Sort it out": the roll of an `Action::Casework` (its slot is spent by
 /// the caller). A success is a deed (the asks system keeps the ask); a
-/// failure leaves it open for another try.
+/// failure leaves it open for another try. On a fault (DEC-114, the owner's
+/// answer 3) a success moves the fault up its repair queue instead: it does
+/// not buy the repair, and the ask is kept when the fault is fixed.
 pub fn casework(
     state: &mut State,
     content: &ContentBundle,
     ask: u32,
 ) -> Result<ActionResult, EngineError> {
     let id = AskId(ask);
-    let a = state.asks.get(id).ok_or_else(|| bad("no such ask"))?;
-    if !a.accepted() || !matches!(a.current(), Some(super::Need::Casework)) {
+    if !can_casework(state, ask) {
         return Err(bad("there is no casework to sort out for that ask"));
     }
+    let a = state.asks.get(id).ok_or_else(|| bad("no such ask"))?;
+    let fault = match a.current() {
+        Some(super::Need::Fixed { fault }) => Some(*fault),
+        _ => None,
+    };
     let tries = a.tries;
     let odds = casework_odds(state, content);
     let ok = mandate_core::rng::keyed(
@@ -139,7 +162,18 @@ pub fn casework(
         x.tries = x.tries.saturating_add(1);
     }
     let mut res = ActionResult::default();
-    if ok {
+    if ok && let Some(f) = fault {
+        super::record_deed(state, Deed::Casework { ask: id });
+        effects::apply_now(
+            state,
+            content,
+            vec![Request {
+                effect: crate::scheduler::Effect::Expedite { fault: f.0 },
+                cause: Cause::Player(PlayerAct::Casework),
+            }],
+        );
+        res.outcome_key = "outcome-casework-queued".into();
+    } else if ok {
         super::record_deed(state, Deed::Casework { ask: id });
         res.outcome_key = "outcome-casework-sorted".into();
     } else {

@@ -8,6 +8,89 @@
   },
   "beats": [
     {
+      "ask": 2,
+      "available": true,
+      "beat": "shelter",
+      "blocked_key": null,
+      "days_left": 7,
+      "decision": null,
+      "due": {
+        "day": 19,
+        "day_number": 737349,
+        "month": 2,
+        "year": 2020
+      },
+      "kind": "ask",
+      "label": {
+        "args": {
+          "asker": "Neve Oak",
+          "asker_hood": "Orchardrow",
+          "asker_occupation": "organiser",
+          "asker_role_key": "occupation-organiser",
+          "crisis_key": "ask-crisis-disaster_recovery",
+          "days": "7",
+          "history": "none",
+          "official": "Osric Dell",
+          "official_role_key": "role-mayor",
+          "player": "Fen Galloway",
+          "town": "Belenwick"
+        },
+        "key": "ask-flood-shelter"
+      },
+      "needs": {
+        "halves": 0,
+        "person": {
+          "ambient_slot": null,
+          "can_talk": false,
+          "has_news": true,
+          "id": 1044,
+          "level": "detailed",
+          "name": "Osric Dell",
+          "role_key": "role-mayor",
+          "rumoured": false,
+          "tier": "principal"
+        },
+        "place": {
+          "kind_key": "town_hall",
+          "location": {
+            "place": 120,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 90,
+          "neighborhood_args": {
+            "centre_town": "Belenwick"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Belenwick"
+        },
+        "power": null
+      },
+      "route": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 90,
+        "to": {
+          "kind_key": "town_hall",
+          "location": {
+            "place": 120,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 90,
+          "neighborhood_args": {
+            "centre_town": "Belenwick"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Belenwick"
+        }
+      },
+      "stage": "struck",
+      "topic": null,
+      "verb": null
+    },
+    {
       "ask": null,
       "available": true,
       "beat": "money",
@@ -257,7 +340,7 @@
       "month": 2,
       "year": 2020
     },
-    "id": 2061,
+    "id": 2063,
     "text_key": "headline-arc-flood-struck"
   },
   "history": [
@@ -291,7 +374,7 @@
         "month": 2,
         "year": 2020
       },
-      "id": 2061,
+      "id": 2063,
       "text_key": "headline-arc-flood-struck"
     },
     {
@@ -323,7 +406,7 @@
         "month": 2,
         "year": 2020
       },
-      "id": 2060,
+      "id": 2062,
       "text_key": "arc-flood-struck"
     }
   ],
@@ -331,7 +414,7 @@
   "lead": null,
   "level": "known",
   "stage": {
-    "event": 2060,
+    "event": 2062,
     "id": "struck",
     "since": {
       "day": 8,

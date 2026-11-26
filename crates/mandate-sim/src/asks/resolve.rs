@@ -248,6 +248,12 @@ fn state_check(r: &Reads<'_>, ask: &Ask, need: &Need) -> Option<Result<(), Strin
             // did declare was read as a deed first).
             Some(Err(String::new()))
         }
+        // Met whoever fixed it (DEC-091: the world does not wait).
+        Need::Fixed { fault } => match r.upkeep().and_then(|u| u.get(*fault)) {
+            Some(f) if f.fixed() => Some(Ok(())),
+            Some(_) => None,
+            None => Some(Err("ask-void-fault-gone".into())),
+        },
         Need::Enacted {
             templates,
             sponsor_player,
@@ -305,7 +311,16 @@ pub(crate) fn resolve_all(a: &mut AskState, r: &Reads<'_>, out: &mut Outs<'_>, n
             let ask = &mut a.asks[i];
             settle_one(r, ask, news, date, home)
         };
-        if let Some((s, deed)) = settle {
+        if let Some((s, mut deed)) = settle {
+            // Kept by a repair (whoever made it): the fault's last event.
+            if deed.is_none()
+                && let Some(f) = a.asks[i].needs.iter().find_map(|n| match n {
+                    Need::Fixed { fault } => Some(*fault),
+                    _ => None,
+                })
+            {
+                deed = out.events.head(crate::spine::Thread::Fault(f.0));
+            }
             finish(a, i, s, deed, r, out);
         }
     }
@@ -359,6 +374,14 @@ fn settle_inner(
                 .is_some_and(|p| p.status != PolicyStatus::UnderConsideration)
         {
             return Some(Settle::Void("ask-void-withdrawn".into()));
+        }
+        // An offer about a fault mended before it was answered.
+        if let Some(Need::Fixed { fault }) = ask.needs.first()
+            && r.upkeep()
+                .and_then(|u| u.get(*fault))
+                .is_none_or(|f| f.fixed())
+        {
+            return Some(Settle::Void("ask-void-fixed".into()));
         }
         return None;
     }

@@ -545,6 +545,7 @@ fn every_need_kind_has_a_command_and_a_route() {
             Need::Introduce { .. } => "introduce",
             Need::Enacted { .. } => "enacted",
             Need::Casework => "casework",
+            Need::Fixed { .. } => "fixed",
             Need::NoSurfacedHiddenFact => "no_surfaced_hidden_fact",
             Need::Quiet { .. } => "quiet",
         }
@@ -575,18 +576,42 @@ fn every_need_kind_has_a_command_and_a_route() {
             sponsor_player: true,
         },
         Need::Casework,
+        Need::Fixed { fault: FAULT },
         Need::NoSurfacedHiddenFact,
         Need::Quiet { person: off },
     ];
     let mut kinds: Vec<&str> = all.iter().map(kind).collect();
     kinds.dedup();
-    assert_eq!(kinds.len(), 12);
+    assert_eq!(kinds.len(), 13);
+    // A fault on the ward's streets for the fault need (DEC-114).
+    const FAULT: mandate_sim::upkeep::FaultId = mandate_sim::upkeep::FaultId(9_000);
+    let with_fault = |x: &mut Engine| {
+        x.setup(|st| {
+            let opened = st.calendar.date;
+            st.upkeep.faults.push(mandate_sim::upkeep::Fault {
+                id: FAULT,
+                kind: "fault.streetlight".into(),
+                hood,
+                spot: 0,
+                opened,
+                status: mandate_sim::upkeep::FaultStatus::Open,
+                expedited: None,
+                ahead_of: None,
+                put_back_for: None,
+            });
+        });
+    };
     for n in &all {
         let mut x = copy(&e);
+        if matches!(n, Need::Fixed { .. }) {
+            with_fault(&mut x);
+        }
         let id = put(
             &mut x,
             if matches!(n, Need::Talk { .. }) {
                 "ask.meet_the_newcomer"
+            } else if matches!(n, Need::Fixed { .. }) {
+                "ask.fault"
             } else {
                 "ask.casework"
             },
@@ -669,6 +694,28 @@ fn every_need_kind_has_a_command_and_a_route() {
                         x.apply(Command::EndTurn).unwrap();
                     }
                 }
+            }
+            // Moved up the queue at the services desk, then repaired when
+            // the month's money comes round.
+            Need::Fixed { fault } => {
+                assert_eq!(how.action, "casework");
+                for _ in 0..6 {
+                    if !mandate_sim::asks::can_casework(x.state(), id.0) {
+                        break;
+                    }
+                    let c = route(
+                        &x,
+                        PlayerCommand::Act {
+                            action: Action::Casework { ask: id.0 },
+                            late_night: false,
+                        },
+                    );
+                    if x.apply(c).is_err() {
+                        x.apply(Command::EndTurn).unwrap();
+                    }
+                }
+                assert!(x.state().upkeep.get(*fault).unwrap().expedited.is_some());
+                x.apply(Command::AdvanceDays { days: 39 }).unwrap();
             }
             Need::Introduce { templates } => {
                 let c = route(
