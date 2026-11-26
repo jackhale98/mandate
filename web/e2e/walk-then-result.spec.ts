@@ -4,6 +4,7 @@ import { openAgenda } from "./pocket";
 // An action chosen from the pocket somewhere else walks the player there first; what happened
 // shows only once they have arrived (owner report: fundraising's result appeared before the
 // player finished walking). The engine resolves the action at once; the UI holds the outcome.
+// (Fundraising is now a conversation, DEC-114 B5: the town hall meeting is a one-action verb.)
 
 interface StreetProbe {
   __townStreet?: { view: { scene: { playerMoving: boolean } } } | null;
@@ -18,13 +19,13 @@ test("an action from the pocket shows its result only after the walk to where it
   await expect(page.locator(".town-street-stage[data-ready='1']")).toBeVisible({ timeout: 30_000 });
 
   const agenda = await openAgenda(page);
-  await agenda.getByText("Fundraise", { exact: true }).first().click();
+  await agenda.getByText("Hold a town hall", { exact: true }).first().click();
   await agenda.getByRole("button", { name: "Go" }).click();
 
   // On the way: walking, and no result yet.
   await expect.poll(() => page.evaluate(() => (window as unknown as StreetProbe).__townStreet?.view.scene.playerMoving ?? false)).toBe(true);
   await expect(page.getByTestId("toast")).toHaveCount(0);
   // Arrived: the result, and the player is no longer walking.
-  await expect(page.getByTestId("toast")).toHaveText(/raised/, { timeout: 20_000 });
+  await expect(page.getByTestId("toast")).toHaveText(/town hall meeting/, { timeout: 20_000 });
   expect(await page.evaluate(() => (window as unknown as StreetProbe).__townStreet?.view.scene.playerMoving ?? true)).toBe(false);
 });

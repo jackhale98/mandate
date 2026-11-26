@@ -1051,6 +1051,13 @@ pub fn check_choice(
                 ));
             }
         }
+        // An agenda verb (DEC-114, B5): where it is done, and its own time.
+        hooks::ChoiceCost::Verb { key, late } => {
+            if late_night && !late {
+                return Err(bad("that is for the day: meet after hours instead"));
+            }
+            crate::actions::verbs::check_time(state, content, key, late)?;
+        }
     }
     Ok(found)
 }
@@ -1115,7 +1122,8 @@ fn choose(
         hooks::ChoiceCost::Conversation => pay(state, content, late_night),
         hooks::ChoiceCost::Day => pay(state, content, false),
         hooks::ChoiceCost::LateSlot => pay(state, content, true),
-        hooks::ChoiceCost::Free => {}
+        // The verb's effect pays its own time, as the one action did.
+        hooks::ChoiceCost::Free | hooks::ChoiceCost::Verb { .. } => {}
     }
     // Talking to someone is meeting them properly.
     let mut learned = Vec::new();

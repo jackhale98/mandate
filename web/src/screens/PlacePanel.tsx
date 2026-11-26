@@ -10,6 +10,7 @@ import { formatCount, formatMoney, formatPct } from "../i18n/format";
 import { actionKey, placeIcon, placeName } from "../places/labels";
 import { StatTile } from "../components/StatTile";
 import { ActionForm, type FormAction } from "../components/ActionForm";
+import { TALK_VERBS, VerbTalk } from "../components/talk/VerbTalk";
 import { ChamberWhip } from "../components/Chamber";
 import { Catalog, MyBills, RecentActions, TownOpinion } from "../components/Desk";
 import { useSheetClose } from "../components/useSheetClose";
@@ -304,18 +305,22 @@ function People({ v }: { v: PlacePanelView }) {
 /** Generic actions a place offers, each with its costs and risks. */
 function Actions({ v, skip }: { v: PlacePanelView; skip: Set<string> }) {
   const tr = useGame((s) => s.tr);
-  const forms = new Set<FormAction>(["canvass", "town_hall", "press", "fundraise", "rest", "advertise", "take_bribe", "dip_funds", "leak_file"]);
+  const forms = new Set<string>(["canvass", "town_hall", "rest", "advertise", "dip_funds", ...TALK_VERBS]);
   const campaign = useGame((s) => s.campaign);
   // Late-only actions (an envelope at the diner) are listed by their late variant.
-  const shown = v.actions.filter((a) => (!a.late_night || a.action === "take_bribe") && !skip.has(a.action) && forms.has(a.action as FormAction) && (a.action !== "advertise" || campaign?.in_campaign));
+  const shown = v.actions.filter((a) => (!a.late_night || a.action === "take_bribe") && !skip.has(a.action) && forms.has(a.action) && (a.action !== "advertise" || campaign?.in_campaign));
   if (shown.length === 0) return null;
-  const lateHere = new Set(v.actions.filter((a) => a.late_night).map((a) => a.action));
   return (
     <>
       {shown.map((a) => (
         <section key={a.action} className="card" data-testid={`place-action-${a.action}`}>
           <h2>{tr.t(actionKey(a.action))}</h2>
-          <ActionForm action={a.action as FormAction} hood={a.action === "canvass" || a.action === "town_hall" ? v.location.neighborhood : null} allowLate={lateHere.has(a.action)} />
+          {/* Fundraising, the press, the bribe and the leak are had with someone here (DEC-114, B5). */}
+          {TALK_VERBS.has(a.action) ? (
+            <VerbTalk action={a.action} person={a.with} to={v.location} here={v.here} topic={a.topic} />
+          ) : (
+            <ActionForm action={a.action as FormAction} hood={a.action === "canvass" || a.action === "town_hall" ? v.location.neighborhood : null} />
+          )}
         </section>
       ))}
     </>

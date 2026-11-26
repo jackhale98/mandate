@@ -14,6 +14,7 @@ import type { NextUpView } from "./NextUpView";
 import type { PocketBillView } from "./PocketBillView";
 import type { RouteView } from "./RouteView";
 import type { TracksView } from "./TracksView";
+import type { VerbTalkView } from "./VerbTalkView";
 
 /**
  * The pocket (phone and notebook): always available (DEC-079 rule 3).
@@ -32,6 +33,12 @@ bills: Array<PocketBillView>, next_election: DateView | null, days_to_election: 
  * variant), neighbourhood actions once per neighbourhood.
  */
 routes: Array<RouteView>, 
+/**
+ * Fundraising, the press, the bribe and the leak are conversations
+ * (DEC-114, B5): for each (and fundraising's late variant), whom the
+ * player would have it with where it is done, if anyone.
+ */
+verb_talks: Array<VerbTalkView>, 
 /**
  * Decisions waiting for the player, soonest deadline first (DEC-079:
  * always listed here and answerable from here).

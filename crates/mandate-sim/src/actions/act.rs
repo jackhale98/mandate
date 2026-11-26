@@ -48,17 +48,20 @@ pub(super) fn perform(
         } => {
             res = town_hall(state, content, pl, m, neighborhood, policy)?;
         }
-        Action::Press { policy } => {
-            res = press(state, content, pl, m, policy)?;
+        // Fundraising, the press, the bribe and the leak are conversations
+        // (DEC-114, B5): had with someone where they are done (`verbs`;
+        // routing an `Act` for one makes it that `Talk`). The variants stay
+        // so old run logs still read.
+        Action::Press { .. } | Action::Fundraise | Action::TakeBribe | Action::LeakFile => {
+            return Err(bad(
+                "that is done by talking to someone where it is done: talk to them",
+            ));
         }
         Action::Canvass {
             neighborhood,
             issue,
         } => {
             res = canvass(state, content, pl, neighborhood, issue)?;
-        }
-        Action::Fundraise => {
-            res = fundraise(state, content, pl, m, late_night)?;
         }
         Action::Advertise => {
             res = advertise(state, content, pl)?;
@@ -67,14 +70,8 @@ pub(super) fn perform(
             spend(state, content, "rest", false)?;
             res.outcome_key = "outcome-rest".into();
         }
-        Action::TakeBribe | Action::DipFunds | Action::LeakFile => {
-            let target = matches!(action, Action::LeakFile)
-                .then(|| leak_target(state))
-                .flatten();
+        Action::DipFunds => {
             res = shady(state, content, action, *late_night)?;
-            if let Some(t) = target {
-                crate::asks::record_deed(state, crate::asks::Deed::Leak { politician: t.0 });
-            }
         }
         Action::Visit { verb } => {
             res = crate::visits::visit(state, content, verb, *late_night)?;

@@ -8,20 +8,15 @@ import { placeName } from "../places/labels";
 import { WorryPicker, useCanvassPreview } from "./talk/WorryPicker";
 
 // Lobbying is a conversation (M6 note 29): talk to the member (the whip's list, their sheet), not a form.
-export type FormAction = "canvass" | "town_hall" | "press" | "fundraise" | "rest" | "advertise" | "take_bribe" | "dip_funds" | "leak_file";
-
-const LATE: ReadonlySet<FormAction> = new Set(["fundraise", "take_bribe"]);
-/** Only late at night (an envelope under the table). */
-const LATE_ONLY: ReadonlySet<FormAction> = new Set(["take_bribe"]);
-/** Borderline and illegal actions (DEC-034): a payoff now, a risk later. */
-export const SHADY: ReadonlySet<FormAction> = new Set(["take_bribe", "dip_funds", "leak_file"]);
+// So are fundraising, the press, the bribe and the leak (DEC-114, B5): ./talk/VerbTalk.
+export type FormAction = "canvass" | "town_hall" | "rest" | "advertise" | "dip_funds";
 
 /**
  * One action with its choices, cost, and risks (DEC-073). Choosing it
  * auto-routes the player to where it is done (DEC-079); `hood` fixes the
  * neighbourhood when the form sits in a place panel.
  */
-export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLate = true, showRoute = false }: { action: FormAction; hood?: number | null; lateOnly?: boolean; allowLate?: boolean; showRoute?: boolean }) {
+export function ActionForm({ action, hood: fixedHood, showRoute = false }: { action: FormAction; hood?: number | null; showRoute?: boolean }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
   const o = useGame((s) => s.office);
@@ -29,7 +24,6 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   const perform = useGame((s) => s.perform);
   const [hoodSel, setHood] = useState<number | null>(null);
   const [bill, setBill] = useState<number | null>(null);
-  const [late, setLate] = useState(lateOnly || LATE_ONLY.has(action));
   // Canvassing on a worry (DEC-091): the worries and their match come from the engine's preview.
   const [issue, setIssue] = useState<string | null>(null);
   const [landed, setLanded] = useState<{ fit: string; nameKey: string } | null>(null);
@@ -40,11 +34,9 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   const p = o.player;
   const hood = fixedHood ?? hoodSel ?? o.town.neighborhoods[0]?.id ?? 0;
   const live = o.bills.filter((b) => b.status === "under_consideration" || b.status === "enacted" || b.status === "in_effect");
-  const lateAllowed = allowLate && LATE.has(action);
-  const useLate = (late || lateOnly || LATE_ONLY.has(action)) && lateAllowed;
   const cost = p.action_costs.find((c) => c.action === action) ?? { action, slots: 1, health: 0 };
   const hoodScoped = action === "canvass" || action === "town_hall";
-  const route = routeFor(pocket, { action, lateNight: useLate, neighborhood: hoodScoped ? hood : null });
+  const route = routeFor(pocket, { action, lateNight: false, neighborhood: hoodScoped ? hood : null });
   const hoodIndex = o.town.neighborhoods.findIndex((h) => h.id === hood);
   const pct = (v: number) => Math.round(v * 100);
 
@@ -56,26 +48,18 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
     case "town_hall":
       act = { type: "town_hall", neighborhood: hood, policy: bill };
       break;
-    case "press":
-      act = { type: "press", policy: bill };
-      break;
-    case "fundraise":
-      act = { type: "fundraise" };
-      break;
     case "rest":
       act = { type: "rest" };
       break;
     case "advertise":
       act = { type: "advertise" };
       break;
-    case "take_bribe":
     case "dip_funds":
-    case "leak_file":
       act = { type: action };
       break;
   }
-  const cmd: CommandDto | null = act ? { type: "act", action: act, late_night: useLate } : null;
-  const enough = (action === "advertise" ? p.ads_left > 0 && p.money >= p.ad_cost : useLate ? p.late_night_available : p.slots_left >= cost.slots) && !shady?.unavailable_key;
+  const cmd: CommandDto | null = act ? { type: "act", action: act, late_night: false } : null;
+  const enough = (action === "advertise" ? p.ads_left > 0 && p.money >= p.ad_cost : p.slots_left >= cost.slots) && !shady?.unavailable_key;
 
   return (
     <div className="action-form" data-testid={`form-${action}`}>
@@ -92,7 +76,7 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
         </label>
       )}
       {action === "canvass" && <WorryPicker view={canvass} issue={issue} onChange={setIssue} />}
-      {(action === "town_hall" || action === "press") && (
+      {action === "town_hall" && (
         <label className="field">
           <span>{tr.t("ui-about-bill")}</span>
           <select className="input" value={bill ?? ""} onChange={(e) => setBill(e.target.value === "" ? null : Number(e.target.value))}>
@@ -111,12 +95,10 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
           tr.t("tradeoff-advertise", { cost: formatMoney(p.ad_cost) })
         ) : (
           <>
-            {useLate ? tr.t("ui-cost-late", { health: Math.max(0, cost.health) + 8 }) : tr.t("ui-cost-line", { slots: cost.slots, health: Math.max(0, cost.health) })} {tr.t(`tradeoff-${action.replace(/_/g, "-")}`)}
+            {tr.t("ui-cost-line", { slots: cost.slots, health: Math.max(0, cost.health) })} {tr.t(`tradeoff-${action.replace(/_/g, "-")}`)}
           </>
         )}
         {action === "town_hall" && <strong> {tr.t("ui-risk-hostile", { pct: pct(o.town.town_hall_risk[hoodIndex] ?? 0) })}</strong>}
-        {action === "press" && <strong> {tr.t("ui-risk-gaffe", { pct: pct(p.press_gaffe_risk) })}</strong>}
-        {action === "fundraise" && useLate && <strong> {tr.t("ui-risk-late-money")}</strong>}
       </p>
       {/* DEC-073: the chance it comes out, before you commit (a coarse band). */}
       {shady && (
@@ -127,12 +109,6 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
           <strong>{tr.t("ui-risk-exposure", { risk: tr.t(`risk-${shady.risk}`), severity: tr.t(`severity-${shady.severity}`) })}</strong>
           {shady.unavailable_key && <span className="muted"> {tr.t(shady.unavailable_key)}</span>}
         </p>
-      )}
-      {lateAllowed && !lateOnly && !LATE_ONLY.has(action) && (
-        <label className="check">
-          <input type="checkbox" checked={late} disabled={!p.late_night_available} onChange={(e) => setLate(e.target.checked)} />
-          {tr.t("ui-late-night-meeting")}
-        </label>
       )}
       {showRoute && route?.to && (
         <p className="route small" data-testid="route">
@@ -166,5 +142,5 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   );
 }
 
-/** The agenda kinds, in the order the pocket lists them. */
-export const AGENDA: FormAction[] = ["canvass", "town_hall", "press", "fundraise", "rest", "advertise", "take_bribe", "dip_funds", "leak_file"];
+/** The agenda kinds, in the order the pocket lists them: forms, and the verbs had in conversation (./talk/VerbTalk). */
+export const AGENDA: string[] = ["canvass", "town_hall", "press", "fundraise", "rest", "advertise", "take_bribe", "dip_funds", "leak_file"];

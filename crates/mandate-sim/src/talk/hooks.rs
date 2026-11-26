@@ -33,6 +33,11 @@ pub enum ChoiceCost {
     LateSlot,
     /// Nothing beyond being there.
     Free,
+    /// An agenda verb had in a conversation (DEC-114, B5): the verb's own
+    /// time and health (`tuning.action_costs`; `late`: the late slot), paid
+    /// by the owner's effect as the one action always paid it, and done
+    /// where the verb is offered (`places`).
+    Verb { key: &'static str, late: bool },
 }
 
 /// One possible reply: said when its conditions hold (slots `speaker`,
@@ -96,6 +101,11 @@ pub const HOOKS: &[Hook] = &[
     crate::arcs::beats::HOOK,
     crate::actions::broker::HOOK,
     crate::actions::lobbying::HOOK,
+    // Fundraising, the press, the bribe and the leak (DEC-114, B5).
+    crate::actions::verbs::PRESS,
+    crate::actions::verbs::FUNDRAISE,
+    crate::actions::verbs::BRIBE,
+    crate::actions::verbs::LEAK,
 ];
 
 /// Whether a `Talk` topic is a hook's choice.

@@ -185,7 +185,11 @@ fn verb(cmd: &PlayerCommand) -> Option<&'static str> {
             "topic.support" => "talk_support",
             "topic.pitch" | "topic.favour" => "talk_bill",
             t if t.starts_with("choice.lobby.") => "lobby",
-            _ => "talk",
+            // The verbs had in conversation (DEC-114, B5) count as the verb.
+            t => match mandate_sim::actions::verbs::Verb::of_topic(t) {
+                Some(v) => v.key(),
+                None => "talk",
+            },
         }),
         PlayerCommand::DraftPolicy { .. } => Some("draft"),
         PlayerCommand::IntroducePolicy { .. } => Some("introduce"),

@@ -28,17 +28,28 @@ test("a shady choice comes out later, makes the paper, and draws an investigatio
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
 
-  // The envelope, from the agenda: its risk line is shown before acting.
+  // The envelope, from the agenda (DEC-114, B5): whoever is offering, in the
+  // diner's back booth; the conversation's choice shows the risk line before acting.
   const agenda = await openAgenda(page);
   let pocket = page.getByTestId("pocket");
   await agenda.getByText("Take an envelope", { exact: true }).click();
-  const form = agenda.getByTestId("form-take_bribe");
-  await expect(form.getByTestId("risk-line")).toContainText("chance this comes out within a year");
-  await expect(form.getByTestId("risk-line")).toContainText("a crime");
-  const go = form.getByRole("button", { name: /^(Go|Do it)$/ });
-  await go.evaluate((el) => el.scrollIntoView({ block: "center" }));
-  await go.click();
-  await expect(page.getByText(/slipped you an envelope/).first()).toBeVisible();
+  const card = agenda.getByTestId("verb-talk-take_bribe");
+  await expect(card.getByTestId("verb-talk-with")).toBeVisible();
+  const open = card.getByTestId("verb-talk-open");
+  await open.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await open.click();
+  const box = page.getByTestId("talk-panel");
+  await expect(box).toBeVisible();
+  const take = box.getByTestId("talk-topic-choice.bribe.take");
+  await expect(take.getByTestId("talk-costs")).toContainText("chance it comes out within a year");
+  await expect(take.getByTestId("talk-costs")).toContainText("a crime");
+  await take.getByRole("button").click();
+  await expect(box.getByTestId("talk-outcome")).toContainText(/slipped you an envelope/);
+  await box.getByTestId("talk-result-why").locator("summary").click();
+  await expect(box.getByTestId("talk-result-why")).toContainText("wants something for it");
+  await expect(box).not.toContainText("⟦");
+  await box.getByTestId("talk-goodbye").getByRole("button").click();
+  await expect(box).toHaveCount(0);
 
   // Months pass. The story breaks: the pocket lists it under scandals.
   let turn = 1;

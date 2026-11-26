@@ -752,3 +752,56 @@ outcome-lobby-lost = { $name } was not persuaded on { $bill }.
 outcome-lobby-called-in = { $name } paid back the favour on { $bill }.
 outcome-lobby-owe = { $name } will move on { $bill }. You owe them a favour.
 outcome-lobby-rallied = { $name } came round on { $bill } and will work on { $members } others. You owe them a favour.
+
+## Fundraising, the press, the bribe and the leak as conversations (DEC-114, B5).
+## Choices (`*-choice-*`), what the player says (`*-say-*`), the replies
+## (actions.jsonc `talks`), the costs shown before choosing (`verb-cost-*`,
+## `*-cost-*`) and the Why under the result (`why-*`, with the outcome's
+## arguments).
+press-choice-general = Give them an interview
+press-choice-bill = Give them an interview about { $bill }
+press-say-general = "I'd like to say something to the town. Have you got a minute?"
+press-say-bill = "I want to talk about { $bill }. On the record."
+press-reply-editor = "Sit down. What do you want the town reading tomorrow?"
+press-reply-wary = "Go on, then. I'll print what you say, not what you meant."
+press-reply = "Go on, then. I'm writing."
+press-cost-gaffe = a { $risk }% chance of a gaffe
+fundraise-choice-day = Ask them to give to the campaign
+fundraise-choice-late = Ask them over a late dinner
+fundraise-say-day = "The campaign needs friends. Can I count on you?"
+fundraise-say-late = "Let's talk about the campaign tonight, away from the office."
+fundraise-reply-party = "The party remembers who carries it. Here."
+fundraise-reply-warm = "For you? Of course. Spend it well."
+fundraise-reply = "I can spare something. Don't make me regret it."
+fundraise-cost-raise = raises { $low } to { $high }
+fundraise-cost-ties = low-income voters who know you notice whom you court
+bribe-choice = Take the envelope
+bribe-say = "Thank you. I'll remember this."
+bribe-reply = "Nobody needs to know. Just remember who your friends are."
+leak-choice = Slip them { $rival }'s file
+leak-say = "You didn't get this from me. Have a look at { $rival }."
+leak-reply-editor = "If it stands up, it runs. If it doesn't, I never saw it."
+leak-reply = "If it checks out, it runs. If it doesn't, people will talk anyway."
+verb-cost-slot = one slot
+verb-cost-slots = { $slots } slots
+verb-cost-health = −{ $health } health
+verb-cost-late = your late slot, −{ $health } health
+verb-cost-legal = legal risk +{ $legal }
+verb-cost-pays = pays { $amount }
+verb-cost-exposure = { $risk } chance it comes out within a year ({ $severity })
+ui-dlg-why = Why?
+ui-verb-talk = Talk to them
+ui-verb-talk-here = With { $name }, { $role }, here.
+ui-verb-talk-at = With { $name }, { $role }, at { $place }.
+ui-verb-talk-nobody = There is nobody to do this with now.
+ui-dlg-verb-bills = Talk about a bill…
+why-press = The chance of a gaffe was { $risk }%, set by how well you speak. It went well: the town heard you, a little.
+why-press-gaffe = The chance of a gaffe was { $risk }%, set by how well you speak. This time it went wrong, and those who know you liked you less for it.
+why-fundraise = { $name } gave what a speaker of your skill raises, between { $low } and { $high }. The party likes a fundraiser; low-income voters who know you noticed whom you courted.
+why-fundraise-late = { $name } gave what a speaker of your skill raises, between { $low } and { $high }. Money raised late at night adds legal risk, and someone may ask about it.
+why-take-bribe = { $name } wants something for it, and will ask. Taking it is { $severity }, with { $risk } chance it comes out within a year.
+why-leak-file-exposed = There was something in { $rival }'s past to find, and { $name } ran it. Leaking it is { $severity }, with { $risk } chance that comes out too.
+why-leak-file-rumour = There was nothing solid in { $rival }'s file, so { $name } could not run it, but the talk spread. Leaking it is { $severity }, with { $risk } chance that comes out too.
+outcome-leak-talk-exposed = { $name } ran it. { $rival }'s secret is out.
+outcome-leak-talk-rumour = { $name } found nothing solid in { $rival }'s file, but a rumour is spreading.
+talk-why-verb-place = That is done somewhere else. Go there first.

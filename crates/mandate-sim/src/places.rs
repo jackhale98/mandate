@@ -302,6 +302,11 @@ pub fn best_for(
 /// Auto-routing (DEC-079 rule 2): wrap a command in a `Go` to the best
 /// location for it, unless the player is already there.
 pub fn routed(state: &State, content: &ContentBundle, cmd: PlayerCommand) -> PlayerCommand {
+    // Fundraising, the press, the bribe and the leak are conversations
+    // (DEC-114, B5): the action is had with someone where it is done.
+    if let Some(talk) = crate::actions::verbs::as_talk(state, content, &cmd) {
+        return talk;
+    }
     let here = state.player.as_ref().map(|p| p.location);
     match best_location(state, content, &cmd) {
         Some(l) if Some(l) != here => PlayerCommand::Go {

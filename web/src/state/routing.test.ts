@@ -6,7 +6,7 @@ describe("auto-routing", () => {
   it("maps commands to action keys", () => {
     expect(routeKey({ type: "cast_vote", policy: 1, vote: "yes" }, null)?.action).toBe("vote");
     expect(routeKey({ type: "act", action: { type: "canvass", neighborhood: 4 }, late_night: false }, null)).toEqual({ action: "canvass", lateNight: false, neighborhood: 4 });
-    expect(routeKey({ type: "act", action: { type: "fundraise" }, late_night: true }, null)).toEqual({ action: "fundraise", lateNight: true, neighborhood: null });
+    expect(routeKey({ type: "act", action: { type: "town_hall", neighborhood: 2, policy: null }, late_night: false }, null)).toEqual({ action: "town_hall", lateNight: false, neighborhood: 2 });
     expect(routeKey({ type: "end_turn" }, null)).toBeNull();
     // Meeting someone happens where the player already is.
     expect(routeKey({ type: "meet", slot: 0 }, null)).toBeNull();
@@ -14,9 +14,9 @@ describe("auto-routing", () => {
 
   it("finds the engine's route for a command", () => {
     const to = { location: { type: "place" as const, place: 7 }, kind_key: "diner", name: "Sam's", neighborhood: 1, neighborhood_name: "Old Town" };
-    const pocket = { routes: [{ action: "fundraise", late_night: true, neighborhood: null, to, here: false }] } as unknown as PocketView;
-    expect(findRoute(pocket, null, { type: "act", action: { type: "fundraise" }, late_night: true })?.to).toBe(to);
-    expect(findRoute(pocket, null, { type: "act", action: { type: "fundraise" }, late_night: false })).toBeUndefined();
+    const pocket = { routes: [{ action: "rest", late_night: false, neighborhood: null, to, here: false }] } as unknown as PocketView;
+    expect(findRoute(pocket, null, { type: "act", action: { type: "rest" }, late_night: false })?.to).toBe(to);
+    expect(findRoute(pocket, null, { type: "act", action: { type: "dip_funds" }, late_night: false })).toBeUndefined();
   });
 
   it("compares locations", () => {

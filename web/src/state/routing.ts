@@ -36,20 +36,14 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
     case "act": {
       const a = cmd.action;
       switch (a.type) {
-        case "fundraise":
-          return k("fundraise", cmd.late_night);
         case "canvass":
           return k("canvass", false, a.neighborhood);
         case "town_hall":
           return k("town_hall", false, a.neighborhood);
-        case "press":
         case "advertise":
         case "rest":
         case "dip_funds":
-        case "leak_file":
           return k(a.type);
-        case "take_bribe":
-          return k("take_bribe", true);
         case "casework": // the services desk (DEC-097 §2)
           return k("casework");
       }

@@ -171,6 +171,10 @@ pub struct PocketView {
     /// Where each action is done: town-wide actions once (and their late
     /// variant), neighbourhood actions once per neighbourhood.
     pub routes: Vec<RouteView>,
+    /// Fundraising, the press, the bribe and the leak are conversations
+    /// (DEC-114, B5): for each (and fundraising's late variant), whom the
+    /// player would have it with where it is done, if anyone.
+    pub verb_talks: Vec<VerbTalkView>,
     /// Decisions waiting for the player, soonest deadline first (DEC-079:
     /// always listed here and answerable from here).
     pub decisions: Vec<crate::narrative::DecisionView>,
@@ -330,6 +334,15 @@ pub struct OfferView {
     pub risk: Option<f64>,
     /// A shady action's payoff and exposure (DEC-073 risk line).
     pub shady: Option<crate::media::ShadyOfferView>,
+    /// Fundraising, the press, the bribe and the leak are conversations
+    /// (DEC-114, B5): whom it is had with here, and the `Talk` topic of the
+    /// choice that does it with nothing in particular.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub with: Option<crate::characters::PersonRefView>,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub topic: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -633,6 +646,57 @@ fn town_hoods(st: &State, m: MunicipalityId) -> Vec<usize> {
     st.world.hoods_of(m).collect()
 }
 
+/// An agenda verb had in conversation (DEC-114, B5): whom with, and where.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct VerbTalkView {
+    /// Action key: `press` | `fundraise` | `take_bribe` | `leak_file`.
+    pub action: String,
+    pub late_night: bool,
+    /// Whom it is had with (gated as everywhere: a stranger by their role).
+    pub person: crate::characters::PersonRefView,
+    /// Where it is done: where the player is, if it is done there.
+    pub to: LocationView,
+    pub here: bool,
+    /// The `Talk` topic of the choice that does it with nothing in
+    /// particular (the press: on no bill).
+    pub topic: String,
+}
+
+/// Each verb had in conversation, with whom and where (`VerbTalkView`).
+pub fn verb_talks(engine: &Engine) -> Vec<VerbTalkView> {
+    use mandate_sim::actions::{Action, verbs};
+    let st = engine.state();
+    let content = engine.content();
+    let Some(here) = st.player.as_ref().map(|p| p.location) else {
+        return Vec::new();
+    };
+    let gate = crate::knowledge::Gate::of(engine);
+    let plans = [
+        (Action::Press { policy: None }, false),
+        (Action::Fundraise, false),
+        (Action::Fundraise, true),
+        (Action::TakeBribe, true),
+        (Action::LeakFile, false),
+    ];
+    plans
+        .iter()
+        .filter_map(|(a, late)| {
+            let verb = verbs::Verb::of_action(a)?;
+            let at = *verbs::places_for(st, content, verb.key(), *late).first()?;
+            let who = verbs::partner_at(st, content, verb, at)?;
+            Some(VerbTalkView {
+                action: verb.key().into(),
+                late_night: *late,
+                person: crate::characters::person_ref_known(engine, &gate, who)?,
+                to: location_view(st, at),
+                here: at == here,
+                topic: verbs::choice_for(a, *late)?,
+            })
+        })
+        .collect()
+}
+
 /// Every route the agenda needs.
 pub fn routes(engine: &Engine) -> Vec<RouteView> {
     let st = engine.state();
@@ -825,6 +889,7 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
         },
         location: location_view(st, pl.location),
         routes: routes(engine),
+        verb_talks: verb_talks(engine),
         news: crate::media::newspaper_view(engine, 3)
             .map(|n| n.articles)
             .unwrap_or_default(),
@@ -1041,6 +1106,12 @@ fn offer_view(engine: &Engine, loc: Location, key: &str, late_night: bool) -> Of
         .flatten();
     // Free commands (votes, drafting, filing) take no slot.
     let free = matches!(key, "vote" | "draft" | "file" | "withdraw");
+    let verb = mandate_sim::actions::verbs::Verb::of_key(key);
+    let gate = Gate::of(engine);
+    let with = verb
+        .and_then(|v| mandate_sim::actions::verbs::partner_at(st, engine.content(), v, loc))
+        .and_then(|c| crate::characters::person_ref_known(engine, &gate, c));
+    let topic = verb.and_then(|v| mandate_sim::actions::verbs::choice_for(&v.action(), late_night));
     OfferView {
         action: key.into(),
         late_night,
@@ -1056,6 +1127,8 @@ fn offer_view(engine: &Engine, loc: Location, key: &str, late_night: bool) -> Of
         },
         risk,
         shady,
+        with,
+        topic,
     }
 }
 
