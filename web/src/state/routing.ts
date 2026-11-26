@@ -35,9 +35,6 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
     case "act": {
       const a = cmd.action;
       switch (a.type) {
-        case "lobby":
-        case "trade_favor":
-          return k(a.type, cmd.late_night);
         case "fundraise":
           return k("fundraise", cmd.late_night);
         case "canvass":

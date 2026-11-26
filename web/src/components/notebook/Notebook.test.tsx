@@ -251,9 +251,25 @@ describe("the Notebook", () => {
 
   it("search: one flat list grouped by kind; something not known answers with the way to find out", () => {
     setup();
+    // A name only one person has, and a neighbourhood the notebook has a gap
+    // on, from the fixture's world.
+    const rows = load<PeopleView>("people").rows;
+    const surname = (n: string) => n.split(" ").pop()?.toLowerCase() ?? "";
+    const unique =
+      rows
+        .map((r) => surname(r.name))
+        .find(
+          (x) =>
+            x.length > 3 &&
+            rows.filter((r) => r.name.toLowerCase().includes(x)).length === 1,
+        ) ?? "";
+    expect(unique).not.toBe("");
+    const gapHood = String(
+      load<NotebookView>("notebook").gaps[0]?.args.hood ?? "",
+    );
     fireEvent.click(screen.getByTestId("notebook-search-open"));
     fireEvent.change(screen.getByTestId("notebook-search"), {
-      target: { value: "brackenwell" },
+      target: { value: unique },
     });
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
     expect(
@@ -262,10 +278,10 @@ describe("the Notebook", () => {
       ),
     ).toHaveLength(1);
     fireEvent.change(screen.getByTestId("notebook-search"), {
-      target: { value: "east hill" },
+      target: { value: gapHood.toLowerCase() },
     });
     const gap = screen.getByTestId("notebook-results-gaps");
-    expect(gap.textContent).toContain("Canvass East Hill");
+    expect(gap.textContent).toContain(`Canvass ${gapHood}`);
     fireEvent.change(screen.getByTestId("notebook-search"), {
       target: { value: "zzzz" },
     });

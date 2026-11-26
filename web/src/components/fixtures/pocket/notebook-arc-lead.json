@@ -1369,13 +1369,35 @@
           "lead": null,
           "level": "heard",
           "new_this_turn": true,
-          "note": {
-            "args": {},
-            "key": "know-person-name-only"
+          "seen": {
+            "args": {
+              "kind_key": "place-community_centre",
+              "part_key": "day-part-morning",
+              "place_key": "talk-place-community_centre"
+            },
+            "at": {
+              "kind_key": "community_centre",
+              "location": {
+                "place": 139,
+                "type": "place"
+              },
+              "name": "",
+              "neighborhood": 104,
+              "neighborhood_name": "Bridgegate"
+            },
+            "key": "seen-last",
+            "on": {
+              "day": 12,
+              "day_number": 737342,
+              "month": 2,
+              "year": 2020
+            },
+            "part": "morning",
+            "part_key": "day-part-morning"
           },
           "stale": false,
           "subject": {
-            "person": 1401,
+            "person": 1406,
             "type": "person"
           },
           "title_key": "notebook-person"

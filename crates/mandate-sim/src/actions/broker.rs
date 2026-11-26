@@ -421,6 +421,10 @@ fn choice(
         args: args(state, content, o, p, speaker),
         replies: replies(content, o),
         cost: ChoiceCost::Conversation,
+        odds: None,
+        costs: Vec::new(),
+        remote: false,
+        bill: None,
     }
 }
 

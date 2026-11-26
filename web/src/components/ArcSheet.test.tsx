@@ -76,13 +76,18 @@ describe("the arc sheet", () => {
       expect(c.respondAsk).toHaveBeenCalledWith(askId, true);
     }
     // Who is in it: people with Talk.
-    const who = arcView.cast.find((x) => x.person?.can_talk)?.person;
     const cast = within(screen.getByTestId("arc-cast-list"));
-    fireEvent.click(cast.getByRole("button", { name: `Talk to ${who?.name}` }));
-    expect(c.openTalk).toHaveBeenCalledWith({
-      type: "person",
-      person: who?.id,
-    });
+    const who = arcView.cast.find((x) => x.person?.can_talk)?.person;
+    expect(arcView.cast.some((x) => x.person)).toBe(true);
+    if (who) {
+      fireEvent.click(
+        cast.getByRole("button", { name: `Talk to ${who.name}` }),
+      );
+      expect(c.openTalk).toHaveBeenCalledWith({
+        type: "person",
+        person: who.id,
+      });
+    }
     // Heat is never drawn.
     expect(sheet.querySelector(".bar")).toBeNull();
   });

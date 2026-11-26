@@ -1,5 +1,5 @@
 {
-  "arc": 1,
+  "arc": 2,
   "beat": "showdown.debate",
   "phase": "open",
   "layout": "crowd",
@@ -145,7 +145,7 @@
   },
   "days_left": 14,
   "other": {
-    "id": 758,
+    "id": 759,
     "ambient_slot": null,
     "name": "Rolf Wareer",
     "role_key": "role-candidate",
@@ -156,7 +156,7 @@
     "has_news": true
   },
   "chair": {
-    "id": 1266,
+    "id": 1272,
     "ambient_slot": null,
     "name": "Hector Birchby",
     "role_key": "occupation-editor",
@@ -167,7 +167,7 @@
     "has_news": true
   },
   "second": {
-    "id": 1269,
+    "id": 1275,
     "ambient_slot": null,
     "name": "Flora Achter",
     "role_key": "occupation-union_steward",
@@ -195,7 +195,7 @@
       "size": 3,
       "lean": {
         "step": 0,
-        "points": 3,
+        "points": 4,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",
@@ -219,7 +219,7 @@
       "size": 3,
       "lean": {
         "step": 0,
-        "points": 3,
+        "points": 4,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",
@@ -243,7 +243,7 @@
       "size": 2,
       "lean": {
         "step": 0,
-        "points": 3,
+        "points": 4,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",

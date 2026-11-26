@@ -22,7 +22,9 @@ export function hotspotOffers(h: HotspotDef, v: Pick<PlacePanelView, "actions" |
   };
 }
 
-const FORMS = new Set<string>(["lobby", "trade_favor", "take_bribe"]);
+// Lobbying is a conversation (M6 note 29): a booth says so, and the forms are the rest.
+const FORMS = new Set<string>(["take_bribe"]);
+const TALKED = new Set<string>(["lobby", "trade_favor"]);
 
 export function HotspotSheet({ hotspot, view, onClose }: { hotspot: HotspotDef; view: PlacePanelView; onClose: () => void }) {
   const tr = useGame((s) => s.tr);
@@ -65,6 +67,11 @@ export function HotspotSheet({ hotspot, view, onClose }: { hotspot: HotspotDef; 
                 <ActionForm action={a as FormAction} allowLate={lateHere.has(a)} lateOnly={hotspot.late === true} />
               </section>
             ))}
+          {!whip && actions.some((a) => TALKED.has(a)) && (
+            <p className="muted small" data-testid="hotspot-lobby-talk">
+              {tr.t("ui-lobby-by-talking")}
+            </p>
+          )}
           {services.map((s) => (
             <section key={s} className="card" data-testid={`hotspot-service-${s}`}>
               <h2>{tr.t(`service-${s}`)}</h2>

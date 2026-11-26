@@ -59,8 +59,9 @@ describe("Today", () => {
       within(screen.getByTestId(`ask-${ask}`)).getByTestId(`ask-accept-${ask}`),
     ).toBeTruthy();
     // An arc under way opens its sheet.
-    fireEvent.click(screen.getByTestId("open-arc-0"));
-    expect(openArc).toHaveBeenCalledWith(0);
+    const arc = pocket.arcs[0]?.id;
+    fireEvent.click(screen.getByTestId(`open-arc-${arc}`));
+    expect(openArc).toHaveBeenCalledWith(arc);
     // The switch carries the engine's count; Save is behind the ⋯ menu.
     expect(screen.getByTestId("pocket-tab-badge-today").textContent).toBe(
       String(pocket.needs_count),

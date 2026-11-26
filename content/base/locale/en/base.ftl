@@ -442,7 +442,39 @@ ui-impl-months = { $n ->
    *[other] Takes { $n } months to set up
 }
 ui-late-night-short = Late night
-ui-whip-help = Lobbying uses a slot. A late-night meeting uses your extra slot: better odds, but it costs health and adds legal risk. Trading a favour wins a vote for sure, but you will owe them.
+ui-whip-help = Where each member stands, and why as far as you know. Talk to them to argue the bill: what you can argue depends on what you know of them, and each argument shows its chance and cost. Two talks a member a week.
+ui-whip-talk = Talk to them
+ui-whip-talk-to = Talk to { $name } about the bill
+ui-whip-settled = Settled
+ui-whip-brings = Can bring others
+ui-whip-talked-out = Talked to twice this week
+ui-lobby-by-talking = Lobbying is done by talking: talk to the member about the bill. Meeting after hours is one of the choices.
+whip-why-settled = { $how ->
+    [sponsor] their own bill
+    [no] committed: no
+    [abstain] committed: abstaining
+   *[yes] committed: yes
+}
+whip-why-party = { $line ->
+    [yes] party for it
+    [no] party against it
+   *[free] free vote
+}
+whip-why-ward = ward { $lean }
+whip-why-broker = { $broker } leaning on them { $way ->
+    [against] against it
+   *[for] for it
+}
+whip-why-owes-you = owes you { $n ->
+    [one] a favour
+   *[other] { $n } favours
+}
+whip-why-you-owe = you owe them { $n ->
+    [one] a favour
+   *[other] { $n } favours
+}
+whip-why-opinion = { $band }
+whip-why-lobbied = you talked this week
 ui-amend-cost = Amending a bill already before the council uses a slot and halves the support you have built for it.
 ui-odds = { $pct }% odds
 ui-favors = { $n ->

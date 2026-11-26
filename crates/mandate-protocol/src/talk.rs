@@ -259,6 +259,21 @@ pub struct TopicView {
     #[ts(optional)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub say_key: Option<String>,
+    /// A choice's costs, shown before it is chosen (DEC-073): Fluent keys
+    /// and their arguments (`lobby-cost-*`).
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub costs: Option<Vec<crate::office::ReasonView>>,
+    /// The bill a choice argues (lobbying, M6 note 29): the panel groups
+    /// the arguments on one bill under it.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bill: Option<u32>,
+    /// It can be chosen without walking to them (lobbying from the list,
+    /// DEC-051).
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote: Option<bool>,
 }
 
 /// The talk panel for someone (§3.9): who they are, whether they are here
@@ -310,6 +325,8 @@ fn why(e: &EngineError) -> &'static str {
         "talk-why-time"
     } else if m.contains("late night already used") {
         "talk-why-late-used"
+    } else if m.contains("meet after hours instead") {
+        "talk-why-day"
     } else if m.contains("late at night") {
         "talk-why-late-here"
     } else if m.contains("needs a subject") {
@@ -689,6 +706,9 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
                     asked_this_week: asked,
                     name_args: None,
                     say_key: None,
+                    costs: None,
+                    bill: None,
+                    remote: None,
                 });
                 continue;
             }
@@ -705,6 +725,9 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
             asked_this_week: asked,
             name_args: None,
             say_key: None,
+            costs: None,
+            bill: None,
+            remote: None,
         });
     }
     // Systems' own choices (talk hooks, S4) come first: an ask's "Put in a
@@ -712,7 +735,9 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
     let mut choices: Vec<TopicView> = talk::hooks::offered(st, content, id)
         .into_iter()
         .map(|c| {
-            let reason = if !here {
+            // Lobbying needs no walk (DEC-051): it is checked as sent, with
+            // the late flag of the view (a day's argument is refused late).
+            let reason = if !here && !c.remote {
                 Some("talk-why-away")
             } else {
                 talk::check_choice(st, content, id, &c.id, late)
@@ -725,12 +750,23 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
                 mechanic: "choice".into(),
                 about_required: false,
                 about: Vec::new(),
-                odds: None,
+                odds: c.odds,
                 available: reason.is_none(),
                 unavailable_key: reason.map(String::from),
                 asked_this_week: false,
                 name_args: Some(c.args.iter().cloned().collect()),
                 say_key: Some(c.say_key.clone()),
+                costs: (!c.costs.is_empty()).then(|| {
+                    c.costs
+                        .iter()
+                        .map(|(key, args)| crate::office::ReasonView {
+                            key: key.clone(),
+                            args: args.iter().cloned().collect(),
+                        })
+                        .collect()
+                }),
+                bill: c.bill,
+                remote: c.remote.then_some(true),
             }
         })
         .collect();

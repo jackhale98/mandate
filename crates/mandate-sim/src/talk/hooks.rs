@@ -26,6 +26,11 @@ pub const PREFIX: &str = "choice.";
 pub enum ChoiceCost {
     /// As a conversation (half a slot; the late slot late at night).
     Conversation,
+    /// As a conversation in the day (half a slot); not in the late slot.
+    Day,
+    /// The late slot (and its health), whenever it is chosen: a meeting
+    /// after hours.
+    LateSlot,
     /// Nothing beyond being there.
     Free,
 }
@@ -55,6 +60,17 @@ pub struct Choice {
     /// hold always (content validation makes it so for asks).
     pub replies: Vec<Reply>,
     pub cost: ChoiceCost,
+    /// The chance it works, where it is rolled (DEC-073: the owner rolls
+    /// exactly this).
+    pub odds: Option<f64>,
+    /// What else it costs, shown before it is chosen: Fluent keys and
+    /// their arguments.
+    pub costs: Vec<(String, Vec<(String, String)>)>,
+    /// It can be had without being where the person is (from a list,
+    /// DEC-051): lobbying a colleague.
+    pub remote: bool,
+    /// The bill it is about, for the panel to group choices by bill.
+    pub bill: Option<u32>,
 }
 
 /// What the owner did when the choice was picked: the exchange's outcome.
@@ -79,6 +95,7 @@ pub const HOOKS: &[Hook] = &[
     crate::asks::hook::HOOK,
     crate::arcs::beats::HOOK,
     crate::actions::broker::HOOK,
+    crate::actions::lobbying::HOOK,
 ];
 
 /// Whether a `Talk` topic is a hook's choice.

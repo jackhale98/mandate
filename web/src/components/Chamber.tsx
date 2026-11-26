@@ -7,6 +7,7 @@ import { formatDate } from "../i18n/format";
 import { ImpactLines } from "./BillCard";
 import { personName } from "./Knowing";
 import { legislature, signerText } from "./posts";
+import { useTalkFocus } from "./talk/focus";
 
 /** Someone in office: name (opens their sheet), role, stances as known, and how they stand with you. */
 export function Member({ m, children }: { m: MemberView; children?: ReactNode }) {
@@ -98,19 +99,30 @@ export function YourVote({ bill }: { bill: BillView }) {
   );
 }
 
-/** The exact whip count, member by member, with lobbying (in the legislature's chamber only, DEC-079). */
+/** A member's reasons on the whip, as the engine states them (a `*_key` argument is itself a key). */
+function reasonText(tr: { event: (k: string, a: Record<string, string>) => string }, r: { key: string; args: Record<string, string> }): string {
+  return tr.event(r.key, r.args);
+}
+
+/**
+ * The whip count, member by member (in the legislature's chamber only, DEC-079): for, against,
+ * undecided, and why as far as the player knows. Lobbying is a conversation (M6 note 29): each row
+ * offers "Talk to them", which opens it on the bill without a walk (DEC-051).
+ */
 export function ChamberWhip() {
   const tr = useGame((s) => s.tr);
   const o = useGame((s) => s.office);
   const busy = useGame((s) => s.busy);
-  const perform = useGame((s) => s.perform);
+  const openTalk = useGame((s) => s.openTalk);
   const pending = (o?.bills ?? []).filter((b) => b.status === "under_consideration");
   const [sel, setSel] = useState<number | null>(null);
   if (!o) return null;
   const bill = pending.find((b) => b.id === sel) ?? pending[0];
   const body = legislature(o);
-  const favours = new Map((body?.members ?? []).map((m) => [m.id, m.favors]));
-  const p = o.player;
+  const talk = (character: number, policy: number) => {
+    useTalkFocus.getState().setBill(policy);
+    void openTalk({ type: "person", person: character });
+  };
 
   return (
     <>
@@ -147,45 +159,40 @@ export function ChamberWhip() {
             <p className="hint">{tr.t("ui-whip-help")}</p>
             <ul className="whip-list">
               {bill.whip.map((w) => {
-                const owed = favours.get(w.politician) ?? 0;
+                const who = personName(tr, w.name);
                 return (
-                  <li key={w.politician} className="whip-row" data-lean={w.lean}>
+                  <li key={w.politician} className="whip-row" data-lean={w.lean} data-settled={w.settled ? "true" : undefined} data-testid="whip-row">
                     <div className="whip-who">
-                      <strong>{personName(tr, w.name)}</strong>
+                      <strong>{who}</strong>
                       <span className="muted small">
                         {tr.t("ui-ward", { n: w.ward_number })} · <span className={`lean lean-${w.lean}`}>{tr.t(`lean-${w.lean}`)}</span> · {tr.t("ui-yes-chance", { pct: Math.round(w.yes_probability * 100) })}
                       </span>
+                      {w.reasons.length > 0 && (
+                        <span className="small whip-why" data-testid="whip-why">
+                          {w.reasons.map((r) => reasonText(tr, r)).join(" · ")}
+                        </span>
+                      )}
                     </div>
                     {w.is_player ? (
                       <span className="chip chip-muted">{tr.t("ui-you")}</span>
+                    ) : w.settled ? (
+                      <span className="chip chip-muted" data-testid="whip-settled">
+                        {tr.t("ui-whip-settled")}
+                      </span>
                     ) : (
                       <div className="whip-actions">
+                        {w.brings_others && <span className="chip">{tr.t("ui-whip-brings")}</span>}
                         <button
                           type="button"
                           className="btn btn-sm"
-                          disabled={busy || p.slots_left === 0}
-                          onClick={() => void perform({ type: "act", action: { type: "lobby", politician: w.politician, policy: bill.id }, late_night: false })}
+                          disabled={busy || w.exchanges_left === 0}
+                          aria-label={tr.t("ui-whip-talk-to", { name: who })}
+                          onClick={() => talk(w.character, bill.id)}
+                          data-testid="whip-talk"
                         >
-                          {tr.t("action-lobby")} · {tr.t("ui-odds", { pct: Math.round(w.lobby_odds * 100) })}
+                          {tr.t("ui-whip-talk")}
                         </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-ghost"
-                          disabled={busy || !p.late_night_available}
-                          onClick={() => void perform({ type: "act", action: { type: "lobby", politician: w.politician, policy: bill.id }, late_night: true })}
-                        >
-                          {tr.t("ui-late-at-diner")} · {tr.t("ui-odds", { pct: Math.round(w.lobby_odds_late * 100) })}
-                        </button>
-                        {owed > -2 && (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-ghost"
-                            disabled={busy || p.slots_left === 0}
-                            onClick={() => void perform({ type: "act", action: { type: "trade_favor", politician: w.politician, policy: bill.id }, late_night: false })}
-                          >
-                            {tr.t("action-trade-favor")}
-                          </button>
-                        )}
+                        {w.exchanges_left === 0 && <span className="muted small">{tr.t("ui-whip-talked-out")}</span>}
                       </div>
                     )}
                   </li>

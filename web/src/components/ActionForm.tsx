@@ -7,9 +7,10 @@ import { formatMoney } from "../i18n/format";
 import { placeName } from "../places/labels";
 import { WorryPicker, useCanvassPreview } from "./talk/WorryPicker";
 
-export type FormAction = "canvass" | "town_hall" | "press" | "fundraise" | "rest" | "advertise" | "lobby" | "trade_favor" | "take_bribe" | "dip_funds" | "leak_file";
+// Lobbying is a conversation (M6 note 29): talk to the member (the whip's list, their sheet), not a form.
+export type FormAction = "canvass" | "town_hall" | "press" | "fundraise" | "rest" | "advertise" | "take_bribe" | "dip_funds" | "leak_file";
 
-const LATE: ReadonlySet<FormAction> = new Set(["lobby", "trade_favor", "fundraise", "take_bribe"]);
+const LATE: ReadonlySet<FormAction> = new Set(["fundraise", "take_bribe"]);
 /** Only late at night (an envelope under the table). */
 const LATE_ONLY: ReadonlySet<FormAction> = new Set(["take_bribe"]);
 /** Borderline and illegal actions (DEC-034): a payoff now, a risk later. */
@@ -28,7 +29,6 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   const perform = useGame((s) => s.perform);
   const [hoodSel, setHood] = useState<number | null>(null);
   const [bill, setBill] = useState<number | null>(null);
-  const [member, setMember] = useState<number | null>(null);
   const [late, setLate] = useState(lateOnly || LATE_ONLY.has(action));
   // Canvassing on a worry (DEC-091): the worries and their match come from the engine's preview.
   const [issue, setIssue] = useState<string | null>(null);
@@ -40,14 +40,6 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   const p = o.player;
   const hood = fixedHood ?? hoodSel ?? o.town.neighborhoods[0]?.id ?? 0;
   const live = o.bills.filter((b) => b.status === "under_consideration" || b.status === "enacted" || b.status === "in_effect");
-  const pending = o.bills.filter((b) => b.status === "under_consideration");
-  const lobbyBill = action === "lobby" || action === "trade_favor" ? (pending.find((b) => b.id === bill) ?? pending[0]) : undefined;
-  // The bodies' members, then the executive (DEC-098: whoever the constitution seats).
-  const colleagues = o.bodies
-    .flatMap((b) => b.members)
-    .concat(o.executive ? [o.executive] : [])
-    .filter((m) => !m.is_player);
-  const target = colleagues.find((m) => m.id === member) ?? colleagues[0];
   const lateAllowed = allowLate && LATE.has(action);
   const useLate = (late || lateOnly || LATE_ONLY.has(action)) && lateAllowed;
   const cost = p.action_costs.find((c) => c.action === action) ?? { action, slots: 1, health: 0 };
@@ -76,10 +68,6 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
     case "advertise":
       act = { type: "advertise" };
       break;
-    case "lobby":
-    case "trade_favor":
-      act = lobbyBill && target ? { type: action, politician: target.id, policy: lobbyBill.id } : null;
-      break;
     case "take_bribe":
     case "dip_funds":
     case "leak_file":
@@ -88,7 +76,6 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   }
   const cmd: CommandDto | null = act ? { type: "act", action: act, late_night: useLate } : null;
   const enough = (action === "advertise" ? p.ads_left > 0 && p.money >= p.ad_cost : useLate ? p.late_night_available : p.slots_left >= cost.slots) && !shady?.unavailable_key;
-  const exactOdds = lobbyBill?.whip_exact ? lobbyBill.whip.find((w) => w.politician === target?.id) : undefined;
 
   return (
     <div className="action-form" data-testid={`form-${action}`}>
@@ -118,34 +105,6 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
           </select>
         </label>
       )}
-      {(action === "lobby" || action === "trade_favor") &&
-        (pending.length === 0 ? (
-          <p className="muted small">{tr.t("ui-no-pending")}</p>
-        ) : (
-          <>
-            <label className="field">
-              <span>{tr.t("ui-select-bill")}</span>
-              <select className="input" value={lobbyBill?.id ?? ""} onChange={(e) => setBill(Number(e.target.value))}>
-                {pending.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {tr.t(b.name_key)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>{tr.t("ui-colleague")}</span>
-              <select className="input" value={target?.id ?? ""} onChange={(e) => setMember(Number(e.target.value))}>
-                {colleagues.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name === "" ? `${tr.t(m.role_key)}${m.ward_number !== null ? ` · ${tr.t("ui-ward", { n: m.ward_number })}` : ""}` : m.name}
-                    {m.favors < 0 ? ` · ${tr.t("ui-owe", { n: -m.favors })}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </>
-        ))}
       {/* Every option shows what it costs and what it risks before you commit (DEC-073). */}
       <p className="tradeoff" data-testid="tradeoff">
         {action === "advertise" ? (
@@ -158,8 +117,6 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
         {action === "town_hall" && <strong> {tr.t("ui-risk-hostile", { pct: pct(o.town.town_hall_risk[hoodIndex] ?? 0) })}</strong>}
         {action === "press" && <strong> {tr.t("ui-risk-gaffe", { pct: pct(p.press_gaffe_risk) })}</strong>}
         {action === "fundraise" && useLate && <strong> {tr.t("ui-risk-late-money")}</strong>}
-        {(action === "lobby" || action === "trade_favor") && useLate && <strong> {tr.t("ui-risk-late-deal")}</strong>}
-        {action === "lobby" && (exactOdds ? <strong> {tr.t("ui-odds", { pct: pct(useLate ? exactOdds.lobby_odds_late : exactOdds.lobby_odds) })}</strong> : <span> {tr.t("ui-odds-in-chamber")}</span>)}
       </p>
       {/* DEC-073: the chance it comes out, before you commit (a coarse band). */}
       {shady && (
@@ -210,4 +167,4 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
 }
 
 /** The agenda kinds, in the order the pocket lists them. */
-export const AGENDA: FormAction[] = ["canvass", "town_hall", "press", "fundraise", "lobby", "trade_favor", "rest", "advertise", "take_bribe", "dip_funds", "leak_file"];
+export const AGENDA: FormAction[] = ["canvass", "town_hall", "press", "fundraise", "rest", "advertise", "take_bribe", "dip_funds", "leak_file"];

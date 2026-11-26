@@ -224,6 +224,20 @@ fn every_topic_works() {
         );
         assert_eq!(r.args.get("name").map(|s| !s.is_empty()), Some(true));
     }
+    // A colleague is lobbied on a bill before the council in the
+    // conversation's own arguments (M6 note 29), from anywhere.
+    e.apply(e.route(PlayerCommand::IntroducePolicy { policy: bill.0 }))
+        .unwrap();
+    e.apply(Command::EndTurn).unwrap();
+    for arg in ["plain", "owe"] {
+        let r = e.apply(Command::Player(PlayerCommand::Talk {
+            to: TalkTarget::Person { person: a },
+            topic: format!("choice.lobby.{}.{arg}", bill.0),
+            about: None,
+            late_night: false,
+        }));
+        assert!(r.is_ok(), "{arg}: {r:?}");
+    }
     // Mechanics left their marks through the owning domains.
     let st = e.state();
     let pol = st
@@ -232,7 +246,7 @@ fn every_topic_works() {
         .unwrap();
     assert!(
         st.politics.sway.contains_key(&(pol.id.0, bill.0)),
-        "the pitch and the favour sway the bill"
+        "the arguments sway the bill"
     );
     assert!(
         characters::favours_owed(&st.politics, me(&e), a) >= 1,

@@ -38,7 +38,7 @@
         "ambient_slot": null,
         "can_talk": false,
         "has_news": true,
-        "id": 1399,
+        "id": 1404,
         "level": "heard",
         "name": "Sana Vargawell",
         "role_key": "occupation-shopkeeper",
@@ -71,7 +71,7 @@
         "ambient_slot": null,
         "can_talk": false,
         "has_news": true,
-        "id": 1028,
+        "id": 1030,
         "level": "known",
         "name": "Bettina Zeller",
         "role_key": "role-mayor",
@@ -100,13 +100,13 @@
     "text": {
       "args": {
         "above": "Loreshire",
-        "away": "87",
+        "away": "89",
         "clock_day": "30",
         "clock_month_key": "month-4",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "266",
+        "homes": "270",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -115,7 +115,7 @@
         "organiser_role_key": "occupation-shopkeeper",
         "place": "Halobridge",
         "player": "Osric Gold",
-        "repaired": "121",
+        "repaired": "123",
         "town": "Halobridge",
         "weeks": "29",
         "year": "2020"
@@ -126,13 +126,13 @@
   "headline": {
     "args": {
       "above": "Loreshire",
-      "away": "232",
+      "away": "236",
       "clock_day": "2",
       "clock_month_key": "month-3",
       "crisis_key": "crisis-disaster_recovery",
       "day": "1",
       "hall": "Bridgegate",
-      "homes": "266",
+      "homes": "270",
       "hood": "Orchardfield",
       "month_key": "month-2",
       "official": "Bettina Zeller",
@@ -142,7 +142,7 @@
       "organiser_role_key": "occupation-shopkeeper",
       "place": "Halobridge",
       "player": "Osric Gold",
-      "repaired": "48",
+      "repaired": "49",
       "town": "Halobridge",
       "weeks": "10",
       "year": "2020"
@@ -153,20 +153,20 @@
       "month": 4,
       "year": 2020
     },
-    "id": 1929,
+    "id": 1905,
     "text_key": "headline-arc-flood-weeks"
   },
   "history": [
     {
       "args": {
         "above": "Loreshire",
-        "away": "87",
+        "away": "89",
         "clock_day": "30",
         "clock_month_key": "month-4",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "266",
+        "homes": "270",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -175,7 +175,7 @@
         "organiser_role_key": "occupation-shopkeeper",
         "place": "Halobridge",
         "player": "Osric Gold",
-        "repaired": "121",
+        "repaired": "123",
         "town": "Halobridge",
         "weeks": "29",
         "year": "2020"
@@ -186,19 +186,19 @@
         "month": 8,
         "year": 2020
       },
-      "id": 1996,
+      "id": 1961,
       "text_key": "arc-flood-hollowed"
     },
     {
       "args": {
         "above": "Loreshire",
-        "away": "232",
+        "away": "236",
         "clock_day": "30",
         "clock_month_key": "month-4",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "266",
+        "homes": "270",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -207,7 +207,7 @@
         "organiser_role_key": "occupation-shopkeeper",
         "place": "Halobridge",
         "player": "Osric Gold",
-        "repaired": "48",
+        "repaired": "49",
         "town": "Halobridge",
         "weeks": "11",
         "year": "2020"
@@ -218,19 +218,19 @@
         "month": 4,
         "year": 2020
       },
-      "id": 1930,
+      "id": 1906,
       "text_key": "arc-flood-meeting"
     },
     {
       "args": {
         "above": "Loreshire",
-        "away": "232",
+        "away": "236",
         "clock_day": "2",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "266",
+        "homes": "270",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -240,7 +240,7 @@
         "organiser_role_key": "occupation-shopkeeper",
         "place": "Halobridge",
         "player": "Osric Gold",
-        "repaired": "48",
+        "repaired": "49",
         "town": "Halobridge",
         "weeks": "10",
         "year": "2020"
@@ -251,19 +251,19 @@
         "month": 4,
         "year": 2020
       },
-      "id": 1929,
+      "id": 1905,
       "text_key": "headline-arc-flood-weeks"
     },
     {
       "args": {
         "above": "Loreshire",
-        "away": "232",
+        "away": "236",
         "clock_day": "2",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "266",
+        "homes": "270",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -273,7 +273,7 @@
         "organiser_role_key": "occupation-shopkeeper",
         "place": "Halobridge",
         "player": "Osric Gold",
-        "repaired": "48",
+        "repaired": "49",
         "town": "Halobridge",
         "weeks": "10",
         "year": "2020"
@@ -284,19 +284,19 @@
         "month": 4,
         "year": 2020
       },
-      "id": 1928,
+      "id": 1904,
       "text_key": "skip-item-arc-flood-petition"
     },
     {
       "args": {
         "above": "Loreshire",
-        "away": "296",
+        "away": "300",
         "clock_day": "2",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "266",
+        "homes": "270",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -305,7 +305,7 @@
         "organiser_role_key": "occupation-shopkeeper",
         "place": "Halobridge",
         "player": "Osric Gold",
-        "repaired": "24",
+        "repaired": "25",
         "town": "Halobridge",
         "weeks": "4",
         "year": "2020"
@@ -316,19 +316,19 @@
         "month": 3,
         "year": 2020
       },
-      "id": 1909,
+      "id": 1883,
       "text_key": "arc-flood-counting"
     },
     {
       "args": {
         "above": "Loreshire",
-        "away": "374",
+        "away": "379",
         "clock_day": "2",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "266",
+        "homes": "270",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -349,19 +349,19 @@
         "month": 3,
         "year": 2020
       },
-      "id": 1906,
+      "id": 1881,
       "text_key": "event-arc-ask"
     },
     {
       "args": {
         "above": "Loreshire",
-        "away": "374",
+        "away": "379",
         "clock_day": "2",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "266",
+        "homes": "270",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -382,19 +382,19 @@
         "month": 2,
         "year": 2020
       },
-      "id": 1892,
+      "id": 1866,
       "text_key": "event-arc-decision"
     },
     {
       "args": {
         "above": "Loreshire",
-        "away": "374",
+        "away": "379",
         "clock_day": "2",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "266",
+        "homes": "270",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -415,19 +415,19 @@
         "month": 2,
         "year": 2020
       },
-      "id": 1884,
+      "id": 1857,
       "text_key": "headline-arc-flood-struck"
     },
     {
       "args": {
         "above": "Loreshire",
-        "away": "374",
+        "away": "379",
         "clock_day": "2",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
         "hall": "Bridgegate",
-        "homes": "266",
+        "homes": "270",
         "hood": "Orchardfield",
         "month_key": "month-2",
         "official": "Bettina Zeller",
@@ -447,7 +447,7 @@
         "month": 2,
         "year": 2020
       },
-      "id": 1883,
+      "id": 1856,
       "text_key": "arc-flood-struck"
     }
   ],

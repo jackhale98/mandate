@@ -62,16 +62,21 @@ On hold until then:
   - F1, F2a and F2b: policy families in the simulation, with works projects.
 - **Done on the branch:** E7, the asks screens (the Today block, casework, the promise picker, the badge), with the skip-summary fixes.
 
-## Running
-- **R2:** offices from the constitution in the protocol and web.
+## Running (2026-11-26)
+- **X3:** stand-ins play exchange scenes, so the grader measures the arcs' turns.
+- **The pilot arc:** the zoning fight, with a ledger of what an arc costs.
+- **Merging:** B1 (the town calendar, one date per turn, regulars; save v32), then the WASM size pass.
 
-## Next (queued)
-- **F3–F6:** family views, the first pack, the lab and the proposal sheet, after R2.
-- **V1:** credit and blame for laws.
-- **X1:** a lab timing check of layout v2 on a regional capital.
-- **C5:** a talk lab and repetition gate.
-- **Proxy and asks:** the skip's proxy answers offers by its directives (offers now lapse during skips).
-- **More rooms:** the union hall, party office, news office and community centre. Awaiting the owner's go.
+Done since 2026-11-24 (live): the power broker (note 27), conversations narrowed and tied to role (note 26), exchange scenes X1, X2 and X4, staged arcs A1–A4, industries and named plants, the impact estimate, the pocket rework (DEC-113), lobbying as a conversation (note 29).
+
+## Next (queued, in order; three builders)
+1. **Being there (DEC-114), on B1:** B2 faults and casework; B3 doors; B4 street dressing; B5 fundraising, press, the bribe and the leak as conversations. Two at a time at most (street and talk panel).
+2. **The cold open, after X3:** A7 the audition; A8 frames, the draft screen, the first-beat guarantee; crises rewritten as arcs and about a dozen new ones (sized by the pilot's ledger); the career card and stepping away (note 23).
+3. **Policy families:** F3 with the impact estimate on proposals, then F4 and F5, then F6 and works you can see.
+4. **The first new worries,** with upkeep you can see.
+5. **Structure and quality:** the structure-only refactor; fallible answers FA1–FA5 (five owner questions first); text pass 2.
+6. **May slip to M7:** E3–E5 and E9–E13; V1; difficulty presets and the DEC-102 gates enforced.
+7. **End of M6:** the tuning pass over `TUNING_QUEUE.md`; settings, accessibility with a screen-reader test, PWA, docs, the tutorial; the tester checkpoint.
 
 ## Engagement (DEC-097, DEC-100)
 - **E3:** the dilemma pool. Written to recombine with the town's details; content targets below.

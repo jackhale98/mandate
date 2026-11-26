@@ -130,6 +130,7 @@
 .dlg-tag-quiet { border-style: dotted; color: var(--dlg-muted); font-weight: 600; }
 .dlg-opens { flex: none; font-size: 1.3rem; line-height: 1; font-weight: 700; color: var(--dlg-muted); }
 .dlg-why { margin: -6px 0 6px 28px; padding-right: 8px; font-size: 0.8rem; color: var(--dlg-muted); }
+.dlg-costs { margin: -6px 0 6px 28px; padding-right: 8px; font-size: 0.8rem; color: var(--dlg-muted); }
 .dlg-item-continue .dlg-choice { font-weight: 700; color: var(--dlg-rim); }
 .dlg-item-continue .dlg-choice::before { opacity: 1; }
 .dlg-item-go .dlg-choice { font-weight: 700; }

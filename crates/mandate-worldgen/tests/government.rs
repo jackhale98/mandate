@@ -24,6 +24,28 @@ fn world(seed: u64) -> Engine {
     generate(&WorldConfig::new(seed, WorldSize::Small), content()).unwrap()
 }
 
+/// Lobby a member in conversation (M6 note 29): `argument` is the last
+/// part of the choice id (`plain`, `owe`, `after-hours`, …). No walk.
+fn lobby(
+    e: &mut Engine,
+    politician: u32,
+    policy: u32,
+    argument: &str,
+) -> Result<mandate_sim::CommandOutcome, mandate_sim::EngineError> {
+    let person = e
+        .state()
+        .politics
+        .get(mandate_sim::politics::PoliticianId(politician))
+        .unwrap()
+        .character;
+    e.apply(Command::Player(PlayerCommand::Talk {
+        to: mandate_sim::talk::TalkTarget::Person { person },
+        topic: format!("choice.lobby.{policy}.{argument}"),
+        about: None,
+        late_night: false,
+    }))
+}
+
 fn draft(e: &mut Engine, template: &str, params: &[(&str, f64)]) -> u32 {
     let params: BTreeMap<String, f64> = params.iter().map(|(k, v)| (k.to_string(), *v)).collect();
     let out = e
@@ -50,13 +72,7 @@ fn whip_hard(e: &mut Engine, policy: u32) {
         if e.state().player.as_ref().unwrap().slots_left() == 0 {
             break;
         }
-        let _ = e.apply(e.route(PlayerCommand::Act {
-            action: Action::TradeFavor {
-                politician: id,
-                policy,
-            },
-            late_night: false,
-        }));
+        let _ = lobby(e, id, policy, "owe");
     }
 }
 
@@ -251,13 +267,7 @@ fn player_commands_are_deterministic() {
             .unwrap();
         let m = e.state().player.as_ref().unwrap().municipality;
         let target = mayor_of(e.state(), m.index()).unwrap().0;
-        let _ = e.apply(e.route(PlayerCommand::Act {
-            action: Action::Lobby {
-                politician: target,
-                policy: id,
-            },
-            late_night: true,
-        }));
+        let _ = lobby(&mut e, target, id, "after-hours");
         for _ in 0..10 {
             e.apply(Command::EndTurn).unwrap();
         }
@@ -280,14 +290,7 @@ fn state_with_lobbying_round_trips_through_json() {
         .iter()
         .find(|p| **p != me)
         .unwrap();
-    e.apply(e.route(PlayerCommand::Act {
-        action: Action::Lobby {
-            politician: target.0,
-            policy: id,
-        },
-        late_night: false,
-    }))
-    .unwrap();
+    lobby(&mut e, target.0, id, "plain").unwrap();
     assert!(!e.state().politics.sway.is_empty());
     let hash = e.state_hash();
     assert_eq!(hash.len(), 64, "state hash must not be empty");
@@ -308,18 +311,13 @@ fn favour_debt_is_capped() {
         .iter()
         .find(|p| **p != me)
         .unwrap();
-    let trade = || PlayerCommand::Act {
-        action: Action::TradeFavor {
-            politician: target.0,
-            policy: id,
-        },
-        late_night: false,
-    };
-    e.apply(e.route(trade())).unwrap();
-    e.apply(e.route(trade())).unwrap();
-    // Two favours owed: the third trade is refused (slots remain from the late-night allowance aside).
-    e.apply(Command::EndTurn).unwrap();
-    assert!(e.apply(e.route(trade())).is_err());
+    lobby(&mut e, target.0, id, "owe").unwrap();
+    lobby(&mut e, target.0, id, "owe").unwrap();
+    // Two favours owed: a third is not offered, the next week either.
+    for _ in 0..2 {
+        e.apply(Command::EndTurn).unwrap();
+    }
+    assert!(lobby(&mut e, target.0, id, "owe").is_err());
 }
 
 #[test]

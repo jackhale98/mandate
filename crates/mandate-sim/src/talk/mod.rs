@@ -44,7 +44,6 @@ use crate::player::knowledge::{self, FamilyInstanceId, Lead, LeadTarget, Level, 
 use crate::policy::{PolicyInstanceId, PolicyStatus};
 use crate::politics::PoliticianId;
 use crate::scheduler::Effect;
-use crate::spine::{Cause, PlayerAct};
 use crate::state::State;
 use crate::world::{Jurisdiction, NeighborhoodId, PlaceId};
 use context::{Args, Ctx};
@@ -287,28 +286,11 @@ fn check_about(
 enum Mech {
     None,
     SmallTalk,
-    /// Sway a colleague on a bill (the lobbying formula).
-    Pitch {
-        target: PoliticianId,
-        policy: PolicyInstanceId,
-    },
     PitchNoted,
-    /// A colleague asked to back a bill (the lobbying odds).
-    Back {
-        target: PoliticianId,
-        policy: PolicyInstanceId,
-    },
-    /// Anyone else asked for a public endorsement (of the player or a bill).
+    /// Anyone but a colleague on a bill asked for a public endorsement (of
+    /// the player or a bill).
     Endorse {
         policy: Option<PolicyInstanceId>,
-    },
-    CallIn {
-        debtor: PoliticianId,
-        policy: PolicyInstanceId,
-    },
-    Offer {
-        target: PoliticianId,
-        policy: PolicyInstanceId,
     },
     FavourNone,
 }
@@ -330,41 +312,37 @@ fn plan(
     state: &State,
     topic: &TopicDef,
     speaker: CharacterId,
-    me: CharacterId,
     about: Option<&AboutRef>,
 ) -> Result<Mech, EngineError> {
     let bill = match about {
         Some(AboutRef::Bill { policy }) => Some(*policy),
         _ => None,
     };
-    let peer = colleague(state, speaker);
+    // A colleague is lobbied on a bill before the body in the
+    // conversation's own choices (`actions::lobbying`, M6 note 29), not
+    // through these topics; a draft is only noted.
+    let lobbied = colleague(state, speaker).is_some()
+        && bill.is_some_and(|b| {
+            state
+                .policy
+                .instances
+                .get(b.index())
+                .is_some_and(|i| i.status == PolicyStatus::UnderConsideration)
+        });
+    if lobbied
+        && matches!(
+            topic.mechanic,
+            TalkMechanic::Pitch | TalkMechanic::AskSupport | TalkMechanic::Favour
+        )
+    {
+        return Err(bad("that is not something to ask them now: argue the bill"));
+    }
     Ok(match topic.mechanic {
         TalkMechanic::Inform | TalkMechanic::Open => Mech::None,
         TalkMechanic::SmallTalk => Mech::SmallTalk,
-        TalkMechanic::Pitch => match (peer, bill) {
-            (Some(target), Some(policy)) => Mech::Pitch { target, policy },
-            _ => Mech::PitchNoted,
-        },
-        TalkMechanic::AskSupport => match (peer, bill) {
-            (Some(target), Some(policy)) => Mech::Back { target, policy },
-            _ => Mech::Endorse { policy: bill },
-        },
-        TalkMechanic::Favour => match (peer, bill) {
-            (Some(p), Some(policy))
-                if characters::favours_owed(&state.politics, speaker, me) > 0 =>
-            {
-                Mech::CallIn { debtor: p, policy }
-            }
-            (Some(target), Some(policy)) => {
-                if characters::favours_owed(&state.politics, me, speaker) as i32
-                    >= crate::actions::MAX_FAVOR_DEBT
-                {
-                    return Err(bad("you already owe them too much"));
-                }
-                Mech::Offer { target, policy }
-            }
-            _ => Mech::FavourNone,
-        },
+        TalkMechanic::Pitch => Mech::PitchNoted,
+        TalkMechanic::AskSupport => Mech::Endorse { policy: bill },
+        TalkMechanic::Favour => Mech::FavourNone,
     })
 }
 
@@ -385,21 +363,18 @@ pub fn support_odds(state: &State, content: &ContentBundle, speaker: CharacterId
 }
 
 /// The odds a contested topic shows before the player asks (DEC-073):
-/// pitches and asks for support. `None` for the others.
+/// asks for support. `None` for the others. (Lobbying a colleague on a
+/// bill shows each argument's own: `actions::lobbying`.)
 pub fn odds(
     state: &State,
     content: &ContentBundle,
     speaker: CharacterId,
     topic: &str,
     about: Option<&AboutRef>,
-    late_night: bool,
+    _late_night: bool,
 ) -> Option<f64> {
     let t = content.talk_topic(topic)?;
-    let me = characters::player_character(state)?;
-    match plan(state, t, speaker, me, about).ok()? {
-        Mech::Pitch { target, .. } | Mech::Back { target, .. } => Some(crate::actions::lobby_odds(
-            state, content, target, late_night,
-        )),
+    match plan(state, t, speaker, about).ok()? {
         Mech::Endorse { .. } => Some(support_odds(state, content, speaker)),
         _ => None,
     }
@@ -587,7 +562,7 @@ fn prepare(
         return Err(bad("that is not talked about here"));
     }
     check_cost(state, content, late_night)?;
-    let mechanic = plan(state, topic, speaker, me, about)?;
+    let mechanic = plan(state, topic, speaker, about)?;
     // This week with this person: asking again, and flattery.
     let talk = &pl.talk;
     let earlier: Vec<&Exchange> = talk
@@ -603,7 +578,7 @@ fn prepare(
     let small_talks = small_talks_this_week(state, content, speaker);
     let open = Openness {
         flattered: small_talks > 0,
-        favour_called: matches!(mechanic, Mech::CallIn { .. }),
+        favour_called: false,
     };
     let cap = knows::discretion_cap(state, content, speaker, me, open);
     let learn = match same.iter().map(|e| e.cap).max() {
@@ -951,7 +926,7 @@ fn talk_to(
     } else if p.repeat && p.mechanic != Mech::SmallTalk {
         (None, Vec::new())
     } else {
-        mechanic(state, content, &p, late_night)
+        mechanic(state, content, &p)
     };
     let after = characters::opinion(&state.politics, speaker, me);
     let place = match state.player.as_ref().map(|x| x.location) {
@@ -1044,18 +1019,38 @@ pub fn check_choice(
     late_night: bool,
 ) -> Result<(&'static hooks::Hook, hooks::Choice), EngineError> {
     let me = characters::player_character(state).ok_or_else(|| bad("no player"))?;
-    if speaker == me || !can_talk(state, content, speaker) {
+    if speaker == me {
         return Err(bad("they are not here to talk to"));
-    }
-    if late_night && !late_ok(state, content) {
-        return Err(bad(
-            "late at night, people talk only where private meetings are held",
-        ));
     }
     let found = hooks::find(state, content, speaker, id)
         .ok_or_else(|| bad("that is not something to ask them now"))?;
-    if found.1.cost == hooks::ChoiceCost::Conversation {
-        check_cost(state, content, late_night)?;
+    // A remote choice (lobbying a colleague) needs no walk (DEC-051).
+    if !found.1.remote && !can_talk(state, content, speaker) {
+        return Err(bad("they are not here to talk to"));
+    }
+    match found.1.cost {
+        hooks::ChoiceCost::Conversation => {
+            if late_night && !late_ok(state, content) {
+                return Err(bad(
+                    "late at night, people talk only where private meetings are held",
+                ));
+            }
+            check_cost(state, content, late_night)?;
+        }
+        hooks::ChoiceCost::Day => {
+            if late_night {
+                return Err(bad("that is for the day: meet after hours instead"));
+            }
+            check_cost(state, content, false)?;
+        }
+        hooks::ChoiceCost::LateSlot => check_cost(state, content, true)?,
+        hooks::ChoiceCost::Free => {
+            if late_night && !late_ok(state, content) {
+                return Err(bad(
+                    "late at night, people talk only where private meetings are held",
+                ));
+            }
+        }
     }
     Ok(found)
 }
@@ -1116,8 +1111,11 @@ fn choose(
     };
     let before = characters::opinion(&state.politics, speaker, me);
     knowledge::note_sightings(state, content);
-    if choice.cost == hooks::ChoiceCost::Conversation {
-        pay(state, content, late_night);
+    match choice.cost {
+        hooks::ChoiceCost::Conversation => pay(state, content, late_night),
+        hooks::ChoiceCost::Day => pay(state, content, false),
+        hooks::ChoiceCost::LateSlot => pay(state, content, true),
+        hooks::ChoiceCost::Free => {}
     }
     // Talking to someone is meeting them properly.
     let mut learned = Vec::new();
@@ -1202,18 +1200,11 @@ fn mechanic(
     state: &mut State,
     content: &ContentBundle,
     p: &Prepared,
-    late_night: bool,
 ) -> (Option<String>, Vec<(String, String)>) {
     let date = state.calendar.date;
     let (speaker, me) = (p.speaker, p.me);
     let fx = &content.actions.lobby;
     let s = &content.talk.support;
-    let negotiation = state
-        .player
-        .as_ref()
-        .and_then(|x| state.politics.get(x.politician))
-        .map(|x| x.negotiation as f64)
-        .unwrap_or(0.5);
     let subject = |policy: PolicyInstanceId| Some(characters::Subject::Policy { id: policy.0 });
     let key = |k: &str| (Some(format!("outcome-talk-{k}")), Vec::new());
     match p.mechanic {
@@ -1234,72 +1225,6 @@ fn mechanic(
                 );
             }
             key("small-talk")
-        }
-        Mech::Pitch { target, policy } => {
-            let odds = p
-                .odds
-                .unwrap_or_else(|| crate::actions::lobby_odds(state, content, target, late_night));
-            let lp = &content.council.lobby;
-            let rng = state.rng.get(Stream::Player);
-            let success = rng.chance(odds);
-            let gain = if success {
-                rng.range_f64(lp.gain[0], lp.gain[1]) * (0.5 + negotiation)
-            } else {
-                lp.fail_gain
-            } * content.talk.pitch.sway_share;
-            *state.politics.sway.entry((target.0, policy.0)).or_default() += gain as f32;
-            characters::remember(
-                &mut state.politics,
-                content,
-                date,
-                speaker,
-                me,
-                if success {
-                    MemoryKind::LobbiedMe
-                } else {
-                    MemoryKind::PressedMe
-                },
-                subject(policy),
-                Some(if success {
-                    fx.opinion_success
-                } else {
-                    fx.opinion_fail
-                }),
-            );
-            if late_night {
-                late_deal(state, content, speaker);
-            }
-            key(if success {
-                "pitch-success"
-            } else {
-                "pitch-fail"
-            })
-        }
-        Mech::Back { target, policy } => {
-            let odds = p
-                .odds
-                .unwrap_or_else(|| crate::actions::lobby_odds(state, content, target, late_night));
-            let success = state.rng.get(Stream::Player).chance(odds);
-            if !success {
-                refused(state, content, speaker, me, subject(policy));
-                return key("support-refused");
-            }
-            *state.politics.sway.entry((target.0, policy.0)).or_default() += s.sway as f32;
-            characters::remember(
-                &mut state.politics,
-                content,
-                date,
-                speaker,
-                me,
-                MemoryKind::LobbiedMe,
-                subject(policy),
-                Some(fx.opinion_success),
-            );
-            if late_night {
-                late_deal(state, content, speaker);
-            }
-            ask_in_return(state, content, speaker, me, subject(policy));
-            key("support-backed")
         }
         Mech::Endorse { policy } => {
             let odds = p
@@ -1346,63 +1271,6 @@ fn mechanic(
             } else {
                 key("support-endorsed")
             }
-        }
-        Mech::CallIn { debtor, policy } => {
-            if characters::repay(&mut state.politics, speaker, me).is_none() {
-                return key("favour-none");
-            }
-            // The player's side of the bill: their own, else their declared
-            // vote, else yes (as the `call_in` effect of decisions).
-            let pl = state.player.as_ref().map(|x| x.politician);
-            let own = state
-                .policy
-                .instances
-                .get(policy.index())
-                .is_some_and(|x| x.sponsor.is_some() && x.sponsor == pl);
-            let side = if own {
-                1.0
-            } else {
-                match pl.and_then(|x| state.politics.declared_votes.get(&(x.0, policy.0))) {
-                    Some(v) if *v < 0 => -1.0,
-                    _ => 1.0,
-                }
-            };
-            *state.politics.sway.entry((debtor.0, policy.0)).or_default() +=
-                (side * fx.trade_gain) as f32;
-            characters::remember(
-                &mut state.politics,
-                content,
-                date,
-                speaker,
-                me,
-                MemoryKind::PressedMe,
-                subject(policy),
-                None,
-            );
-            key("favour-called-in")
-        }
-        Mech::Offer { target, policy } => {
-            *state.politics.sway.entry((target.0, policy.0)).or_default() +=
-                (fx.trade_gain * content.talk.favour.sway_share) as f32;
-            characters::owe(
-                &mut state.politics,
-                me,
-                speaker,
-                "favour-bill",
-                subject(policy),
-                date,
-            );
-            characters::remember(
-                &mut state.politics,
-                content,
-                date,
-                speaker,
-                me,
-                MemoryKind::PromisedFavour,
-                subject(policy),
-                Some(fx.opinion_success),
-            );
-            key("favour-offered")
         }
     }
 }
@@ -1451,24 +1319,4 @@ fn ask_in_return(
         date,
     );
     true
-}
-
-/// A late-night pitch is a back-room deal (as late lobbying, DEC-034).
-fn late_deal(state: &mut State, content: &ContentBundle, speaker: CharacterId) {
-    let legal = content.actions.lobby.late_night_legal as f32;
-    let Some(me) = state.player.as_mut().map(|p| {
-        p.tracks.legal_jeopardy = (p.tracks.legal_jeopardy + legal).min(100.0);
-        p.politician
-    }) else {
-        return;
-    };
-    let cause = Cause::Player(PlayerAct::Talk);
-    crate::media::hide(
-        state,
-        content,
-        &content.media.late_night_deal,
-        me,
-        vec![crate::narrative::Actor::Person { id: speaker }],
-        cause,
-    );
 }

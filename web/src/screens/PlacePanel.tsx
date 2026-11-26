@@ -304,7 +304,7 @@ function People({ v }: { v: PlacePanelView }) {
 /** Generic actions a place offers, each with its costs and risks. */
 function Actions({ v, skip }: { v: PlacePanelView; skip: Set<string> }) {
   const tr = useGame((s) => s.tr);
-  const forms = new Set<FormAction>(["canvass", "town_hall", "press", "fundraise", "rest", "advertise", "lobby", "trade_favor", "take_bribe", "dip_funds", "leak_file"]);
+  const forms = new Set<FormAction>(["canvass", "town_hall", "press", "fundraise", "rest", "advertise", "take_bribe", "dip_funds", "leak_file"]);
   const campaign = useGame((s) => s.campaign);
   // Late-only actions (an envelope at the diner) are listed by their late variant.
   const shown = v.actions.filter((a) => (!a.late_night || a.action === "take_bribe") && !skip.has(a.action) && forms.has(a.action as FormAction) && (a.action !== "advertise" || campaign?.in_campaign));
@@ -375,8 +375,8 @@ export function PlacePanel() {
   const has = (s: string) => v?.services.includes(s) ?? false;
   const offers = (a: string) => v?.actions.some((x) => x.action === a) ?? false;
   const chamber = has("whip_exact");
-  // Lobbying in the chamber is done from the whip list.
-  const skip = new Set<string>(chamber ? ["lobby", "trade_favor"] : []);
+  // Lobbying is a conversation (M6 note 29): no form for it anywhere.
+  const skip = new Set<string>();
   return (
     <>
       <div className={closing ? "sheet-scrim sheet-closing" : "sheet-scrim"} onClick={requestClose} aria-hidden="true" />

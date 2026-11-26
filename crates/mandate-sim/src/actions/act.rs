@@ -35,10 +35,12 @@ pub(super) fn perform(
         return Err(bad("envelopes change hands late at night"));
     }
     match action {
-        Action::Lobby { politician, policy } | Action::TradeFavor { politician, policy } => {
-            res = lobby(
-                state, content, pl, date, m, action, politician, policy, late_night,
-            )?;
+        // Lobbying is a conversation (M6 note 29): the one-tap path is
+        // retired; the variants stay so old run logs still read.
+        Action::Lobby { .. } | Action::TradeFavor { .. } => {
+            return Err(bad(
+                "lobbying is done by talking to the member: talk to them about the bill",
+            ));
         }
         Action::TownHall {
             neighborhood,
