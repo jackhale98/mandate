@@ -69,9 +69,13 @@ pub fn origin_key(hood: NeighborhoodId) -> u64 {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Work {
     /// At a named plant of the town (`economy::plants`).
-    Plant { plant: u32 },
+    Plant {
+        plant: u32,
+    },
     /// In a sector (its content id).
-    Sector { sector: ContentKey },
+    Sector {
+        sector: ContentKey,
+    },
     Retired,
     /// Between jobs (the town's unemployment for their class).
     Looking,
@@ -321,7 +325,13 @@ pub fn generation(_state: &State, _hood: NeighborhoodId, _door: u16) -> u8 {
     0
 }
 
-fn draw(state: &State, hood: NeighborhoodId, door: u16, generation: u8, part: Part) -> mandate_core::SimRng {
+fn draw(
+    state: &State,
+    hood: NeighborhoodId,
+    door: u16,
+    generation: u8,
+    part: Part,
+) -> mandate_core::SimRng {
     rng(
         state.meta.seed,
         &[
@@ -359,8 +369,11 @@ pub fn household(
             .map(|p| p.prefixes.clone())
             .unwrap_or_default()
     };
-    let (given, family) =
-        crate::politics::person_name(&mut d(Part::Name), &pool("names.given"), &pool("names.family"));
+    let (given, family) = crate::politics::person_name(
+        &mut d(Part::Name),
+        &pool("names.given"),
+        &pool("names.family"),
+    );
 
     // Their cohort, by adults in each.
     let weights: Vec<f64> = pop.cohorts.iter().map(|c| c.count as f64).collect();
@@ -369,12 +382,12 @@ pub fn household(
     let band = crate::population::age_of(cohort);
     let class = crate::population::class_of(cohort);
     let community = cohort / crate::population::GROUPS;
-    let lo: f64 = 18.0
+    let lo: f64 = 18.0 + crate::population::BAND_YEARS.iter().take(band).sum::<f64>();
+    let hi = lo
         + crate::population::BAND_YEARS
-            .iter()
-            .take(band)
-            .sum::<f64>();
-    let hi = lo + crate::population::BAND_YEARS.get(band).copied().unwrap_or(15.0);
+            .get(band)
+            .copied()
+            .unwrap_or(15.0);
     let age = d(Part::Age).range_f64(lo, hi) as u32;
 
     // How many live there: adults, and children by the neighbourhood's
@@ -408,7 +421,10 @@ pub fn household(
             .iter()
             .filter(|pl| {
                 pl.municipality == n.municipality
-                    && !matches!(pl.status, crate::economy::plants::PlantStatus::Closed { .. })
+                    && !matches!(
+                        pl.status,
+                        crate::economy::plants::PlantStatus::Closed { .. }
+                    )
             })
             .collect();
         let sectors = econ.map(|e| e.sectors.as_slice()).unwrap_or(&[]);
@@ -484,7 +500,9 @@ pub fn household(
     );
 
     // An empty home, by the town's vacancy (the same doors as it rises).
-    let vacancy = econ.map(|e| clamp(e.housing.vacancy, 0.0, 0.6)).unwrap_or(0.0);
+    let vacancy = econ
+        .map(|e| clamp(e.housing.vacancy, 0.0, 0.6))
+        .unwrap_or(0.0);
     let vacant = d(Part::Empty).next_f64() < vacancy;
 
     let speaker = super::player_character(state).and_then(|me| {
@@ -596,11 +614,7 @@ pub fn engine_doors(state: &State, content: &ContentBundle, hood: NeighborhoodId
 /// an ask), by the path a `Meet` uses: a resident (a retiree past working
 /// age) of the neighbourhood with the household's name and age, and its
 /// origin. Returns them, or the one promoted before.
-pub fn promote(
-    state: &mut State,
-    content: &ContentBundle,
-    h: &Household,
-) -> Option<CharacterId> {
+pub fn promote(state: &mut State, content: &ContentBundle, h: &Household) -> Option<CharacterId> {
     if let Some(id) = h.speaker {
         return Some(id);
     }
@@ -677,15 +691,25 @@ mod tests {
         h.remember(p, again);
         assert_eq!(h.records.len(), 1, "one record a household");
         assert_eq!(h.records[0].on, SimDate(120));
-        assert_eq!(h.records[0].speaker, Some(CharacterId(9)), "the speaker is kept");
+        assert_eq!(
+            h.records[0].speaker,
+            Some(CharacterId(9)),
+            "the speaker is kept"
+        );
         for d in 0..40u16 {
             h.remember(p, rec(1, 10 + d, 200 + d as u32));
         }
         assert_eq!(
-            h.records.iter().filter(|r| r.hood == NeighborhoodId(1)).count(),
+            h.records
+                .iter()
+                .filter(|r| r.hood == NeighborhoodId(1))
+                .count(),
             p.records_per_hood as usize
         );
-        assert!(h.records.iter().all(|r| r.on.0 >= 200), "the oldest forgotten");
+        assert!(
+            h.records.iter().all(|r| r.on.0 >= 200),
+            "the oldest forgotten"
+        );
         h.remember(p, rec(2, 0, 200 + p.forget_days + 100));
         assert_eq!(h.records.len(), 1, "a year on, the calls are forgotten");
     }

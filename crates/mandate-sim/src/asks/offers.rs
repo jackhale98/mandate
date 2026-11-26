@@ -179,7 +179,11 @@ pub fn doorstep_roll(seed: u64, event: u32) -> f64 {
 /// decides it (an active player with room for an ask, the roll): the
 /// canvass then promotes the speaker of a household it knocked on
 /// (`actions::ground`), whom `from_deeds` casts first.
-pub fn doorstep_due(state: &crate::State, content: &mandate_content::ContentBundle, event: u32) -> bool {
+pub fn doorstep_due(
+    state: &crate::State,
+    content: &mandate_content::ContentBundle,
+    event: u32,
+) -> bool {
     let p = &content.ask_params;
     state.player.as_ref().is_some_and(|pl| pl.status.active())
         && !content.asks.is_empty()

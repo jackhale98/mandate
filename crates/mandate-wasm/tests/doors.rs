@@ -50,7 +50,12 @@ fn street(e: &Engine) -> NeighborhoodId {
         .neighborhoods
         .iter()
         .copied()
-        .max_by_key(|h| (households::doors(st, e.content(), *h), std::cmp::Reverse(h.0)))
+        .max_by_key(|h| {
+            (
+                households::doors(st, e.content(), *h),
+                std::cmp::Reverse(h.0),
+            )
+        })
         .unwrap()
 }
 
@@ -149,7 +154,10 @@ fn the_same_door_gives_the_same_family_twice_and_through_a_save() {
     assert!(households::household(e.state(), &c, hood, n as u16).is_none());
     let families: std::collections::BTreeSet<&str> =
         first.iter().map(|h| h.family.as_str()).collect();
-    assert!(families.len() > n as usize / 2, "different families behind the doors");
+    assert!(
+        families.len() > n as usize / 2,
+        "different families behind the doors"
+    );
     // Nothing is stored for a door never knocked on.
     assert!(e.state().politics.characters.households.is_empty());
 
@@ -243,14 +251,18 @@ fn a_street_canvass_equals_todays_canvass_formula() {
                 issue: issue.clone(),
             },
         );
-        assert!(r.outcome_key.starts_with("door-reply-case-"), "{}", r.outcome_key);
+        assert!(
+            r.outcome_key.starts_with("door-reply-case-"),
+            "{}",
+            r.outcome_key
+        );
         if i < 3 {
             assert_eq!(
                 a.state().population,
                 pop_before,
                 "a door adds no approval beyond the formula"
             );
-            assert!(r.args.get("street").is_none());
+            assert!(!r.args.contains_key("street"));
         } else {
             assert_eq!(r.args.get("street").map(String::as_str), Some("done"));
             assert_eq!(r.args.get("street_issue"), Some(&issue));
@@ -286,7 +298,10 @@ fn a_street_canvass_equals_todays_canvass_formula() {
         c.tuning.action_cost("canvass").slots,
         "a street spends one canvass's time"
     );
-    assert_eq!(sa.politics.elections, sb.politics.elections, "campaign contact");
+    assert_eq!(
+        sa.politics.elections, sb.politics.elections,
+        "campaign contact"
+    );
     assert_eq!(
         sa.politics.get(pa.politician).unwrap().record,
         sb.politics.get(pb.politician).unwrap().record
@@ -308,7 +323,11 @@ fn a_street_is_four_doors_and_ends_with_anything_else() {
     let used = |e: &Engine| e.state().player.as_ref().unwrap().slots_used;
     let s0 = used(&e);
     knock(&mut e, hood, 0, DoorChoice::Listen);
-    assert_eq!(used(&e), s0 + cost, "the first knock spends the canvass's time");
+    assert_eq!(
+        used(&e),
+        s0 + cost,
+        "the first knock spends the canvass's time"
+    );
     knock(&mut e, hood, 1, DoorChoice::Listen);
     assert_eq!(used(&e), s0 + cost, "later doors are free");
     assert!(
@@ -426,7 +445,10 @@ fn a_doorstep_ask_comes_from_a_household_knocked_on() {
             .map(|a| a.id.0)
             .collect();
         for ask in offered {
-            let _ = e.apply(Command::Player(PlayerCommand::RespondAsk { ask, accept: false }));
+            let _ = e.apply(Command::Player(PlayerCommand::RespondAsk {
+                ask,
+                accept: false,
+            }));
         }
         let hood = hoods[t % hoods.len()];
         go(&mut e, hood);
@@ -465,8 +487,15 @@ fn a_doorstep_ask_comes_from_a_household_knocked_on() {
         Some((households::origin_key(r.hood), r.door as u32, r.generation))
     );
     let h = households::household(e.state(), &c, r.hood, r.door).unwrap();
-    assert_eq!((h.given.as_str(), h.family.as_str()), (n.given.as_str(), n.family.as_str()));
-    assert_eq!(h.speaker, Some(id), "the household's speaker is the person met");
+    assert_eq!(
+        (h.given.as_str(), h.family.as_str()),
+        (n.given.as_str(), n.family.as_str())
+    );
+    assert_eq!(
+        h.speaker,
+        Some(id),
+        "the household's speaker is the person met"
+    );
     // The ask the canvass brought, if one could be cast, is theirs or a
     // resident's of that neighbourhood.
     end_turn(&mut e);

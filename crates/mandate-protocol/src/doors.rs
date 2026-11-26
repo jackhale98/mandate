@@ -224,14 +224,13 @@ pub fn street_doors(engine: &Engine, hood: NeighborhoodId) -> Option<StreetDoors
             family: h.family.clone(),
             vacant: h.vacant,
             knocked: street.is_some_and(|s| s.doors.contains(&(d as u16))),
-            poster: last.as_ref().is_some_and(|l| l.promise.as_deref() == Some("poster")),
+            poster: last
+                .as_ref()
+                .is_some_and(|l| l.promise.as_deref() == Some("poster")),
             last,
         });
     }
-    let here = pl.location
-        == Location::Street {
-            neighborhood: hood,
-        };
+    let here = pl.location == Location::Street { neighborhood: hood };
     let slots = content.tuning.action_cost("canvass").slots;
     let (can_knock, blocked_key) = if street.is_some() {
         (true, None)
@@ -382,10 +381,17 @@ pub fn door_view(engine: &Engine, hood: NeighborhoodId, door: u16) -> Option<Doo
         number,
         family: h.family.clone(),
         answers,
-        given: if answers { h.given.clone() } else { String::new() },
+        given: if answers {
+            h.given.clone()
+        } else {
+            String::new()
+        },
         opener,
         choices,
-        knocked: street.doors.iter().any(|d| d.door == door as u32 && d.knocked),
+        knocked: street
+            .doors
+            .iter()
+            .any(|d| d.door == door as u32 && d.knocked),
         person: h.speaker.map(|x| x.0),
         street,
     })

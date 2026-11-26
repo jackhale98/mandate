@@ -691,9 +691,8 @@ fn player_command(
                     choice,
                 } => Action::Doorstep {
                     neighborhood,
-                    door: u16::try_from(door).map_err(|_| {
-                        err(ErrorCode::InvalidCommand, "no such door".to_string())
-                    })?,
+                    door: u16::try_from(door)
+                        .map_err(|_| err(ErrorCode::InvalidCommand, "no such door".to_string()))?,
                     choice: choice.to_sim(),
                 },
                 ActionDto::Fundraise => Action::Fundraise,

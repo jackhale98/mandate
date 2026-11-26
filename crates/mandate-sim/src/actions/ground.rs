@@ -263,8 +263,7 @@ pub(super) fn goes_on_with_street(state: &State, cmd: &PlayerCommand) -> bool {
     };
     match cmd {
         PlayerCommand::Act {
-            action:
-                Action::Doorstep { neighborhood, .. } | Action::Canvass { neighborhood, .. },
+            action: Action::Doorstep { neighborhood, .. } | Action::Canvass { neighborhood, .. },
             late_night: false,
         } => *neighborhood == st.hood.0,
         _ => false,
@@ -400,7 +399,8 @@ fn knock(
     let p = &content.characters.households;
     let date = state.calendar.date;
     let mut res = ActionResult::default();
-    res.args.insert("number".into(), (h.door as u32 + 1).to_string());
+    res.args
+        .insert("number".into(), (h.door as u32 + 1).to_string());
     res.args.insert("family".into(), h.family.clone());
     res.args.insert("given".into(), h.given.clone());
     if let Some(n) = state.world.neighborhoods.get(h.hood.index()) {
@@ -609,9 +609,8 @@ fn speaker_from_street(
         .iter()
         .copied()
         .filter(|d| {
-            hh.record(me, street.hood, *d, 0).is_some_and(|r| {
-                r.on == date && r.went != characters::households::Went::NotIn
-            })
+            hh.record(me, street.hood, *d, 0)
+                .is_some_and(|r| r.on == date && r.went != characters::households::Went::NotIn)
         })
         .collect();
     if answered.is_empty() {
@@ -636,7 +635,9 @@ fn speaker_from_street(
         .households
         .records
         .iter_mut()
-        .find(|r| r.by == me && r.hood == h.hood && r.door == h.door && r.generation == h.generation)
+        .find(|r| {
+            r.by == me && r.hood == h.hood && r.door == h.door && r.generation == h.generation
+        })
     {
         r.speaker = Some(id);
     }
