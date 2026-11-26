@@ -19,6 +19,10 @@
     "seed": 2026,
     "needs": "a small world where the explorer legislator's own bill is enacted within 72 months"
   },
+  "fault_seen_open_repairing_and_fixed": {
+    "seed": 4,
+    "needs": "a small idle world where one fault on the player's town's streets is seen at the end of a turn open, being repaired and repaired, within 10 turns"
+  },
   "flood_arc_exits_idle_by_month_12": {
     "seed": 8,
     "needs": "a planted flood raises the arc, still running at month 3, and the idle game lets it exit by month 12"

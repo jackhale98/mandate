@@ -111,6 +111,11 @@ pub const ALL: &[Requirement] = &[
         holds: town_with_a_factory,
     },
     Requirement {
+        name: "fault_seen_open_repairing_and_fixed",
+        needs: FAULT_CYCLE_NEEDS,
+        holds: fault_seen_open_repairing_and_fixed,
+    },
+    Requirement {
         name: "voices_close_unequally",
         needs: "a chamber where the smooth and plain voices each close, and smooth closes more often",
         holds: voices_close_unequally,
@@ -389,6 +394,43 @@ fn introduction_ask_offered_early(seed: u64) -> bool {
         end_turn(&mut e);
     }
     offered(&e, "ask.introduce_me")
+}
+
+/// Turns the street-dressing spec (`web/e2e/fault-cues.spec.ts`) ends at most.
+pub const FAULT_CYCLE_TURNS: usize = 10;
+const FAULT_CYCLE_NEEDS: &str = "a small idle world where one fault on the player's town's streets is seen at the end of a turn open, being repaired and repaired, within 10 turns";
+
+/// The statuses each fault of the player's town shows at the end of each
+/// turn, as the town's state view (what the street dresses) has them.
+pub fn fault_statuses_by_turn(seed: u64, turns: usize) -> Vec<Vec<(u32, String)>> {
+    let mut e = small(seed);
+    let id = town(&e).0;
+    let mut out = Vec::new();
+    for _ in 0..turns {
+        if !end_turn(&mut e) {
+            break;
+        }
+        let v = mandate_protocol::town::town_state_view(&e, id);
+        out.push(
+            v.map(|v| v.faults.into_iter().map(|f| (f.id, f.status)).collect())
+                .unwrap_or_default(),
+        );
+    }
+    out
+}
+
+fn fault_seen_open_repairing_and_fixed(seed: u64) -> bool {
+    let seen = fault_statuses_by_turn(seed, FAULT_CYCLE_TURNS);
+    let mut by_fault: std::collections::BTreeMap<u32, Vec<String>> = Default::default();
+    for turn in &seen {
+        for (id, status) in turn {
+            let s = by_fault.entry(*id).or_default();
+            if !s.contains(status) {
+                s.push(status.clone());
+            }
+        }
+    }
+    by_fault.values().any(|s| s.len() == 3)
 }
 
 fn promises_reachable_by_skipping(seed: u64) -> bool {
