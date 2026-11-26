@@ -96,11 +96,7 @@ fn a_crisis_is_never_kept_out_of_a_place_by_matters() {
     // The same world with the flood ranked as a matter: the places are
     // full, and it waits (its owning system resolves the water alone).
     let mut b = (*c).clone();
-    b.arcs
-        .iter_mut()
-        .find(|a| a.id == FLOOD)
-        .unwrap()
-        .rank = ArcRank::Matter;
+    b.arcs.iter_mut().find(|a| a.id == FLOOD).unwrap().rank = ArcRank::Matter;
     let (raised, _) = crowded_flood(&Arc::new(b));
     assert!(!raised, "a matter is held back when the places are full");
 }
@@ -141,7 +137,12 @@ fn a_flood_runs_beside_the_round_and_leads_the_chapter() {
     assert!(together, "the flood and the round ran at once");
     assert!(flood_led);
     let st = e.state();
-    let rounds: Vec<_> = st.arcs.past.iter().filter(|p| p.template == ROUND).collect();
+    let rounds: Vec<_> = st
+        .arcs
+        .past
+        .iter()
+        .filter(|p| p.template == ROUND)
+        .collect();
     assert!(!rounds.is_empty(), "the round ended by its own rules");
     // The first chapter's climax was the flood's turn, and the round
     // turned inside the same chapter without being it.

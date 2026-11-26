@@ -15,8 +15,8 @@
 //!   with no stand-in still leaves the chair empty: `exchange.rs`,
 //!   `a_skip_stops_at_a_debate_and_the_stand_in_never_plays_it`.)
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-use mandate_content::exchange::Outcome;
 use mandate_content::ContentBundle;
+use mandate_content::exchange::Outcome;
 use mandate_sim::actions::PlayerCommand;
 use mandate_sim::arcs::exchange::{self, ExchangeAct, Phase, SceneView};
 use mandate_sim::events::EventKind;

@@ -14,13 +14,15 @@
 //! - an edge that reads a law names the law's enactment on the spine.
 
 use mandate_content::exchange::MoveKind;
+use mandate_sim::Engine;
 use mandate_sim::arcs::ArcActor;
 use mandate_sim::arcs::beats;
 use mandate_sim::characters;
 use mandate_sim::events::EventKind;
 use mandate_sim::spine::{Cause, Link, Pressure, Process};
-use mandate_sim::Engine;
-use mandate_testkit::{self as kit, Policy, Scene, end_turn, exit_of, home, me, occupation, only, world};
+use mandate_testkit::{
+    self as kit, Policy, Scene, end_turn, exit_of, home, me, occupation, only, world,
+};
 
 const ZONING: &str = "arc.zoning";
 /// A small world whose home town has housing as its strongest worry from
@@ -69,7 +71,11 @@ fn housing_as_the_towns_strongest_worry_raises_the_fight_with_its_own_people() {
         .iter()
         .find(|ev| matches!(&ev.kind, EventKind::ArcRaised { arc, .. } if *arc == r.id.0))
         .unwrap();
-    let housing = c.concerns.iter().position(|x| x.id == "concern.housing").unwrap();
+    let housing = c
+        .concerns
+        .iter()
+        .position(|x| x.id == "concern.housing")
+        .unwrap();
     assert_eq!(
         up.causes,
         vec![
@@ -100,8 +106,12 @@ fn a_passive_player_sees_the_plans_shelved_and_an_engaged_one_does_not() {
     let mut engaged = world(&c, ZONING_SEED);
     let r = kit::raised(&mut passive, ZONING);
     kit::raised(&mut engaged, ZONING);
-    let p = kit::play(&mut passive, ZONING, Policy::PASSIVE, TURNS).exit.unwrap();
-    let g = kit::play(&mut engaged, ZONING, Policy::BEST, TURNS).exit.unwrap();
+    let p = kit::play(&mut passive, ZONING, Policy::PASSIVE, TURNS)
+        .exit
+        .unwrap();
+    let g = kit::play(&mut engaged, ZONING, Policy::BEST, TURNS)
+        .exit
+        .unwrap();
     assert_eq!(p, "shelved");
     assert_ne!(g, "shelved");
     println!("seed {ZONING_SEED}: passive {p}, engaged {g}");
@@ -147,15 +157,35 @@ fn what_was_learned_before_the_meeting_is_what_can_be_said_in_it() {
     // Prepared: walked the site, saw the drawings, asked the organiser.
     let mut ready = world(&c, ZONING_SEED);
     kit::raised(&mut ready, ZONING);
-    let played = kit::play(&mut ready, ZONING, Policy::new(kit::Kind::Engaged, Scene::Lines(lines)), TURNS);
-    let said = played.met.first().expect("the meeting was held").first().to_vec();
+    let played = kit::play(
+        &mut ready,
+        ZONING,
+        Policy::new(kit::Kind::Engaged, Scene::Lines(lines)),
+        TURNS,
+    );
+    let said = played
+        .met
+        .first()
+        .expect("the meeting was held")
+        .first()
+        .to_vec();
     assert!(said.contains(&MoveKind::Proof), "{said:?}");
     assert!(said.contains(&MoveKind::Second), "{said:?}");
     // Turned up cold: nothing to show, nobody to speak.
     let mut cold = world(&c, ZONING_SEED);
     kit::raised(&mut cold, ZONING);
-    let played = kit::play(&mut cold, ZONING, Policy::new(kit::Kind::Passive, Scene::Lines(lines)), TURNS);
-    let said = played.met.first().expect("the meeting was held").first().to_vec();
+    let played = kit::play(
+        &mut cold,
+        ZONING,
+        Policy::new(kit::Kind::Passive, Scene::Lines(lines)),
+        TURNS,
+    );
+    let said = played
+        .met
+        .first()
+        .expect("the meeting was held")
+        .first()
+        .to_vec();
     assert!(!said.contains(&MoveKind::Proof), "{said:?}");
     assert!(!said.contains(&MoveKind::Second), "{said:?}");
     assert!(said.contains(&MoveKind::Pass), "{said:?}");

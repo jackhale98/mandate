@@ -992,10 +992,14 @@ impl Checker<'_> {
             for c in all {
                 if let Condition::ArcScene { beat: Some(b), .. } = c {
                     let found = self.a.beats().any(|(st, x)| {
-                        matches!(x.kind, BeatKind::Exchange(_)) && format!("{}.{}", st.id, x.id) == *b
+                        matches!(x.kind, BeatKind::Exchange(_))
+                            && format!("{}.{}", st.id, x.id) == *b
                     });
                     if !found {
-                        self.err(issues, format!("arc_scene: `{b}` is not a scene of this arc"));
+                        self.err(
+                            issues,
+                            format!("arc_scene: `{b}` is not a scene of this arc"),
+                        );
                     }
                 }
             }
@@ -1196,7 +1200,11 @@ pub fn unread_scenes(b: &ContentBundle) -> Vec<(&str, String)> {
                 continue;
             };
             let key = format!("{}.{}", s.id, beat.id);
-            let marks: Vec<&str> = x.outcome.values().filter_map(|o| o.sets.as_deref()).collect();
+            let marks: Vec<&str> = x
+                .outcome
+                .values()
+                .filter_map(|o| o.sets.as_deref())
+                .collect();
             let read = edge_conds.iter().any(|c| match c {
                 Condition::ArcScene { beat: b, .. } => b.as_ref().is_none_or(|b| *b == key),
                 Condition::ArcMark { mark, .. } => marks.contains(&mark.as_str()),
@@ -1568,7 +1576,11 @@ pub fn short_scene_window(b: &ContentBundle, a: &ArcDef) -> Option<String> {
     let short: Vec<String> = a
         .stages
         .iter()
-        .filter(|s| s.beats.iter().any(|x| matches!(x.kind, BeatKind::Exchange(_))))
+        .filter(|s| {
+            s.beats
+                .iter()
+                .any(|x| matches!(x.kind, BeatKind::Exchange(_)))
+        })
         .filter_map(|s| {
             let lo = s.clock.as_ref()?.days?[0];
             (lo < turn).then(|| format!("`{}` ({lo} days)", s.id))

@@ -14,8 +14,8 @@
 //! - what the engine does not do yet is never raised;
 //! - the state is bounded, and holds no town key.
 
-use mandate_content::arcs::{ArcEffect, BeatKind, GatedEffect};
 use mandate_content::ContentBundle;
+use mandate_content::arcs::{ArcEffect, BeatKind, GatedEffect};
 use mandate_sim::actions::{Action, PlayerCommand};
 use mandate_sim::arcs::beats::{self, BeatAction, BeatOffer};
 use mandate_sim::arcs::exchange::{self, ExchangeAct};
@@ -28,8 +28,8 @@ use mandate_sim::spine::{Cause, Link, Thread};
 use mandate_sim::talk::TalkTarget;
 use mandate_sim::world::{Area, Jurisdiction, NeighborhoodId};
 use mandate_sim::{Command, Engine};
-use std::collections::BTreeSet;
 use mandate_testkit::{self as kit, end_turn, home, plant_flood, world as engine};
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 /// The base pack with the flood arc alone (the harness's `only`): these are
@@ -46,7 +46,6 @@ fn without_arcs(c: &ContentBundle) -> Arc<ContentBundle> {
     b.arcs.clear();
     Arc::new(b)
 }
-
 
 fn run(e: &Engine) -> Option<&ArcRun> {
     e.state().arcs.runs.first()

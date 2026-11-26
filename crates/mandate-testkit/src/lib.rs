@@ -313,7 +313,10 @@ pub struct Played {
 }
 
 /// The scene of a template's run on offer now, if any: (run, beat, where).
-fn open_scene(e: &Engine, template: &str) -> Option<(ArcId, String, mandate_sim::places::Location)> {
+fn open_scene(
+    e: &Engine,
+    template: &str,
+) -> Option<(ArcId, String, mandate_sim::places::Location)> {
     exchange::view::open_scenes(e.state(), e.content())
         .into_iter()
         .find(|(run, _, _)| {
@@ -431,7 +434,8 @@ pub fn play(e: &mut Engine, template: &str, policy: Policy, turns: u32) -> Playe
         if id.is_none() {
             id = run_of(e, template).map(|r| r.id);
         }
-        if id.is_some() && due(e, template, policy.levers)
+        if id.is_some()
+            && due(e, template, policy.levers)
             && let Some(m) = meet(e, template, policy.scene)
         {
             met.push(m);
@@ -482,7 +486,13 @@ pub fn play(e: &mut Engine, template: &str, policy: Policy, turns: u32) -> Playe
 
 /// Play until the run of a template is at `stage`, or has ended (at most
 /// `turns` turns), by a policy. Returns whether it is at the stage.
-pub fn until_stage(e: &mut Engine, template: &str, stage: &str, policy: Policy, turns: u32) -> bool {
+pub fn until_stage(
+    e: &mut Engine,
+    template: &str,
+    stage: &str,
+    policy: Policy,
+    turns: u32,
+) -> bool {
     for _ in 0..turns {
         if run_of(e, template).is_some_and(|r| r.stage == stage) {
             return true;

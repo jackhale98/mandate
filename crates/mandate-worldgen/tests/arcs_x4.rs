@@ -13,11 +13,11 @@
 //! - the rival's lead-up comes before the showdown, with preparation on
 //!   offer there, and a turn that is one decision is gone from all four.
 
+use mandate_sim::Command;
 use mandate_sim::arcs::ArcActor;
 use mandate_sim::arcs::beats::{self, BeatAction};
 use mandate_sim::economy::plants::PlantStatus;
 use mandate_sim::events::EventKind;
-use mandate_sim::Command;
 use mandate_testkit::{
     self as kit, Kind, Policy, Scene, end_turn, exit_of, home, only, run_of, shock_plant, world,
 };

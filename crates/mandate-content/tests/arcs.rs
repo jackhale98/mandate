@@ -56,11 +56,25 @@ fn the_flood_arc_loads_and_uses_only_what_is_built() {
     // arc files in name order): whatever comes after the flood's is an arc
     // file's too (an arc's own decision, an ask only a run offers), so a new
     // arc file changes nothing here.
-    let d = b.dilemmas.iter().position(|x| x.id == "dilemma.flood_money").unwrap();
-    assert!(b.dilemmas[d..].iter().all(|x| x.arc_only), "{:?}", &b.dilemmas[d..]);
-    let k = b.asks.iter().position(|x| x.id == "ask.flood_shelter").unwrap();
+    let d = b
+        .dilemmas
+        .iter()
+        .position(|x| x.id == "dilemma.flood_money")
+        .unwrap();
     assert!(
-        b.asks[k..].iter().all(|x| x.from == [mandate_content::asks::AskFrom::Arc]),
+        b.dilemmas[d..].iter().all(|x| x.arc_only),
+        "{:?}",
+        &b.dilemmas[d..]
+    );
+    let k = b
+        .asks
+        .iter()
+        .position(|x| x.id == "ask.flood_shelter")
+        .unwrap();
+    assert!(
+        b.asks[k..]
+            .iter()
+            .all(|x| x.from == [mandate_content::asks::AskFrom::Arc]),
         "{:?}",
         b.asks[k..].iter().map(|x| &x.id).collect::<Vec<_>>()
     );

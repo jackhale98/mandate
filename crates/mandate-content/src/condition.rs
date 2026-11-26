@@ -1826,9 +1826,7 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
                 err(issues, "an arc_mark condition names a mark".into());
             }
         }
-        C::ArcScene {
-            min_pm, max_pm, ..
-        } => {
+        C::ArcScene { min_pm, max_pm, .. } => {
             if let (Some(lo), Some(hi)) = (min_pm, max_pm)
                 && lo > hi
             {

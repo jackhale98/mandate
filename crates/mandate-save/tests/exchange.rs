@@ -18,9 +18,9 @@
 //! - the paper's story, the promise made on stage, and the causes of each;
 //! - the v29 step withdraws a challenge that was waiting as a decision.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+use mandate_content::ContentBundle;
 use mandate_content::exchange::{MoveKind, Outcome};
 use mandate_content::knowledge::Level;
-use mandate_content::ContentBundle;
 use mandate_save::*;
 use mandate_sim::actions::{Action, PlayerCommand};
 use mandate_sim::arcs::beats::{self, BeatAction};
