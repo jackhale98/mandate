@@ -64,6 +64,34 @@ pub struct Entry {
     pub seen: bool,
 }
 
+/// A scene of the run (DEC-112), as its events tell it: the lines said
+/// and how it ended.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SceneTrace {
+    /// `<stage>.<beat>`.
+    pub beat: String,
+    /// Turns from the start of the watch to the turn it was held in.
+    pub turn: u32,
+    /// Each round: the line said (an option id, `<kind>:<subject>`; empty
+    /// for a round nobody answered) and whether it stood up.
+    pub lines: Vec<(String, bool)>,
+    /// `won`, `split`, `lost` or `absent`; `None` while it is under way.
+    pub outcome: Option<String>,
+    /// The weighted change in lean, in thousandths.
+    pub result_pm: i32,
+}
+
+impl SceneTrace {
+    /// The kinds of line said (the option id's kind), rounds nobody
+    /// answered left out.
+    pub fn kinds(&self) -> impl Iterator<Item = &str> {
+        self.lines
+            .iter()
+            .filter(|l| !l.0.is_empty())
+            .map(|l| l.0.split(':').next().unwrap_or(&l.0))
+    }
+}
+
 /// What a watched run left to measure.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Trace {
@@ -87,6 +115,8 @@ pub struct Trace {
     pub taken: Vec<u32>,
     /// Turns watched while the run lived.
     pub turns: u32,
+    /// Its scenes, in the order they were held.
+    pub scenes: Vec<SceneTrace>,
 }
 
 impl Trace {
@@ -147,6 +177,25 @@ impl Watch {
         }
     }
 
+    /// The scene of `<stage>.<beat>` still under way, else a new one.
+    fn scene(&mut self, stage: &str, beat: &str, turn: u32) -> &mut SceneTrace {
+        let key = format!("{stage}.{beat}");
+        let open = self
+            .trace
+            .scenes
+            .iter()
+            .rposition(|s| s.beat == key && s.outcome.is_none());
+        let i = open.unwrap_or_else(|| {
+            self.trace.scenes.push(SceneTrace {
+                beat: key,
+                turn: turn.saturating_sub(1),
+                ..SceneTrace::default()
+            });
+            self.trace.scenes.len() - 1
+        });
+        &mut self.trace.scenes[i]
+    }
+
     /// Whether the watched run has reached its exit.
     pub fn ended(&self) -> bool {
         self.done
@@ -185,6 +234,32 @@ impl Watch {
                 }
                 EventKind::ArcEnded { arc, exit, .. } if Some(*arc) == self.trace.run => {
                     self.enter(def, exit, turn, true);
+                }
+                // A scene's rounds and its end (held in the turn that just
+                // ended, or on the day its chair stayed empty).
+                EventKind::ArcExchange {
+                    arc,
+                    stage,
+                    beat,
+                    option,
+                    stood,
+                    ..
+                } if Some(*arc) == self.trace.run => {
+                    self.scene(stage, beat, turn)
+                        .lines
+                        .push((option.clone(), *stood));
+                }
+                EventKind::ArcExchangeEnded {
+                    arc,
+                    stage,
+                    beat,
+                    outcome,
+                    result_pm,
+                    ..
+                } if Some(*arc) == self.trace.run => {
+                    let s = self.scene(stage, beat, turn);
+                    s.outcome = Some(outcome.clone());
+                    s.result_pm = *result_pm;
                 }
                 EventKind::ArcBeat {
                     arc,

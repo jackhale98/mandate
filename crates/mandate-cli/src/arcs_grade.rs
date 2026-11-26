@@ -10,6 +10,15 @@
 //! (`mandate_sim::arcs::score`) follows the run; the five terms and
 //! coverage are computed from the traces.
 //!
+//! **The turn** (DEC-112). Where the template has an exchange scene, the
+//! stand-ins play it through its commands (passive: absent; engaged:
+//! cautious; contrarian: bold), and four more play each fork
+//! ([`turn_players`]): the engaged one with an empty chair and playing
+//! bold, the passive one that only turns up, the one that attends the
+//! stops. The report's `turn` section gives each one's scenes (outcomes,
+//! the result, the kinds of line), exits and paths, and how far apart the
+//! styles' exits are.
+//!
 //! **Measuring, not judging.** Every figure is printed with the bar the
 //! design intends for it (§6.9) as data beside it, and none fails the
 //! command. The one enforced check is structural: coverage. From
@@ -27,7 +36,7 @@ use mandate_sim::arcs::score::{
     self, Agency, Coverage, Escalation, Opening, Pacing, Trace, Vector, Visibility, Watch,
 };
 use mandate_sim::politics::Post;
-use mandate_sim::standin::{Kind, Seat};
+use mandate_sim::standin::{Kind, Play, Seat, styled_key};
 use mandate_sim::world::Jurisdiction;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -338,19 +347,183 @@ pub struct WorldGrade {
     pub cause: &'static str,
     pub waited: u32,
     pub opening: Opening,
-    /// Passive, engaged, contrarian, in that order; then the bots, if
-    /// asked for.
+    /// Passive, engaged, contrarian, in that order; for an arc with a
+    /// scene, [`turn_players`]; then the bots, if asked for.
     pub plays: Vec<Played>,
 }
 
 impl WorldGrade {
     pub fn of(&self, kind: Kind) -> Option<&Played> {
-        self.plays.iter().find(|p| p.who == kind.key())
+        self.by(kind.key())
+    }
+
+    /// A play by the player's name (`engaged`, `engaged/bold`).
+    pub fn by(&self, who: &str) -> Option<&Played> {
+        self.plays.iter().find(|p| p.who == who)
     }
 }
 
 /// The bots that check the stand-ins (§6.3).
 pub const CHECK_BOTS: [&str; 3] = ["idle", "mixed", "explorer"];
+
+/// The other ways an arc with a scene (DEC-112) is played, each beside the
+/// three of [`Kind::ARC`] (whose own styles are: passive absent, engaged
+/// cautious, contrarian bold): the engaged stand-in that leaves the chair
+/// empty (what the turn alone is worth), the engaged one playing bold, the
+/// passive one that only turns up for the turn (cautious, unprepared), and
+/// the one that attends the stops (what preparation is worth, §8.2).
+pub fn turn_players() -> Vec<(Kind, Play)> {
+    vec![
+        (Kind::Engaged, Play::Absent),
+        (Kind::Engaged, Play::Bold),
+        (Kind::Passive, Play::Cautious),
+        (Kind::Attends, Play::Cautious),
+    ]
+}
+
+/// The design's bars for a scene, reported beside their figures
+/// (EXCHANGE_SCENES §9.1, §9.4, §12): no outcome in over this share of
+/// the engaged runs' scenes; no kind of line the engaged pick in over this
+/// share of rounds.
+pub const SCENE_OUTCOME_SHARE_MAX: f64 = 0.7;
+pub const SCENE_KIND_SHARE_MAX: f64 = 0.6;
+
+/// What the scenes of a set of runs came to.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ScenesSeen {
+    pub runs: u32,
+    /// Runs in which a scene ended (played, or the chair stayed empty).
+    pub held: u32,
+    /// Scenes ended, by outcome.
+    pub outcomes: BTreeMap<String, u32>,
+    /// Lines said, by kind (rounds nobody answered left out).
+    pub kinds: BTreeMap<String, u32>,
+    pub mean_result_pm: Option<f64>,
+}
+
+impl ScenesSeen {
+    pub fn of(traces: &[&Trace]) -> Self {
+        let mut s = ScenesSeen {
+            runs: traces.len() as u32,
+            ..Default::default()
+        };
+        let mut results = Vec::new();
+        for t in traces {
+            let mut held = false;
+            for sc in &t.scenes {
+                for k in sc.kinds() {
+                    *s.kinds.entry(k.to_string()).or_default() += 1;
+                }
+                if let Some(o) = &sc.outcome {
+                    held = true;
+                    *s.outcomes.entry(o.clone()).or_default() += 1;
+                    results.push(f64::from(sc.result_pm));
+                }
+            }
+            s.held += u32::from(held);
+        }
+        s.mean_result_pm =
+            (!results.is_empty()).then(|| results.iter().sum::<f64>() / results.len() as f64);
+        s
+    }
+
+    fn share(m: &BTreeMap<String, u32>) -> BTreeMap<String, f64> {
+        let n: u32 = m.values().sum();
+        m.iter()
+            .map(|(k, v)| (k.clone(), f64::from(*v) / f64::from(n.max(1))))
+            .collect()
+    }
+
+    pub fn outcome_shares(&self) -> BTreeMap<String, f64> {
+        Self::share(&self.outcomes)
+    }
+
+    pub fn kind_shares(&self) -> BTreeMap<String, f64> {
+        Self::share(&self.kinds)
+    }
+
+    /// The largest share and whose it is.
+    pub fn top(m: &BTreeMap<String, f64>) -> Option<(String, f64)> {
+        m.iter()
+            .fold(None::<(&String, f64)>, |b, (k, v)| match b {
+                Some(b) if b.1 >= *v => Some(b),
+                _ => Some((k, *v)),
+            })
+            .map(|(k, v)| (k.clone(), v))
+    }
+
+    fn json(&self) -> Value {
+        json!({
+            "runs": self.runs,
+            "held": self.held,
+            "outcome_shares": Self::share(&self.outcomes).into_iter().map(|(k, v)| (k, json!(r3(v)))).collect::<serde_json::Map<_, _>>(),
+            "won_share": r3(self.outcome_shares().get("won").copied().unwrap_or(0.0)),
+            "kind_shares": Self::share(&self.kinds).into_iter().map(|(k, v)| (k, json!(r3(v)))).collect::<serde_json::Map<_, _>>(),
+            "lines_said": self.kinds.values().sum::<u32>(),
+            "mean_result_pm": self.mean_result_pm.map(r3),
+        })
+    }
+}
+
+/// What the grader measured of an arc's turn, for the doctor's lints
+/// (EXCHANGE_SCENES §9.4).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TurnGrade {
+    /// The scene beats of the template (`<stage>.<beat>`).
+    pub beats: Vec<String>,
+    /// Each stand-in's scenes, by its name (`engaged`, `engaged/bold`).
+    pub by_player: BTreeMap<String, ScenesSeen>,
+}
+
+impl TurnGrade {
+    /// Outcomes no stand-in reached, of the four a scene can end in.
+    pub fn unvisited(&self) -> Vec<&'static str> {
+        mandate_content::exchange::Outcome::ALL
+            .iter()
+            .map(|o| o.key())
+            .filter(|o| {
+                !self
+                    .by_player
+                    .values()
+                    .any(|s| s.outcomes.get(*o).is_some_and(|n| *n > 0))
+            })
+            .collect()
+    }
+
+    pub fn engaged(&self) -> Option<&ScenesSeen> {
+        self.by_player.get(Kind::Engaged.key())
+    }
+
+    pub fn attends(&self) -> Option<&ScenesSeen> {
+        self.by_player.get(Kind::Attends.key())
+    }
+
+    /// The engaged runs' most common outcome and its share.
+    pub fn lopsided(&self) -> Option<(String, f64)> {
+        ScenesSeen::top(&self.engaged()?.outcome_shares())
+    }
+
+    /// The engaged runs' most picked kind of line and its share.
+    pub fn dominant(&self) -> Option<(String, f64)> {
+        ScenesSeen::top(&self.engaged()?.kind_shares())
+    }
+
+    /// Scenes the engaged stand-in left to an empty chair, of those it
+    /// met. It begins every scene offered to it, so each was never on
+    /// offer at the start of one of its turns (a stage's clock that ran
+    /// out between two turns, or another arc's scene held that chapter).
+    pub fn engaged_absent(&self) -> Option<(u32, u32)> {
+        let e = self.engaged()?;
+        let n: u32 = e.outcomes.values().sum();
+        Some((e.outcomes.get("absent").copied().unwrap_or(0), n))
+    }
+
+    /// The engaged mean result less the attending one's: what preparation
+    /// was worth in the room.
+    pub fn prep_worth(&self) -> Option<f64> {
+        Some(self.engaged()?.mean_result_pm? - self.attends()?.mean_result_pm?)
+    }
+}
 
 /// Grade one template in one world.
 pub fn grade_world(
@@ -361,6 +534,13 @@ pub fn grade_world(
 ) -> Result<WorldGrade, Missed> {
     let w = find(content, def, seed, args.wait_months)?;
     let mut drivers: Vec<Driver> = Kind::ARC.iter().map(|k| Driver::standin(*k)).collect();
+    if mandate_sim::arcs::exchange::has_scene(def) {
+        drivers.extend(
+            turn_players()
+                .into_iter()
+                .map(|(k, p)| Driver::styled(k, p)),
+        );
+    }
     if args.bots {
         drivers.extend(CHECK_BOTS.iter().map(|b| Driver::parse(b)));
     }
@@ -417,6 +597,8 @@ fn bar(name: &str, target: &str, measured: Option<f64>, pass: Option<bool>) -> V
 /// A template's grade: what the worlds measured, as JSON.
 pub struct ArcGrade {
     pub arc: String,
+    /// The turn's scenes, for a template that has one.
+    pub turn: Option<TurnGrade>,
     pub report: Value,
     pub coverage: Coverage,
     /// Unvisited stages and exits with no listed reason.
@@ -519,6 +701,10 @@ pub fn grade(content: &Arc<ContentBundle>, def: &ArcDef, args: &GradeArgs) -> Ar
             "evp_first_pass": r3(first_pass),
             "paths": w.plays.iter().map(|p| (p.who.clone(), json!(path(&p.trace)))).collect::<serde_json::Map<_, _>>(),
             "beats_taken": w.plays.iter().map(|p| (p.who.clone(), json!(p.trace.taken.len()))).collect::<serde_json::Map<_, _>>(),
+            "scenes": w.plays.iter().filter(|p| !p.trace.scenes.is_empty()).map(|p| (p.who.clone(), json!(p.trace.scenes.iter().map(|s| json!({
+                "beat": s.beat, "turn": s.turn, "outcome": s.outcome, "result_pm": s.result_pm,
+                "lines": s.lines.iter().map(|(l, stood)| json!([l, stood])).collect::<Vec<_>>(),
+            })).collect::<Vec<_>>()))).collect::<serde_json::Map<_, _>>(),
             "state_hashes": w.plays.iter().map(|p| (p.who.clone(), json!(p.state_hash))).collect::<serde_json::Map<_, _>>(),
         }));
     }
@@ -588,6 +774,12 @@ pub fn grade(content: &Arc<ContentBundle>, def: &ArcDef, args: &GradeArgs) -> Ar
         misses.entry(m.reason.clone()).or_default().push(m.seed);
     }
     let enforced = args.seeds >= COVERAGE_SEEDS && !worlds.is_empty();
+    let (turn, turn_report) = if mandate_sim::arcs::exchange::has_scene(def) {
+        let (t, v) = turn_section(def, &worlds, &per);
+        (Some(t), v)
+    } else {
+        (None, Value::Null)
+    };
     let report = json!({
         "arc": def.id,
         "seeds": args.seeds,
@@ -629,10 +821,12 @@ pub fn grade(content: &Arc<ContentBundle>, def: &ArcDef, args: &GradeArgs) -> Ar
             bar("engaged_exit_share", &format!("no exit takes over {ENGAGED_EXIT_SHARE_MAX} of engaged runs"), engaged_exit_max, engaged_exit_max.map(|x| x <= ENGAGED_EXIT_SHARE_MAX)),
             bar("turn_within_a_chapter", &format!("the engaged median reaches the turn within one chapter ({} turns)", r3(chapter_turns)), engaged_turns_to_turn, engaged_turns_to_turn.map(|x| x <= chapter_turns)),
         ],
+        "turn": turn_report,
         "rows": rows,
     });
     ArcGrade {
         arc: def.id.clone(),
+        turn,
         report,
         coverage,
         unexplained,
@@ -641,6 +835,122 @@ pub fn grade(content: &Arc<ContentBundle>, def: &ArcDef, args: &GradeArgs) -> Ar
         engaged_turns_to_turn,
         chapter_turns,
     }
+}
+
+/// The stand-ins whose scenes the turn section reports, in order.
+fn turn_who() -> Vec<String> {
+    Kind::ARC
+        .iter()
+        .map(|k| k.key().to_string())
+        .chain(turn_players().into_iter().map(|(k, p)| styled_key(k, p)))
+        .collect()
+}
+
+/// In how many worlds two players' runs reached different exits (one
+/// reaching none counts as different), of the worlds both played, and
+/// optionally only those `keep` admits.
+fn differ(
+    worlds: &[WorldGrade],
+    a: &str,
+    b: &str,
+    keep: &dyn Fn(&WorldGrade) -> bool,
+) -> (u32, u32) {
+    let (mut n, mut d) = (0, 0);
+    for w in worlds.iter().filter(|w| keep(w)) {
+        if let (Some(x), Some(y)) = (w.by(a), w.by(b)) {
+            n += 1;
+            d += u32::from(x.trace.exit_id() != y.trace.exit_id());
+        }
+    }
+    (d, n)
+}
+
+fn differ_json((d, n): (u32, u32)) -> Value {
+    json!({ "worlds": n, "differ": d, "share": (n > 0).then(|| r3(f64::from(d) / f64::from(n))) })
+}
+
+/// The arc's turn as the stand-ins played it (DEC-112; EXCHANGE_SCENES
+/// §8.2, §8.3): each one's scenes (outcomes, the result, the kinds of line
+/// said), how its arc ended and by which path, and how far apart the
+/// styles' exits are. The bars are the design's, reported beside the
+/// figures and enforced by nothing.
+fn turn_section(
+    def: &ArcDef,
+    worlds: &[WorldGrade],
+    per: &BTreeMap<String, PerPlayer>,
+) -> (TurnGrade, Value) {
+    let beats: Vec<String> = def
+        .beats()
+        .filter(|(_, b)| matches!(b.kind, mandate_content::arcs::BeatKind::Exchange(_)))
+        .map(|(s, b)| format!("{}.{}", s.id, b.id))
+        .collect();
+    let mut t = TurnGrade {
+        beats: beats.clone(),
+        by_player: BTreeMap::new(),
+    };
+    let mut players = serde_json::Map::new();
+    for who in turn_who() {
+        let Some((_, _, _, traces, _)) = per.get(&who) else {
+            continue;
+        };
+        let refs: Vec<&Trace> = traces.iter().collect();
+        let seen = ScenesSeen::of(&refs);
+        let mut paths: BTreeMap<String, u32> = BTreeMap::new();
+        for tr in &refs {
+            let p: Vec<&str> = tr.entries.iter().map(|e| e.stage.as_str()).collect();
+            *paths.entry(p.join(">")).or_default() += 1;
+        }
+        let mut v = seen.json();
+        v["exit_shares"] = json!(
+            score::exit_shares(&refs)
+                .into_iter()
+                .map(|(k, x)| (k, json!(r3(x))))
+                .collect::<serde_json::Map<_, _>>()
+        );
+        v["paths"] = json!(paths);
+        players.insert(who.clone(), v);
+        t.by_player.insert(who, seen);
+    }
+    let engaged = Kind::Engaged.key();
+    let played = |w: &WorldGrade| {
+        w.by(engaged).is_some_and(|p| {
+            p.trace
+                .scenes
+                .iter()
+                .any(|s| s.outcome.as_deref().is_some_and(|o| o != "absent"))
+        })
+    };
+    let all = |_: &WorldGrade| true;
+    let worth = differ(
+        worlds,
+        engaged,
+        &styled_key(Kind::Engaged, Play::Absent),
+        &all,
+    );
+    let worth_share = (worth.1 > 0).then(|| f64::from(worth.0) / f64::from(worth.1));
+    let lop = t.lopsided();
+    let dom = t.dominant();
+    let prep = t.prep_worth();
+    let v = json!({
+        "beats": beats,
+        "by_player": players,
+        "exits_differ": {
+            "passive_engaged_where_the_turn_was_played": differ_json(differ(worlds, Kind::Passive.key(), engaged, &played)),
+            "engaged_played_or_absent": differ_json(worth),
+            "engaged_cautious_or_bold": differ_json(differ(worlds, engaged, &styled_key(Kind::Engaged, Play::Bold), &all)),
+            "passive_absent_or_turned_up": differ_json(differ(worlds, Kind::Passive.key(), &styled_key(Kind::Passive, Play::Cautious), &all)),
+            "engaged_or_attends": differ_json(differ(worlds, engaged, Kind::Attends.key(), &all)),
+        },
+        "unvisited_outcomes": t.unvisited(),
+        "engaged_never_offered": t.engaged_absent().map(|(a, n)| json!({ "scenes": n, "absent": a })),
+        "bars": [
+            bar("scene_outcome_lopsided", &format!("no outcome in over {SCENE_OUTCOME_SHARE_MAX} of the engaged runs' scenes ({})", lop.as_ref().map_or("-", |x| x.0.as_str())), lop.as_ref().map(|x| x.1), lop.as_ref().map(|x| x.1 <= SCENE_OUTCOME_SHARE_MAX)),
+            bar("scene_kind_dominant", &format!("no kind of line is the engaged pick in over {SCENE_KIND_SHARE_MAX} of rounds ({})", dom.as_ref().map_or("-", |x| x.0.as_str())), dom.as_ref().map(|x| x.1), dom.as_ref().map(|x| x.1 <= SCENE_KIND_SHARE_MAX)),
+            bar("scene_prep_pays", "the engaged mean result (thousandths) above the attending one's", prep, prep.map(|x| x > 0.0)),
+            bar("turn_changes_the_exit", &format!("engaged exits differ, played and absent, in >= {EXITS_DIFFER_MIN} of worlds"), worth_share, worth_share.map(|x| x >= EXITS_DIFFER_MIN)),
+        ],
+    });
+    (t, v)
 }
 
 /// The templates a run of the grader covers.
@@ -705,12 +1015,15 @@ pub fn text(grades: &[ArcGrade]) -> String {
                 cell(&x["max"])
             );
         }
-        let _ = writeln!(s, "  player      E      V      P      coverage  exits");
+        let _ = writeln!(
+            s,
+            "  player            E      V      P      coverage  exits"
+        );
         if let Some(m) = r["by_player"].as_object() {
             for (who, x) in m {
                 let _ = writeln!(
                     s,
-                    "  {who:<11} {:<6} {:<6} {:<6} {:<9} {}",
+                    "  {who:<17} {:<6} {:<6} {:<6} {:<9} {}",
                     cell(&x["escalation"]["median"]),
                     cell(&x["visibility"]["median"]),
                     cell(&x["pacing"]["median"]),
@@ -741,7 +1054,13 @@ pub fn text(grades: &[ArcGrade]) -> String {
                 u["reason"].as_str().unwrap_or("NO REASON LISTED")
             );
         }
-        for b in r["bars"].as_array().into_iter().flatten() {
+        let turn = &r["turn"];
+        let bars = r["bars"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .chain(turn["bars"].as_array().into_iter().flatten());
+        for b in bars {
             let _ = writeln!(
                 s,
                 "  bar (report-only) {}: measured {}, pass {}",
@@ -749,6 +1068,29 @@ pub fn text(grades: &[ArcGrade]) -> String {
                 cell(&b["measured"]),
                 cell(&b["pass"])
             );
+        }
+        if let Some(m) = turn["by_player"].as_object() {
+            let _ = writeln!(s, "  the turn ({}):", turn["beats"]);
+            let _ = writeln!(
+                s,
+                "  player            held  won    result  scenes                exits"
+            );
+            for (who, x) in m {
+                let _ = writeln!(
+                    s,
+                    "  {who:<17} {:<5} {:<6} {:<7} {} {}",
+                    x["held"],
+                    cell(&x["won_share"]),
+                    cell(&x["mean_result_pm"]),
+                    x["outcome_shares"],
+                    x["exit_shares"]
+                );
+            }
+            if let Some(d) = turn["exits_differ"].as_object() {
+                for (k, x) in d {
+                    let _ = writeln!(s, "  exits differ, {k}: {} of {}", x["differ"], x["worlds"]);
+                }
+            }
         }
     }
     s
@@ -777,6 +1119,7 @@ pub fn run(
         "max_weeks": args.max_weeks,
         "wait_months": args.wait_months,
         "stand_ins": Kind::ARC.iter().map(|k| k.key()).collect::<Vec<_>>(),
+        "stand_ins_for_a_turn": turn_players().into_iter().map(|(k, p)| styled_key(k, p)).collect::<Vec<_>>(),
         "coverage_failures": failures,
         "arcs": grades.into_iter().map(|g| g.report).collect::<Vec<_>>(),
     });

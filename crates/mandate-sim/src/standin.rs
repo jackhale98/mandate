@@ -11,7 +11,25 @@
 //!   ally's asks.
 //! - **Attends** (attends the stops) skips the quiet weeks with the
 //!   player's own directives and, at every stop a skip makes, plays that
-//!   turn as the engaged stand-in; a campaign it plays turn by turn.
+//!   turn as the engaged stand-in; a campaign it plays turn by turn. A
+//!   scene on offer at its seat is a stop it meets: it does not skip past
+//!   one.
+//!
+//! **Scenes** (DEC-112; EXCHANGE_SCENES §8.2). A stand-in plays an
+//! exchange scene through its own commands (`Begin` at the cast place,
+//! one `Say` a round, `Leave` only when nothing it would say is listed),
+//! choosing each line from the scene's view as the player sees it
+//! ([`crate::arcs::exchange::view`]: redacted by the ledger, DEC-091), by
+//! a [`Play`]: *absent* never begins (the empty chair), *cautious* says
+//! the line with the best expected change by weight, *bold* the one with
+//! the widest swing. Every draw is the scene's own, keyed on the run, the
+//! beat, the round and the line: a stand-in rolls the odds the view
+//! shows, as a player does, and touches no other stream. The engaged and
+//! contrarian stand-ins begin on the last turn they can (so the weeks
+//! before are for preparing); the attending one at the stop. A passive
+//! stand-in given a style other than absent turns up for the scene and
+//! does nothing else. The skip's proxy still never plays one (DEC-102
+//! clause 7).
 //!
 //! **Only commands.** A stand-in reads the state it is shown and returns
 //! `PlayerCommand`s ([`Turn::next`]); a career is those commands, `EndTurn`
@@ -36,6 +54,7 @@
 
 use crate::actions::{Action, PlayerCommand};
 use crate::arcs::beats::{self, BeatAction, BeatOffer};
+use crate::arcs::exchange::{self, ExchangeAct, OptionView, Phase, SceneView};
 use crate::asks::{Ask, Asker, Need, StatementNeed};
 use crate::player::knowledge::Knowing;
 use crate::politics::Post;
@@ -46,6 +65,7 @@ use crate::world::Jurisdiction;
 use crate::{Command, Engine};
 use mandate_content::act::SkipTargetKind;
 use mandate_content::arcs::{ArcEffect, BeatKind};
+use mandate_content::exchange::MoveKind;
 use mandate_content::{ContentBundle, EffectDef};
 use mandate_core::Stream;
 use std::collections::BTreeMap;
@@ -87,6 +107,152 @@ impl Kind {
             "attends" => Kind::Attends,
             _ => return None,
         })
+    }
+
+    /// How this kind plays a scene unless told otherwise (§8.2): the
+    /// passive one is absent, the contrarian bold, the others cautious.
+    pub fn play(self) -> Play {
+        match self {
+            Kind::Passive => Play::Absent,
+            Kind::Contrarian => Play::Bold,
+            Kind::Engaged | Kind::Attends => Play::Cautious,
+        }
+    }
+}
+
+/// How a stand-in plays an exchange scene (DEC-112; EXCHANGE_SCENES §8.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Play {
+    /// Never begins: the other side speaks to an empty chair.
+    Absent,
+    /// Each round, the line with the best expected change by weight: each
+    /// group's range at its middle, a line with a chance at its expected
+    /// value. Never a line that airs a secret or denies; a promise only
+    /// when it beats the best other line by [`PROMISE_MARGIN`]. Ties go
+    /// to the table's order.
+    Cautious,
+    /// Each round, the line with the widest swing by weight: the gap
+    /// between the best and the worst it can do, stood or not; ties to the
+    /// larger best case, then the table's order. Never `own`; `pass` only
+    /// when nothing else is listed.
+    Bold,
+}
+
+impl Play {
+    pub const ALL: [Play; 3] = [Play::Absent, Play::Cautious, Play::Bold];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Play::Absent => "absent",
+            Play::Cautious => "cautious",
+            Play::Bold => "bold",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Play> {
+        Play::ALL.into_iter().find(|p| p.key() == s)
+    }
+}
+
+/// A stand-in's name with its play style: `engaged` (the kind's own
+/// style) or `engaged/bold`.
+pub fn parse_styled(s: &str) -> Option<(Kind, Play)> {
+    match s.split_once('/') {
+        Some((k, p)) => Some((Kind::parse(k)?, Play::parse(p)?)),
+        None => Kind::parse(s).map(|k| (k, k.play())),
+    }
+}
+
+/// The name [`parse_styled`] reads: the kind alone when the style is its
+/// own.
+pub fn styled_key(kind: Kind, play: Play) -> String {
+    if play == kind.play() {
+        kind.key().to_string()
+    } else {
+        format!("{}/{}", kind.key(), play.key())
+    }
+}
+
+/// How much better (by weight, in lean) a promise must look than the best
+/// other line for the cautious stand-in to spend one of the campaign's
+/// few on it: a point (the stand-in's own rule, not the game's).
+pub const PROMISE_MARGIN: f64 = 0.01;
+
+/// A line's previewed change by weight: each group's range at its middle,
+/// a line with a chance at its expected value.
+pub fn expected(v: &SceneView, o: &OptionView) -> f64 {
+    v.groups
+        .iter()
+        .enumerate()
+        .map(|(g, x)| {
+            let s = o.stands.get(g).map_or(0.0, |x| x.mid());
+            let f = o.fails.get(g).map_or(s, |x| x.mid());
+            f64::from(x.weight) * (o.chance * s + (1.0 - o.chance) * f)
+        })
+        .sum()
+}
+
+/// A line's swing by weight: the gap between the best and the worst it
+/// can do (its ranges, stood or not), and its best case.
+pub fn swing(v: &SceneView, o: &OptionView) -> (f64, f64) {
+    let mut gap = 0.0;
+    let mut best = 0.0;
+    for (g, x) in v.groups.iter().enumerate() {
+        let Some(s) = o.stands.get(g) else { continue };
+        let f = o.fails.get(g).filter(|_| o.chance < 1.0).unwrap_or(s);
+        gap += f64::from(x.weight) * (s.hi.max(f.hi) - s.lo.min(f.lo));
+        best += f64::from(x.weight) * s.hi.max(f.hi);
+    }
+    (gap, best)
+}
+
+/// The first line that scores highest (ties stay with the earlier line).
+fn first_max<'v>(
+    v: &'v SceneView,
+    keep: &dyn Fn(&OptionView) -> bool,
+    score: &dyn Fn(&OptionView) -> (f64, f64),
+) -> Option<&'v OptionView> {
+    let mut best: Option<(&OptionView, (f64, f64))> = None;
+    for o in v.options.iter().filter(|o| keep(o)) {
+        let x = score(o);
+        if best.is_none_or(|(_, b)| x.0 > b.0 || (x.0 == b.0 && x.1 > b.1)) {
+            best = Some((o, x));
+        }
+    }
+    best.map(|b| b.0)
+}
+
+/// The line a play style says this round (`None`: the style never plays,
+/// or nothing is listed). Reads the view alone.
+pub fn line(v: &SceneView, play: Play) -> Option<String> {
+    match play {
+        Play::Absent => None,
+        Play::Cautious => {
+            let safe = |o: &OptionView| {
+                !o.notes
+                    .iter()
+                    .any(|n| n.key == "exchange-cost-aired" || n.key == "exchange-cost-denial")
+            };
+            let ev = |o: &OptionView| (expected(v, o), 0.0);
+            let other = first_max(v, &|o| safe(o) && o.kind != MoveKind::Promise, &ev);
+            let promise = first_max(v, &|o| safe(o) && o.kind == MoveKind::Promise, &ev);
+            match (other, promise) {
+                (Some(a), Some(p)) if expected(v, p) > expected(v, a) + PROMISE_MARGIN => {
+                    Some(p.id.clone())
+                }
+                (Some(a), _) => Some(a.id.clone()),
+                (None, Some(p)) => Some(p.id.clone()),
+                (None, None) => v.options.first().map(|o| o.id.clone()),
+            }
+        }
+        Play::Bold => first_max(
+            v,
+            &|o| !matches!(o.kind, MoveKind::Own | MoveKind::Pass),
+            &|o| swing(v, o),
+        )
+        .or_else(|| v.options.iter().find(|o| o.kind == MoveKind::Pass))
+        .or_else(|| v.options.first())
+        .map(|o| o.id.clone()),
     }
 }
 
@@ -213,6 +379,8 @@ pub fn campaigning(state: &State) -> bool {
 #[derive(Clone, Debug, PartialEq)]
 enum Sent {
     Lever,
+    /// A scene's `Begin`, `Say` or `Leave`.
+    Scene,
     /// A bill drafted for an ask's need: introduce what it made.
     Draft,
     Proxy,
@@ -223,7 +391,11 @@ enum Sent {
 #[derive(Clone, Debug)]
 pub struct Turn {
     kind: Kind,
+    play: Play,
     seat: Seat,
+    /// A scene's commands refused this turn: after one, `Leave`; after
+    /// two, the scene is left alone.
+    scene_refused: u8,
     /// Levers already sent this turn (done or refused): never twice.
     tried: Vec<String>,
     proxy: Option<ProxyTurn>,
@@ -236,6 +408,11 @@ impl Turn {
     /// A turn of `kind` for `seat`. `Attends` plays a turn as `Engaged`
     /// (its skipping is [`step`]'s).
     pub fn new(kind: Kind, seat: Seat, content: &ContentBundle) -> Self {
+        Turn::styled(kind, kind.play(), seat, content)
+    }
+
+    /// A turn of `kind` that plays scenes by `play`.
+    pub fn styled(kind: Kind, play: Play, seat: Seat, content: &ContentBundle) -> Self {
         let proxy = match kind {
             Kind::Passive => None,
             _ => Some(ProxyTurn::with(crate::skip::settings(
@@ -245,7 +422,9 @@ impl Turn {
         };
         Turn {
             kind,
+            play,
             seat,
+            scene_refused: 0,
             tried: Vec::new(),
             proxy,
             last: None,
@@ -258,6 +437,7 @@ impl Turn {
     pub fn result(&mut self, ok: bool, created: Option<u32>) {
         match self.last.take() {
             Some(Sent::Draft) if ok => self.drafted = created,
+            Some(Sent::Scene) if !ok => self.scene_refused += 1,
             Some(Sent::Proxy) => {
                 if let Some(p) = self.proxy.as_mut() {
                     p.result(ok, created);
@@ -269,10 +449,22 @@ impl Turn {
 
     /// The next command, or `None` when the turn's work is done.
     pub fn next(&mut self, st: &State, content: &ContentBundle) -> Option<PlayerCommand> {
-        if self.kind == Kind::Passive || self.sent >= MAX_COMMANDS {
+        if self.sent >= MAX_COMMANDS {
             return None;
         }
         let pl = st.player.as_ref()?;
+        // A scene first: one under way is played to its end (it never
+        // spans a turn), and one due is begun while the turn has the time.
+        if pl.status.active()
+            && let Some(c) = self.scene(st, content)
+        {
+            self.sent += 1;
+            self.last = Some(Sent::Scene);
+            return Some(c);
+        }
+        if self.kind == Kind::Passive {
+            return None;
+        }
         if pl.status.active() {
             if let Some(id) = self.drafted.take() {
                 self.sent += 1;
@@ -293,6 +485,67 @@ impl Turn {
         self.sent += 1;
         self.last = Some(Sent::Proxy);
         Some(c)
+    }
+
+    /// The scene's next command: a line in one under way at the seat's
+    /// jurisdiction, else the `Begin` of one due now. Reads the scene's
+    /// view, as the player has it.
+    fn scene(&mut self, st: &State, content: &ContentBundle) -> Option<PlayerCommand> {
+        if self.play == Play::Absent || self.scene_refused >= 2 {
+            return None;
+        }
+        let at = self.seat.at;
+        let under_way = st
+            .arcs
+            .runs
+            .iter()
+            .filter(|r| r.at == at)
+            .find_map(|r| r.exchange.as_ref().map(|x| (r.id.0, x.beat.key())));
+        if let Some((run, beat)) = under_way {
+            let v = exchange::view(st, content, run, &beat)?;
+            if v.phase != Phase::UnderWay {
+                return None;
+            }
+            let act = match line(&v, self.play).filter(|_| self.scene_refused == 0) {
+                Some(option) => ExchangeAct::Say { option },
+                None => ExchangeAct::Leave,
+            };
+            return Some(PlayerCommand::Exchange { run, beat, act });
+        }
+        for (run, bref, location) in exchange::view::open_scenes(st, content) {
+            let Some(r) = st.arcs.run(run).filter(|r| r.at == at) else {
+                continue;
+            };
+            let key = format!("scene.{}.{}", run.0, bref.key());
+            if self.tried.contains(&key) || !self.scene_due(st, content, r) {
+                continue;
+            }
+            self.tried.push(key);
+            return Some(PlayerCommand::Go {
+                location,
+                then: Some(Box::new(PlayerCommand::Exchange {
+                    run: run.0,
+                    beat: bref.key(),
+                    act: ExchangeAct::Begin,
+                })),
+            });
+        }
+        None
+    }
+
+    /// Whether a scene on offer is begun this turn: at once by the one
+    /// that attends the stops (and the passive one that only turns up);
+    /// by the others on the last turn that can, so that the weeks before
+    /// are for preparing.
+    fn scene_due(&self, st: &State, content: &ContentBundle, run: &crate::arcs::ArcRun) -> bool {
+        if matches!(self.kind, Kind::Attends | Kind::Passive) {
+            return true;
+        }
+        let Some(last) = exchange::last_day(run) else {
+            return true;
+        };
+        let days = crate::characters::routines::turn_days(st, content);
+        st.calendar.date.add_days(days) > last
     }
 
     /// The next lever of the arcs at the seat's jurisdiction not yet tried
@@ -331,9 +584,8 @@ impl Turn {
                         ask: *ask,
                         accept: self.kind != Kind::Contrarian || !from_ally(st, content, a),
                     }),
-                // A scene (DEC-112) is not played by a stand-in yet: its
-                // policies of EXCHANGE_SCENES §8.2 are task X3. Until then
-                // every stand-in meets the empty chair (`absent`).
+                // A scene (DEC-112) is begun by `Turn::scene`, on its day,
+                // by the play style.
                 BeatAction::Exchange { .. } => None,
             };
             if cmd.is_some() {
@@ -541,6 +793,8 @@ fn work(st: &State, content: &ContentBundle, a: &Ask) -> Option<(PlayerCommand, 
 #[derive(Clone, Debug)]
 pub struct Career {
     pub kind: Kind,
+    /// How it plays a scene (the kind's own style unless told otherwise).
+    pub play: Play,
     /// The seat it plays for; `None`: the player's own, read each turn.
     pub seat: Option<Seat>,
     /// `Attends`: a skip just stopped, and the next turn is played.
@@ -555,8 +809,14 @@ pub struct Career {
 
 impl Career {
     pub fn new(kind: Kind) -> Self {
+        Career::styled(kind, kind.play())
+    }
+
+    /// A career of `kind` that plays scenes by `play`.
+    pub fn styled(kind: Kind, play: Play) -> Self {
         Career {
             kind,
+            play,
             seat: None,
             attend: false,
             played: 0,
@@ -564,6 +824,16 @@ impl Career {
             skips: Vec::new(),
             commands: 0,
         }
+    }
+
+    /// A career by its name ([`parse_styled`]: `engaged`, `engaged/bold`).
+    pub fn parse(s: &str) -> Option<Self> {
+        parse_styled(s).map(|(k, p)| Career::styled(k, p))
+    }
+
+    /// Its name, as [`Career::parse`] reads it.
+    pub fn key(&self) -> String {
+        styled_key(self.kind, self.play)
     }
 }
 
@@ -592,7 +862,12 @@ pub fn stop_key(stop: &SkipStop) -> String {
 /// Send one turn's commands of a stand-in (the turn is not ended).
 /// Returns how many the engine took.
 pub fn play_turn(e: &mut Engine, kind: Kind, seat: Seat) -> u32 {
-    let mut t = Turn::new(kind, seat, e.content());
+    play_turn_styled(e, kind, kind.play(), seat)
+}
+
+/// [`play_turn`] with a play style for scenes.
+pub fn play_turn_styled(e: &mut Engine, kind: Kind, play: Play, seat: Seat) -> u32 {
+    let mut t = Turn::styled(kind, play, seat, e.content());
     let mut sent = 0;
     while let Some(cmd) = t.next(e.state(), e.content()) {
         let r = e.apply(Command::Player(cmd));
@@ -619,11 +894,30 @@ pub fn quiet_target(state: &State, content: &ContentBundle) -> Option<SkipTarget
         .find(|t| targets.iter().any(|x| x.target == *t))
 }
 
+/// Whether a scene at a jurisdiction is on offer or under way: a stop the
+/// attending stand-in meets with a played turn, whether a skip stopped for
+/// it or it opened in a turn it played (a skip begun with a scene already
+/// on offer does not stop for it again).
+pub fn scene_at(state: &State, content: &ContentBundle, at: Jurisdiction) -> bool {
+    state
+        .arcs
+        .runs
+        .iter()
+        .any(|r| r.at == at && r.exchange.is_some())
+        || exchange::view::open_scenes(state, content)
+            .iter()
+            .any(|(run, _, _)| state.arcs.run(*run).is_some_and(|r| r.at == at))
+}
+
 /// One step of a stand-in's career: a turn's commands and `EndTurn`; or,
 /// for `Attends` in a quiet stretch with no stop to meet, one skip to its
 /// stop.
 pub fn step(e: &mut Engine, c: &mut Career) -> Stepped {
-    let quiet = (c.kind == Kind::Attends && !c.attend)
+    let seat = c.seat.or_else(|| Seat::of_player(e.state(), e.content()));
+    let meets_scene = c.kind == Kind::Attends
+        && c.play != Play::Absent
+        && seat.is_some_and(|s| scene_at(e.state(), e.content(), s.at));
+    let quiet = (c.kind == Kind::Attends && !c.attend && !meets_scene)
         .then(|| quiet_target(e.state(), e.content()))
         .flatten();
     if let Some(target) = quiet {
@@ -651,9 +945,8 @@ pub fn step(e: &mut Engine, c: &mut Career) -> Stepped {
         }
     }
     c.attend = false;
-    let seat = c.seat.or_else(|| Seat::of_player(e.state(), e.content()));
     if let Some(seat) = seat {
-        c.commands += play_turn(e, c.kind, seat);
+        c.commands += play_turn_styled(e, c.kind, c.play, seat);
     }
     if e.apply(Command::EndTurn).is_err() {
         return Stepped::Over;
