@@ -20,6 +20,7 @@ export function Title() {
   const runs = useGame((s) => s.runs);
   const busy = useGame((s) => s.busy);
   const newGame = useGame((s) => s.newGame);
+  const draftGame = useGame((s) => s.draftGame);
   const continueRun = useGame((s) => s.continueRun);
   const deleteRun = useGame((s) => s.deleteRun);
   const [size, setSize] = useState<WorldSizeDto>("medium");
@@ -37,10 +38,13 @@ export function Title() {
   const [notice, setNotice] = useState<TransferNotice | null>(null);
   const openReport = useReport((s) => s.openReport);
 
-  const start = () => {
+  const opts = () => {
     const trimmed = seed.trim();
-    void newGame({ size, mode, scenario: scenario === "" ? null : scenario, storyteller: chosenTeller, localKnowledge: local, ...(/^\d+$/.test(trimmed) ? { seed: trimmed } : {}) });
+    return { size, mode, scenario: scenario === "" ? null : scenario, storyteller: chosenTeller, localKnowledge: local, ...(/^\d+$/.test(trimmed) ? { seed: trimmed } : {}) };
   };
+  // Begin: straight in, in the largest town (the quick start). Choose an opening: the draft (DEC-101 §3).
+  const start = () => void newGame(opts());
+  const startDraft = () => void draftGame(opts());
 
   const hasRuns = runs.length > 0;
   // Runs saved before names were kept gain them once, read from each save (a failed one keeps its old row).
@@ -119,9 +123,15 @@ export function Title() {
           placeholder="e.g. 20260"
         />
       </label>
-      <button type="button" className={hasRuns ? "btn btn-block" : "btn btn-primary btn-block"} disabled={busy} onClick={start}>
+      <button type="button" className={hasRuns ? "btn btn-block" : "btn btn-primary btn-block"} disabled={busy} onClick={startDraft} data-testid="draft-start">
+        {tr.t("ui-draft-start")}
+      </button>
+      <button type="button" className="btn btn-block" disabled={busy} onClick={start} aria-describedby="start-help">
         {tr.t("ui-start")}
       </button>
+      <p className="hint" id="start-help">
+        {tr.t("ui-start-help")}
+      </p>
       {progress && (
         <div className="progress" role="status" aria-live="polite">
           <Loader compact decorative />

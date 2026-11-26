@@ -230,6 +230,14 @@ pub enum Effect {
         cast: Vec<crate::narrative::CastEntry>,
         arc: crate::arcs::ArcRef,
     },
+    /// The opening the player chose (DEC-101 §3; `arcs::opening`): the arcs
+    /// raise this template's run at the jurisdiction on the next day
+    /// stepped, if its `raise` holds and a cast binds, as the weekly step
+    /// would (the arcs domain applies).
+    OpenArc {
+        template: ContentKey,
+        at: crate::world::Jurisdiction,
+    },
 }
 
 /// An effect request: the change, and what led to it (the causal spine,

@@ -19,11 +19,12 @@ function setup(runs: RunSummary[]) {
 }
 
 describe("the title screen", () => {
-  it("with no saves, the new-career form is all there is, with Begin as the primary action", () => {
+  it("with no saves, the new-career form is all there is, with the draft as the primary action and Begin as the quick start", () => {
     setup([]);
     render(<Title />);
     expect(screen.getByRole("heading", { name: "New career" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Begin" }).className).toContain("btn-primary");
+    expect(screen.getByRole("button", { name: "Choose an opening" }).className).toContain("btn-primary");
+    expect(screen.getByRole("button", { name: "Begin" }).className).not.toContain("btn-primary");
     expect(screen.getByText("No runs yet.")).toBeTruthy();
   });
 
@@ -37,6 +38,7 @@ describe("the title screen", () => {
     expect(buttons[0]?.className).toContain("btn-primary");
     expect(buttons[1]?.className).not.toContain("btn-primary");
     expect(screen.getByRole("button", { name: "Begin" }).className).not.toContain("btn-primary");
+    expect(screen.getByRole("button", { name: "Choose an opening" }).className).not.toContain("btn-primary");
   });
 
   it("a row says whose run it is, in the pocket header's form; a run without names shows as before and asks for them", () => {

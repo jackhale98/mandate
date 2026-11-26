@@ -46,11 +46,23 @@ import { EMPTY_TRANSLATOR, Translator } from "../i18n/fluent";
 import { saveStore } from "../persistence/indexedDbStore";
 import { deviceId, randomHex, type RunSummary } from "../persistence/saveStore";
 import { noteCommand, recordError } from "./reportStore";
-import { isWide, placeTab, readFolds, readMapScope, readNotebookTab, readPocketDocked, readPocketTab, writeFolds, writeMapScope, writeNotebookTab, writePocketDocked, writePocketTab, type MapScope, type NotebookTab, type PocketSide, type PocketTab } from "./devicePrefs";
+import { isWide, placeTab, readFolds, readMapScope, readNotebookTab, readPocketDocked, readPocketTab, readRecentOpenings, rememberOpening, writeFolds, writeMapScope, writeNotebookTab, writePocketDocked, writePocketTab, type MapScope, type NotebookTab, type PocketSide, type PocketTab } from "./devicePrefs";
+import type { DraftView } from "../engine/protocol/DraftView";
 
 export type { MapScope, NotebookTab, PocketSide, PocketTab } from "./devicePrefs";
 
-type Screen = "title" | "game";
+/** The draft (DEC-101 §3) sits between the title and the game: the openings of a new world, before play. */
+type Screen = "title" | "draft" | "game";
+
+/** A new game's choices on the title screen. */
+export interface NewGameOpts {
+  seed?: string;
+  size: WorldSizeDto;
+  mode: RunModeDto;
+  scenario: string | null;
+  storyteller?: string | null;
+  localKnowledge?: boolean;
+}
 /** Main view of the game screen: the town (places), or the pocket's country views. */
 export type GameView = "town" | "overview";
 
@@ -203,6 +215,12 @@ interface GameState {
   afterPassage: { electionNight: boolean };
   toast: { key: string; args: Record<string, string> } | null;
   progress: { stage: string; fraction: number } | null;
+  /** The new game's draft, once auditioned (the engine's view: no score). */
+  draft: DraftView | null;
+  /** The audition under way: forks played of those planned (one per worker message). */
+  draftProgress: { done: number; total: number } | null;
+  /** The choices the draft's world was made with (another draft rerolls the seed only). */
+  draftOpts: NewGameOpts | null;
   run: ActiveRun | null;
   runs: RunSummary[];
   /** Starting worlds from the content registry (title screen). */
@@ -214,7 +232,18 @@ interface GameState {
   /** Runs saved before names were kept: read whose they are from each save, once, and keep it in the index. */
   fillRunNames(): Promise<void>;
   /** `localKnowledge`: "Start with local knowledge" (DEC-091, off by default). */
-  newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; scenario: string | null; storyteller?: string | null; localKnowledge?: boolean }): Promise<void>;
+  newGame(opts: NewGameOpts): Promise<void>;
+  /**
+   * A new world, then its draft of openings (DEC-101 §3): the draft screen shows the audition's progress, then
+   * the openings. Nothing is saved until one is chosen.
+   */
+  draftGame(opts: NewGameOpts): Promise<void>;
+  /** Begin play on the draft's opening `index` (its place in `draft.openings`). */
+  chooseOpening(index: number): Promise<void>;
+  /** Other openings: a new world with a new seed and the same choices. */
+  rerollDraft(): Promise<void>;
+  /** Back to the title, dropping the draft's world. */
+  leaveDraft(): void;
   /** The engine's estimate for a draft with these parameters (the UI never computes it). */
   previewPolicy(template: string, params: ParamValue[]): Promise<PolicyPreviewView | null>;
   loadMap(): Promise<void>;
@@ -437,6 +466,9 @@ export const useGame = create<GameState>((set, get) => {
     afterPassage: { electionNight: false },
     toast: null,
     progress: null,
+    draft: null,
+    draftProgress: null,
+    draftOpts: null,
     run: null,
     runs: [],
     scenarios: [],
@@ -493,7 +525,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true, error: null, map: null, progress: { stage: "progress-terrain", fraction: 0 } });
       const off = engine().onProgress((stage, fraction) => set({ progress: { stage, fraction } }));
       try {
-        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: localKnowledge ?? false } });
+        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: localKnowledge ?? false, recent_openings: [] } });
         const overview = expectKind(body, "game_started");
         set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
@@ -504,6 +536,67 @@ export const useGame = create<GameState>((set, get) => {
         off();
         set({ busy: false, progress: null });
       }
+    },
+
+    async draftGame(opts) {
+      const { seed, size, scenario, storyteller, localKnowledge } = opts;
+      set({ busy: true, error: null, map: null, draft: null, draftProgress: null, draftOpts: opts, progress: { stage: "progress-terrain", fraction: 0 } });
+      const off = engine().onProgress((stage, fraction) => set({ progress: { stage, fraction } }));
+      try {
+        const body = await engine().request({
+          kind: "new_game",
+          payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: localKnowledge ?? false, recent_openings: readRecentOpenings() },
+        });
+        expectKind(body, "game_started");
+        off();
+        set({ screen: "draft", busy: false, progress: null, draftProgress: { done: 0, total: 0 } });
+        // One fork a message (the worker stays free between them), until the draft is made.
+        for (;;) {
+          if (get().screen !== "draft" || get().draftOpts !== opts) return;
+          const step = await engine().request({ kind: "query", payload: { type: "draft_step" } });
+          // Rerolled or left meanwhile: this world's draft is no longer wanted.
+          if (get().screen !== "draft" || get().draftOpts !== opts) return;
+          if (step.kind === "draft") {
+            set({ draft: step.payload, draftProgress: null });
+            break;
+          }
+          set({ draftProgress: expectKind(step, "draft_progress") });
+        }
+      } catch (e) {
+        set({ error: errText(e), screen: "title", draftOpts: null });
+      } finally {
+        off();
+        if (get().draftOpts === opts) set({ busy: false, progress: null });
+      }
+    },
+
+    async chooseOpening(index) {
+      const opts = get().draftOpts;
+      const chosen = get().draft?.openings[index];
+      if (!opts || !chosen || get().busy) return;
+      set({ busy: true, error: null });
+      try {
+        const overview = expectKind(await engine().request({ kind: "choose_opening", payload: { index } }), "game_started");
+        rememberOpening(chosen.tag);
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], people: null, arc: null, notebookQuery: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode: opts.mode, revision: 0 }, screen: "game", draft: null, draftOpts: null });
+        await persist();
+        await get().refreshDesk();
+      } catch (e) {
+        set({ error: errText(e) });
+      } finally {
+        set({ busy: false });
+      }
+    },
+
+    async rerollDraft() {
+      const opts = get().draftOpts;
+      if (!opts || get().busy) return;
+      // The same choices, a new world (the seed is drawn afresh).
+      await get().draftGame({ ...opts, seed: randomSeed() });
+    },
+
+    leaveDraft() {
+      set({ screen: "title", draft: null, draftProgress: null, draftOpts: null });
     },
 
     async loadCampaign() {

@@ -106,8 +106,40 @@ pub struct ArcDef {
     /// Engine features it needs (`parties.membership`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub requires: Vec<String>,
+    /// How the player arrives into it as an opening the draft offers
+    /// (DEC-101 §2, STAGED_ARCS §6.6; task A8). Without one the arc is
+    /// never offered as an opening.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frame: Option<FrameDef>,
     /// The first stage is where a run starts.
     pub stages: Vec<StageDef>,
+}
+
+/// An arc as an opening (DEC-101 §2): the seat the player arrives in and
+/// the draft's line. The run is raised the day play begins, so its first
+/// stage's beats are on offer on turn 1 (the first-beat guarantee); the
+/// ally and the opponent are the arc's `sides`; the clock is its stages'.
+/// (The design's hidden fact to uncover, `secret`, is not built.)
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FrameDef {
+    /// Which seat of the entry post the player takes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post: Option<FramePost>,
+    /// The draft's line (`pitch-*`), with the arc's text arguments as
+    /// they stand on the day play would begin (its cast, `place`, `town`,
+    /// the dates and its `facts`).
+    pub pitch_key: String,
+}
+
+/// The seat a frame puts the player in.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FramePost {
+    /// A role bound to an area (a neighbourhood): the seat for the
+    /// district that holds it, if a member of the entry body sits for it;
+    /// else the start's own choice (the most marginal seat).
+    pub seat_for: String,
 }
 
 impl ArcDef {
@@ -1843,6 +1875,16 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         ck.conditions(ConditionUse::ArcGate, &roles, &a.given, issues);
         ck.conditions(ConditionUse::ArcFacts, &roles, &a.facts, issues);
         ck.story(&a.title_key, issues);
+        if let Some(f) = &a.frame {
+            if !f.pitch_key.starts_with("pitch-") {
+                err(issues, "a frame's line is a `pitch-*` key".into());
+            }
+            // Built from facts, without the cast's role words.
+            ck.key(&f.pitch_key, &[], issues);
+            if let Some(p) = &f.post {
+                ck.role("frame", &p.seat_for, RoleKind::Area, issues);
+            }
+        }
 
         // Stages: unique ids, a graph with exits, every stage ending on time.
         let n = a.stages.len();

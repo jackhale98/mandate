@@ -613,6 +613,7 @@ fn session(seed: u64, local_knowledge: bool) -> Session {
             scenario: None,
             storyteller: None,
             local_knowledge,
+            recent_openings: Vec::new(),
         }),
     );
     s

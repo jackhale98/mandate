@@ -368,3 +368,13 @@ ask-zoning-street-detail = { $asker } ({ $asker_role }) wants you to say in publ
 ask-zoning-street-need = Say in public where you stand on homes
 ask-zoning-street-kept = You said it in public. { $asker } cut it out of the paper and pinned it up in the shop window.
 ask-zoning-street-broken = You said nothing in public. { $asker } took that as an answer.
+
+## The draft's lines (`pitch-*`, DEC-101 §3; task A8): one or two sentences
+## built from facts on the day play would begin, present tense. The seat the
+## player would hold is shown beside the line, not in it.
+pitch-flood = The water came through { $hood } on { $day } { $month }. { $homes } homes are damaged, and { $away } people are sleeping somewhere else.
+pitch-plant = { $plant } has been on short weeks since { $month } { $year }, and nobody has said for how long.
+pitch-budget = The estimates for next year's budget in { $place } are out, and every line of them has someone behind it.
+pitch-favour = You owe { $creditor } a favour, and { $creditor } has not forgotten it.
+pitch-rival = The campaign in { $place } is open, and { $rival } wants your seat.
+pitch-zoning = { $developer } has plans for new homes in { $hood }. The rules there say two storeys, and the drawings say more.

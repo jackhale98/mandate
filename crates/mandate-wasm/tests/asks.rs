@@ -226,6 +226,7 @@ fn ask_commands_through_the_protocol() {
             scenario: None,
             storyteller: None,
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     )
     .unwrap();

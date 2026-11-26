@@ -1002,7 +1002,14 @@ fn run(cli: Cli) -> Result<(), String> {
         Cmd::Lab(cmd) => {
             let content = load_content(&cli.content)?;
             lab::runner::set_content_root(&cli.content);
-            out(lab::cli::run(content, *cmd)?);
+            match lab::cli::run(content, *cmd)? {
+                // A table (`lab audition --text`).
+                serde_json::Value::String(t) => {
+                    let mut s = std::io::stdout().lock();
+                    let _ = write!(s, "{t}");
+                }
+                v => out(v),
+            }
             Ok(())
         }
         Cmd::Arcs {

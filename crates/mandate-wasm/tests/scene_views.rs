@@ -50,6 +50,7 @@ fn sized(seed: u64, local_knowledge: bool, size: WorldSizeDto) -> Session {
             scenario: None,
             storyteller: None,
             local_knowledge,
+            recent_openings: Vec::new(),
         }),
     );
     s

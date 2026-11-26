@@ -48,6 +48,7 @@ fn the_run_log_follows_the_game_and_replays_to_its_hashes() {
             scenario: None,
             storyteller: teller.clone(),
             local_knowledge: true,
+            recent_openings: Vec::new(),
         }),
     );
     send(
@@ -117,6 +118,7 @@ fn a_save_without_a_log_reports_why_it_cannot_be_replayed() {
             scenario: None,
             storyteller: None,
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     );
     // A save as written before the run log (no log in the payload).

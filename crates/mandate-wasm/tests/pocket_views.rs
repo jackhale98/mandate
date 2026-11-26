@@ -1258,6 +1258,7 @@ fn the_session_answers_people_and_arc() {
             scenario: None,
             storyteller: None,
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     );
     for i in 0..4 {

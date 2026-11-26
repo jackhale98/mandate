@@ -27,8 +27,11 @@ use std::sync::Arc;
 pub struct LabCmd {
     /// `run`, `twin`, `impact` (with `calibrate`), `rate-start` (a start's rating, DEC-102 clause 6:
     /// `--seed`, `--post`, `--seeds-per-start`, `--after-months`,
-    /// `--style`) or `repetition` (repeats across a returning player's
-    /// careers, DEC-100 item 1: `--careers`, `--seeds`, `--years`).
+    /// `--style`), `repetition` (repeats across a returning player's
+    /// careers, DEC-100 item 1: `--careers`, `--seeds`, `--years`) or
+    /// `audition` (the opening draft, DEC-101 §5: `--seed`, `--size`,
+    /// `--candidates`, `--second-pass`, `--horizon-weeks`,
+    /// `--enforce-floors`, `--cost`, `--text`).
     pub mode: String,
     /// `rate-start`: the constitution id of the post the race is for (an
     /// office's or a body's); omitted: the opening, the player's own seat.
@@ -118,6 +121,28 @@ pub struct LabCmd {
     /// `twin`: print both runs in full, not only the difference.
     #[arg(long)]
     pub full: bool,
+    /// `audition`: the world's size (`small`, `medium`, `large`).
+    #[arg(long, default_value = "small")]
+    pub size: String,
+    /// `audition`: K, the candidates forked (default by size: 8, 5, 3).
+    #[arg(long)]
+    pub candidates: Option<usize>,
+    /// `audition`: candidates the engaged and contrarian stand-ins play
+    /// (default 3; the design's is 5).
+    #[arg(long)]
+    pub second_pass: Option<usize>,
+    /// `audition`: weeks each fork is played (default 39).
+    #[arg(long)]
+    pub horizon_weeks: Option<u32>,
+    /// `audition`: drop candidates under the floors (default: reported only).
+    #[arg(long)]
+    pub enforce_floors: bool,
+    /// `audition`: time it (the cost table; figures vary by machine).
+    #[arg(long)]
+    pub cost: bool,
+    /// `audition`: a table instead of JSON.
+    #[arg(long)]
+    pub text: bool,
 }
 
 fn town(s: &str, home: u32) -> Result<u32, String> {
@@ -233,6 +258,38 @@ pub fn run(content: Arc<ContentBundle>, c: LabCmd) -> Result<Value, String> {
                 },
             );
         }
+        "audition" => {
+            let size = match c.size.as_str() {
+                "small" => WorldSize::Small,
+                "medium" => WorldSize::Medium,
+                "large" => WorldSize::Large,
+                s => return Err(format!("unknown size `{s}`: small, medium or large")),
+            };
+            let v = super::audition::run(
+                &content,
+                &super::audition::AuditionArgs {
+                    seed: c.seed,
+                    size,
+                    scenario: c.scenario.as_ref().map(|s| {
+                        if s.contains('.') {
+                            s.clone()
+                        } else {
+                            format!("scenario.{s}")
+                        }
+                    }),
+                    candidates: c.candidates,
+                    second_pass: c.second_pass,
+                    horizon_weeks: c.horizon_weeks,
+                    enforce_floors: c.enforce_floors,
+                    cost: c.cost,
+                },
+            )?;
+            return Ok(if c.text {
+                Value::String(super::audition::text(&v))
+            } else {
+                v
+            });
+        }
         "repetition" => {
             return super::repetition::repetition(
                 &content,
@@ -296,7 +353,7 @@ pub fn run(content: Arc<ContentBundle>, c: LabCmd) -> Result<Value, String> {
             }))
         }
         m => Err(format!(
-            "lab mode `{m}`: use run, twin, impact, rate-start or repetition"
+            "lab mode `{m}`: use run, twin, impact, rate-start, repetition or audition"
         )),
     }
 }

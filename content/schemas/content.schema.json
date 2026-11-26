@@ -1010,6 +1010,17 @@
           },
           "type": "array"
         },
+        "frame": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrameDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How the player arrives into it as an opening the draft offers\n(DEC-101 §2, STAGED_ARCS §6.6; task A8). Without one the arc is\nnever offered as an opening."
+        },
         "given": {
           "description": "Conditions on the cast as bound (the arc's roles as slots): a run\nis raised only if they hold, so a matter too small to tell raises\nnone (a flood that sent nobody from their home).",
           "items": {
@@ -10557,6 +10568,45 @@
         "next",
         "low",
         "flat"
+      ],
+      "type": "object"
+    },
+    "FrameDef": {
+      "additionalProperties": false,
+      "description": "An arc as an opening (DEC-101 §2): the seat the player arrives in and\nthe draft's line. The run is raised the day play begins, so its first\nstage's beats are on offer on turn 1 (the first-beat guarantee); the\nally and the opponent are the arc's `sides`; the clock is its stages'.\n(The design's hidden fact to uncover, `secret`, is not built.)",
+      "properties": {
+        "pitch_key": {
+          "description": "The draft's line (`pitch-*`), with the arc's text arguments as\nthey stand on the day play would begin (its cast, `place`, `town`,\nthe dates and its `facts`).",
+          "type": "string"
+        },
+        "post": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FramePost"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Which seat of the entry post the player takes."
+        }
+      },
+      "required": [
+        "pitch_key"
+      ],
+      "type": "object"
+    },
+    "FramePost": {
+      "additionalProperties": false,
+      "description": "The seat a frame puts the player in.",
+      "properties": {
+        "seat_for": {
+          "description": "A role bound to an area (a neighbourhood): the seat for the\ndistrict that holds it, if a member of the entry body sits for it;\nelse the start's own choice (the most marginal seat).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seat_for"
       ],
       "type": "object"
     },

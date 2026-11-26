@@ -73,7 +73,7 @@ export async function probeDevTools(client: EngineClient, waitMs = 8000): Promis
 export async function newGame(client: EngineClient, seed: string): Promise<void> {
   const body: RequestBody = {
     kind: "new_game",
-    payload: { seed, size: "small", scenario: null, storyteller: null, local_knowledge: false },
+    payload: { seed, size: "small", scenario: null, storyteller: null, local_knowledge: false, recent_openings: [] },
   };
   await client.request(body);
 }

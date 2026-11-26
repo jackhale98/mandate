@@ -120,6 +120,23 @@ h2 { font-size: 1.1rem; }
 .run-actions { display: flex; gap: 8px; }
 .foot { text-align: center; font-size: 0.8rem; }
 
+/* The draft (DEC-101 §3): the openings, one card each, a column at any width (phones first). */
+.draft-hero { padding: 16px 0 0; }
+.draft-hero h1 { margin: 0 0 4px; font-family: var(--font-display); font-size: clamp(1.8rem, 8vw, 2.4rem); }
+.draft-hero p { margin: 0; }
+.draft-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--gap); }
+.draft-opening { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.draft-head { display: flex; flex-direction: column; gap: 2px; }
+.draft-town { margin: 0; font-size: 1.3rem; overflow-wrap: anywhere; }
+.draft-title::first-letter { text-transform: uppercase; }
+.draft-pitch { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.draft-seat { margin: 0; color: var(--muted); }
+.draft-tags { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.draft-working { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.draft-working progress { width: 100%; }
+.draft-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.draft-actions .btn { flex: 1 1 140px; }
+
 /* The game: the screen (the town's street, or a country view) above a slim bar. Sheets sit above the bar. */
 .game { min-height: 100%; display: flex; flex-direction: column; --bar-h: calc(60px + env(safe-area-inset-bottom)); }
 .chip { font-size: 0.8rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--accent); }

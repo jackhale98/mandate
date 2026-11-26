@@ -459,6 +459,7 @@ fn the_query_serves_every_registry_layer_and_writes_nothing() {
             scenario: None,
             storyteller: None,
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     ));
     s.handle_json(&req(2, RequestBody::Command(CommandDto::EndTurn)));

@@ -32,7 +32,7 @@ describe.skipIf(!built)("posts round-trip through the engine (WASM build)", () =
       return res.result.body.payload;
     };
     const command = (c: CommandDto) => send({ kind: "command", payload: c });
-    send({ kind: "new_game", payload: { seed: "4040", size: "small", scenario: null, storyteller: null, local_knowledge: false } });
+    send({ kind: "new_game", payload: { seed: "4040", size: "small", scenario: null, storyteller: null, local_knowledge: false, recent_openings: [] } });
     // Filing is done where the engine offers it (walked to, as the UI does).
     const town = send({ kind: "query", payload: { type: "town" } }) as TownPlacesView;
     const where = town.neighborhoods.flatMap((h) => h.spots).find((sp) => sp.actions.includes("file"))?.location.location;

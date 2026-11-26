@@ -751,6 +751,7 @@ fn the_session_talks() {
             scenario: None,
             storyteller: None,
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     );
     let e = s.engine().unwrap();

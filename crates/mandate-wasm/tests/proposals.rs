@@ -507,6 +507,7 @@ fn the_sheet_and_the_draft_round_trip_as_json() {
         scenario: None,
         storyteller: None,
         local_knowledge: false,
+        recent_openings: Vec::new(),
     });
     let r: Response = serde_json::from_str(&s.handle_json(&req(1, start))).unwrap();
     assert!(matches!(r.result, ResponseResult::Ok { .. }));

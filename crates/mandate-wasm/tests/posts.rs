@@ -319,6 +319,7 @@ fn the_file_command_round_trips_through_json() {
             scenario: None,
             storyteller: None,
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     )
     .unwrap();

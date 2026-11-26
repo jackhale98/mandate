@@ -60,6 +60,8 @@
       ],
       "sides": { "ally": "organiser", "opponent": "neighbour" },
       "heat": { "start": 0.2, "floor": { "indicator": "rent_burden", "scale": 1.5 } },
+      // The draft: the seat the player arrives in, and its line (A8).
+      "frame": { "post": { "seat_for": "hood" }, "pitch_key": "pitch-zoning" },
       "answers": ["policy.upzoning", "policy.affordable_housing"],
       "stages": [
         // The plans are in the paper. Asking now is cheap: walk the site,

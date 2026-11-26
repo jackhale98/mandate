@@ -6,6 +6,7 @@
 
 pub mod ground;
 pub mod knowledge;
+pub mod start;
 
 use crate::politics::PoliticianId;
 use crate::population::CLASSES;

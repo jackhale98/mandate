@@ -63,6 +63,8 @@
       ],
       "sides": { "ally": "member", "opponent": "proposer" },
       "heat": { "start": 0.2 },
+      // The draft: the seat the player arrives in, and its line (A8).
+      "frame": { "pitch_key": "pitch-budget" },
       "stages": [
         // The estimates are out: read them, and ask where there is room.
         { "id": "estimates", "key": "arc-budget-estimates",

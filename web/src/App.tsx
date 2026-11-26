@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useGame } from "./state/gameStore";
 import { Title } from "./screens/Title";
 import { Game } from "./screens/Game";
+import { Draft } from "./screens/Draft";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { UpdatePrompt } from "./components/UpdatePrompt";
 import { Loader } from "./components/Brand";
@@ -26,6 +27,8 @@ export function App() {
         </main>
       ) : screen === "title" ? (
         <Title />
+      ) : screen === "draft" ? (
+        <Draft />
       ) : (
         <Game />
       )}

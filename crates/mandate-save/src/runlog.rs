@@ -6,6 +6,9 @@
 //! it: the state hash does not cover it, and the game itself never replays
 //! it (DEC-074: a save is loaded as it is). Only the developer tools do.
 
+use mandate_sim::arcs::audition::Draft;
+use mandate_sim::arcs::opening::OpeningChoice;
+use mandate_sim::arcs::score::Opening;
 use mandate_sim::engine::LoggedCommand;
 use mandate_sim::state::WorldSize;
 use mandate_sim::{Command, Engine, EngineError};
@@ -25,6 +28,15 @@ pub struct NewGameSetup {
     pub scenario: Option<String>,
     pub storyteller: Option<String>,
     pub local_knowledge: bool,
+    /// The device's last openings (DEC-101 §3, STAGED_ARCS §6.7), oldest
+    /// first: the draft's variety is measured against them, so the same
+    /// seed and parameters give the same draft. A shared seed passes none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recent_openings: Vec<Opening>,
+    /// The opening the draft's choice started play on (none: play began
+    /// as the world was generated).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opening: Option<OpeningChoice>,
 }
 
 impl NewGameSetup {
@@ -38,7 +50,82 @@ impl NewGameSetup {
         if self.local_knowledge {
             engine.set_knowledge_start(None, true)?;
         }
+        // The opening chosen in the draft: the world advanced as the
+        // audition advanced it, then the frame (`arcs::opening`).
+        if let Some(o) = &self.opening {
+            mandate_sim::arcs::opening::open(engine, o).map_err(EngineError::InvalidCommand)?;
+        }
         Ok(())
+    }
+}
+
+/// What the audition measured, for the lab (STAGED_ARCS §6.6: "nothing
+/// from a fork is shown or kept, except the scores in the run log"). The
+/// game never reads it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DraftLog {
+    pub months_ahead: u32,
+    /// Candidates the scan found, and the forks played.
+    pub found: u32,
+    pub forks: u32,
+    /// `audition::digest`: two auditions that agree to the last score.
+    pub digest: String,
+    /// The candidate chosen (an index into `candidates`).
+    pub chosen: Option<u32>,
+    pub candidates: Vec<DraftEntry>,
+}
+
+/// One candidate auditioned, and its terms (each 0 to 1).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DraftEntry {
+    pub town: u32,
+    pub template: String,
+    /// Its place in the draft, if offered.
+    pub offered: Option<u32>,
+    pub escalates: bool,
+    pub agency: Option<f64>,
+    pub escalation: f64,
+    pub visibility: f64,
+    pub pacing: f64,
+    pub variety: f64,
+    pub total: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+impl DraftLog {
+    /// The scores of a draft, and which of its openings (by its place in
+    /// the draft) was chosen.
+    pub fn of(d: &Draft, chosen: Option<usize>) -> Self {
+        let r = |x: f64| (x * 1000.0).round() / 1000.0;
+        DraftLog {
+            months_ahead: d.months_ahead,
+            found: d.found as u32,
+            forks: d.forks,
+            digest: mandate_sim::arcs::audition::digest(d),
+            chosen: chosen.and_then(|i| d.openings.get(i)).map(|i| *i as u32),
+            candidates: d
+                .auditioned
+                .iter()
+                .enumerate()
+                .map(|(i, a)| {
+                    let s = a.score.as_ref();
+                    DraftEntry {
+                        town: a.candidate.town.0,
+                        template: a.candidate.template.clone(),
+                        offered: d.openings.iter().position(|x| *x == i).map(|p| p as u32),
+                        escalates: s.is_some_and(|s| s.escalates),
+                        agency: s.and_then(|s| s.agency.as_ref()).map(|a| r(a.value())),
+                        escalation: s.map_or(0.0, |s| r(s.escalation.value())),
+                        visibility: s.map_or(0.0, |s| r(s.visibility.value())),
+                        pacing: s.map_or(0.0, |s| r(s.pacing.value())),
+                        variety: s.map_or(0.0, |s| r(s.variety)),
+                        total: s.map_or(0.0, |s| r(s.total)),
+                        error: a.error.clone(),
+                    }
+                })
+                .collect(),
+        }
     }
 }
 
@@ -67,6 +154,9 @@ pub struct RunLog {
     pub checkpoints: Vec<Checkpoint>,
     #[serde(default)]
     pub note: Option<String>,
+    /// The audition's scores, when the run began on a drafted opening.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draft: Option<DraftLog>,
 }
 
 impl RunLog {
@@ -85,6 +175,7 @@ impl RunLog {
                 hash: engine.state_hash(),
             }],
             note: None,
+            draft: None,
         }
     }
 
@@ -99,6 +190,7 @@ impl RunLog {
             commands: Vec::new(),
             checkpoints: Vec::new(),
             note: Some(note.into()),
+            draft: None,
         }
     }
 

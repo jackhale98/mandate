@@ -70,6 +70,21 @@ pub fn daily(a: &mut ArcsState, r: &Reads<'_>, out: &mut Outs<'_>) {
             out.effects.push_request(q);
         }
     }
+    // The opening the player chose (`arcs::opening`): raised today, so its
+    // first stage's beats are on offer on turn 1.
+    let opens = out.take(|e| matches!(e, Effect::OpenArc { .. }));
+    if !opens.is_empty() && active(a, r) {
+        let pol = r.politics();
+        let v = View::new(r, pol);
+        for q in opens {
+            if let Effect::OpenArc { template, at } = q.effect
+                && let Some(def) = r.content.arc(&template)
+                && v.player().is_some_and(|p| p.focus().contains(&at))
+            {
+                raise_one(a, &v, out, at, def);
+            }
+        }
+    }
     if !active(a, r) || Cadence::Weekly.hits(r.date) {
         return;
     }
@@ -896,6 +911,24 @@ const MIN_COOLDOWN_DAYS: u32 = 28;
 /// matters is one more.
 fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
     let Some(pl) = v.player() else { return };
+    for at in pl.focus() {
+        for def in &v.content().arcs {
+            raise_one(a, v, out, at, def);
+        }
+    }
+}
+
+/// Raise and cast a run of `def` at `at` if it may be raised there now
+/// (the weekly step's rule for one template; the opening the player chose
+/// is raised by it on the first day, `Effect::OpenArc`). Returns the run
+/// raised (it may have ended on entry).
+fn raise_one(
+    a: &mut ArcsState,
+    v: &View<'_>,
+    out: &mut Outs<'_>,
+    at: Jurisdiction,
+    def: &ArcDef,
+) -> Option<ArcId> {
     let content = v.content();
     let today = v.date();
     let began = v.play_began();
@@ -905,119 +938,112 @@ fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
         0
     };
     let cap = usize::from(content.director.arcs_active);
-    for at in pl.focus() {
-        for def in &content.arcs {
-            if !def.tiers.contains(&at.tier()) || career < def.min_career_days {
-                continue;
-            }
-            if a.at(at).any(|x| x.template == def.id) {
-                continue;
-            }
-            let others = a
-                .at(at)
-                .filter(|x| {
-                    content
-                        .arc(&x.template)
-                        .is_none_or(|d| d.standing.is_none() && d.rank >= def.rank)
-                })
-                .count();
-            if def.standing.is_none() && others >= cap {
-                continue;
-            }
-            if a.cooldowns
-                .iter()
-                .any(|c| c.template == def.id && c.at == at && c.until > today)
-            {
-                continue;
-            }
-            let cx = Ctx::new(v, None, Some(at));
-            if !crate::condition::all_hold(&cx, &def.raise, &mut Args::new()) {
-                continue;
-            }
-            // Parsed and validated, never raised (STAGED_ARCS §9).
-            if !super::not_yet(def).is_empty() {
-                continue;
-            }
-            let root = root_event(out.events, at, &def.raise, today);
-            let last = a
-                .past
-                .iter()
-                .rev()
-                .find(|p| p.template == def.id && p.at == at);
-            // One run a matter: the same event raises nothing twice, and
-            // a template that reads no event waits a while.
-            if last.is_some_and(|p| match root {
-                Some((id, _)) => p.root == Some(id),
-                None => p.ended.days_until(today) < MIN_COOLDOWN_DAYS,
-            }) {
-                continue;
-            }
-            let Some(cast) = cast::cast(v, at, def) else {
-                continue;
-            };
-            let Some(first) = def.stages.first() else {
-                continue;
-            };
-            let id = ArcId(a.ids.peek_next());
-            let mut run = ArcRun {
-                id,
-                template: def.id.clone(),
-                at,
-                base: cast::base_readings(v.r, &cast),
-                cast,
-                stage: first.id.clone(),
-                since: today,
-                started: today,
-                began: root.map_or(today, |r| r.1),
-                clock: None,
-                heat: def.heat.start.clamp(0.0, 1.0),
-                marks: Vec::new(),
-                done: Vec::new(),
-                open: Vec::new(),
-                root: root.map(|r| r.0),
-                turn: None,
-                before: a.last_turn(&def.id, at).map(String::from),
-                exchange: None,
-                played: Vec::new(),
-            };
-            // A matter too small to tell raises nothing (`given`).
-            if !holds(v, &run, &run.narrative_cast(), &def.given) {
-                continue;
-            }
-            a.ids.alloc_raw();
-            // The event that made it true is the arc's root on the spine;
-            // where none did, the standing worry its `raise` read (housing
-            // as the town's strongest worry), so the Why panel says why.
-            let causes = match root {
-                Some((ev, _)) => Causes::from(Cause::caused_by(ev)),
-                None => match worry_root(v, at, &def.raise) {
-                    Some(w) => Causes::from(Cause::Pressure(w)).and(Cause::Process(Process::Arcs)),
-                    None => Causes::from(Cause::Process(Process::Arcs)),
-                },
-            };
-            out.events.record(
-                today,
-                EventKind::ArcRaised {
-                    arc: id.0,
-                    template: def.id.clone(),
-                    at,
-                },
-                causes,
-            );
-            // An arc raised mid-matter starts where the world is: the
-            // first stage's edges are checked on entry, and the stage it
-            // rests in offers its beats the same day.
-            let mut exit = enter(&mut a.deferred, &mut run, def, first, v, out, None);
-            if exit.is_none() {
-                exit = edges(&mut a.deferred, &mut run, def, v, out);
-                if exit.is_none() && run.stage == first.id {
-                    offer(&mut a.deferred, &mut run, def, first, v, out);
-                }
-            }
-            match exit {
-                Some(x) => end(a, v.r, run, &x),
-                None => a.runs.push(run),
-            }
+    if !def.tiers.contains(&at.tier()) || career < def.min_career_days {
+        return None;
+    }
+    if a.at(at).any(|x| x.template == def.id) {
+        return None;
+    }
+    let others = a
+        .at(at)
+        .filter(|x| {
+            content
+                .arc(&x.template)
+                .is_none_or(|d| d.standing.is_none() && d.rank >= def.rank)
+        })
+        .count();
+    if def.standing.is_none() && others >= cap {
+        return None;
+    }
+    if a.cooldowns
+        .iter()
+        .any(|c| c.template == def.id && c.at == at && c.until > today)
+    {
+        return None;
+    }
+    let cx = Ctx::new(v, None, Some(at));
+    if !crate::condition::all_hold(&cx, &def.raise, &mut Args::new()) {
+        return None;
+    }
+    // Parsed and validated, never raised (STAGED_ARCS §9).
+    if !super::not_yet(def).is_empty() {
+        return None;
+    }
+    let root = root_event(out.events, at, &def.raise, today);
+    let last = a
+        .past
+        .iter()
+        .rev()
+        .find(|p| p.template == def.id && p.at == at);
+    // One run a matter: the same event raises nothing twice, and
+    // a template that reads no event waits a while.
+    if last.is_some_and(|p| match root {
+        Some((id, _)) => p.root == Some(id),
+        None => p.ended.days_until(today) < MIN_COOLDOWN_DAYS,
+    }) {
+        return None;
+    }
+    let cast = cast::cast(v, at, def)?;
+    let first = def.stages.first()?;
+    let id = ArcId(a.ids.peek_next());
+    let mut run = ArcRun {
+        id,
+        template: def.id.clone(),
+        at,
+        base: cast::base_readings(v.r, &cast),
+        cast,
+        stage: first.id.clone(),
+        since: today,
+        started: today,
+        began: root.map_or(today, |r| r.1),
+        clock: None,
+        heat: def.heat.start.clamp(0.0, 1.0),
+        marks: Vec::new(),
+        done: Vec::new(),
+        open: Vec::new(),
+        root: root.map(|r| r.0),
+        turn: None,
+        before: a.last_turn(&def.id, at).map(String::from),
+        exchange: None,
+        played: Vec::new(),
+    };
+    // A matter too small to tell raises nothing (`given`).
+    if !holds(v, &run, &run.narrative_cast(), &def.given) {
+        return None;
+    }
+    a.ids.alloc_raw();
+    // The event that made it true is the arc's root on the spine;
+    // where none did, the standing worry its `raise` read (housing
+    // as the town's strongest worry), so the Why panel says why.
+    let causes = match root {
+        Some((ev, _)) => Causes::from(Cause::caused_by(ev)),
+        None => match worry_root(v, at, &def.raise) {
+            Some(w) => Causes::from(Cause::Pressure(w)).and(Cause::Process(Process::Arcs)),
+            None => Causes::from(Cause::Process(Process::Arcs)),
+        },
+    };
+    out.events.record(
+        today,
+        EventKind::ArcRaised {
+            arc: id.0,
+            template: def.id.clone(),
+            at,
+        },
+        causes,
+    );
+    // An arc raised mid-matter starts where the world is: the
+    // first stage's edges are checked on entry, and the stage it
+    // rests in offers its beats the same day.
+    let mut exit = enter(&mut a.deferred, &mut run, def, first, v, out, None);
+    if exit.is_none() {
+        exit = edges(&mut a.deferred, &mut run, def, v, out);
+        if exit.is_none() && run.stage == first.id {
+            offer(&mut a.deferred, &mut run, def, first, v, out);
         }
     }
+    match exit {
+        Some(x) => end(a, v.r, run, &x),
+        None => a.runs.push(run),
+    }
+    Some(id)
 }
