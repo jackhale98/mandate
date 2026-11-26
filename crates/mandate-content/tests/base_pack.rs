@@ -218,22 +218,35 @@ fn balance_parameter_blocks_are_validated() {
     assert!(errors(&s).contains("npc defined twice"));
 }
 
-/// DEC-077 §3: the base pack answers each kind of crisis with a situational
-/// policy, every unlock names a real crisis, and each has a trade-off.
+/// DEC-077 §3, DEC-092 §2.20: the base pack answers each kind of crisis
+/// with a policy family whose trigger names it (the situational templates,
+/// converted), each crisis lists answers that exist, and the retired
+/// templates keep a trade-off for the laws of them still in force.
 #[test]
 fn situational_policies_answer_the_base_crises() {
     let (b, _) = load(&base_sources()).unwrap();
-    let situational: Vec<_> = b.policies.values().filter(|p| p.unlock.is_some()).collect();
-    assert!(situational.len() >= 4, "{} situational", situational.len());
     for c in &b.crises {
-        let answered = situational.iter().any(|p| {
-            p.unlock.as_ref().unwrap().any.iter().any(|x| {
-                matches!(x, mandate_content::Condition::Crisis { kind: Some(kind), .. } if kind == &c.id)
+        let answered = b.policy_families.iter().any(|f| {
+            f.trigger.as_ref().is_some_and(|t| {
+                t.any.iter().chain(&t.all).any(|x| {
+                    matches!(x, mandate_content::Condition::Crisis { kind: Some(kind), .. } if kind == &c.id)
+                })
             })
         });
-        assert!(answered, "no situational policy for {}", c.id);
+        assert!(answered, "no policy family for {}", c.id);
+        assert!(
+            c.policies
+                .iter()
+                .all(|p| b.policies.get(p).is_some_and(|t| !t.retired) || b.family(p).is_some()),
+            "{}: {:?}",
+            c.id,
+            c.policies
+        );
     }
+    let situational: Vec<_> = b.policies.values().filter(|p| p.unlock.is_some()).collect();
+    assert!(situational.len() >= 4, "{} situational", situational.len());
     for p in &situational {
+        assert!(p.retired, "{} is situational and not retired", p.id);
         assert!(!p.side_effects.is_empty(), "{} has no trade-off", p.id);
     }
 }

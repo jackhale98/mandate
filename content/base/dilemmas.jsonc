@@ -114,7 +114,7 @@
             { "type": "awareness", "delta": 0.03 } ] },
         { "id": "defences", "label_key": "dilemma-disaster-relief-defences", "aftermath_key": "dilemma-disaster-relief-defences-after",
           "effects": [
-            { "type": "draft", "template": "policy.flood_defenses" },
+            { "type": "draft", "template": "family.flood_wall" },
             { "type": "opinion", "role": "helper", "delta": 3 },
             { "type": "approval", "neighborhood": "hood", "delta": -0.01 },
             { "type": "record", "delta": 0.02 } ] },

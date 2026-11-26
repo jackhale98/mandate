@@ -13,12 +13,17 @@ use mandate_worldgen::{WorldConfig, WorldSize, generate};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+/// The base pack with its situational templates on offer again: F4 retired
+/// them into policy families (DEC-092 §2.20), and the mechanism they run on
+/// (`unlock`) stays, so these tests keep proving it.
 fn content() -> Arc<ContentBundle> {
-    Arc::new(
-        mandate_content::load(&mandate_content::embedded::sources())
-            .unwrap()
-            .0,
-    )
+    let mut src = mandate_content::embedded::sources();
+    for s in src.iter_mut() {
+        if s.path.ends_with("policies/situational.jsonc") {
+            s.text = s.text.replace("\"retired\": true, ", "");
+        }
+    }
+    Arc::new(mandate_content::load(&src).unwrap().0)
 }
 
 fn world(seed: u64) -> Engine {

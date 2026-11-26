@@ -1,0 +1,239 @@
+// Policy families about hazards and the land (DEC-092; M6_ENGINE_CONTRACTS
+// §2.17, §2.20, §2.21): what protects a neighbourhood, rebuilds it after a
+// disaster, or keeps the farms watered. Numbers are first guesses
+// (TUNING_QUEUE). Fluent: locale/en/families.ftl.
+{
+  "kind": "policy_families",
+  "items": [
+    // --- Flood wall for an exposed neighbourhood (§2.17, was policy.flood_defenses) ----
+    {
+      "id": "family.flood_wall",
+      "name_key": "family-flood-wall",
+      "desc_key": "family-flood-wall-desc",
+      "tier": "local", "category": "environment", "requires": "propose_ordinance",
+      "draw": { "rarity": "common", "weight": 2 },
+      "max_instances": 2,
+      // The most exposed neighbourhood (D8), the hazard it faces, its
+      // residents' organiser, and the builders' voice in town.
+      "slots": [
+        { "id": "hood", "bind": { "type": "neighborhood", "hazard": "flood", "min_exposure": 0.2, "pick": "most_exposed" } },
+        { "id": "hazard", "bind": { "type": "hazard", "hazards": ["flood", "storm"], "in_slot": "hood", "pick": "most_exposed" } },
+        { "id": "residents", "bind": { "type": "person", "occupations": ["occupation.organiser", "occupation.clergy"], "in_slot": "hood" }, "optional": true },
+        { "id": "builders", "bind": { "type": "person", "occupations": ["occupation.business_leader"] }, "optional": true },
+      ],
+      "trigger": {
+        "any": [
+          { "type": "disaster", "within_months": 36 },
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.recovery", "top": 3 },
+          { "type": "hood_hazard", "slot": "hood", "hazard": "flood", "min": 0.45 },
+        ],
+        "reason_key": "reason-flood-risk",
+      },
+      "expiry": { "grace_months": 6, "max_months": 18, "cooldown_months": 12 },
+      "base": {
+        "params": [ { "id": "height", "name_key": "param-wall-height", "min": 1, "max": 3, "default": 2, "step": 1, "unit_key": "unit-level" } ],
+        // Per resident of the area protected (the area clause).
+        "cost": { "per_capita_per_unit": 110, "param": "height" },
+        "mechanisms": [ { "type": "hazard_protection", "hazard": "@hazard", "param": "height", "per_unit": 0.25 } ],
+        "implementation_months": 18,
+        "signature": { "environment": 0.2, "law_and_order": 0.2, "localism": 0.2, "tax_tolerance": 0.1 },
+        "secondary_keys": ["secondary-wall-river-view"],
+        "side_effects": [ { "type": "disruption", "per_unit": 0.04, "param": "height" } ],
+        "works": { "kind": "flood_wall", "at": "hood", "contractor_risk": 0.02 },
+      },
+      "axes": [
+        { "id": "where", "name_key": "axis-where", "default": "hood",
+          "options": [
+            { "id": "hood", "name_key": "opt-wall-hood", "desc_key": "opt-wall-hood-desc",
+              "area": { "type": "slot", "slot": "hood" } },
+            { "id": "riverfront", "name_key": "opt-wall-riverfront", "desc_key": "opt-wall-riverfront-desc",
+              "area": { "type": "slot_and_adjacent", "slot": "hood" }, "months": 6,
+              "secondary_keys": ["secondary-wall-long-works"] },
+          ] },
+        { "id": "pay", "name_key": "axis-paid-by", "default": "budget",
+          "options": [
+            { "id": "budget", "name_key": "opt-pay-budget", "desc_key": "opt-pay-budget-desc" },
+            { "id": "bond", "name_key": "opt-pay-bond", "desc_key": "opt-pay-bond-desc",
+              "mechanisms": [ { "type": "borrow", "share": 1.0 } ],
+              "signature": { "tax_tolerance": 0.1 } },
+            // Builders by the water pay: income offsets the cost, fewer homes get built.
+            { "id": "developer_levy", "name_key": "opt-pay-developer-levy", "desc_key": "opt-pay-developer-levy-desc",
+              "fixed": { "levy_rate": 1 },
+              "mechanisms": [
+                { "type": "revenue", "per_capita": 40 },
+                { "type": "zoning", "param": "levy_rate", "per_unit": -0.08 },
+              ],
+              "signature": { "redistribution": 0.1, "reform_appetite": -0.1 } },
+          ] },
+        { "id": "builder", "name_key": "axis-who-builds", "default": "works_team",
+          "options": [
+            { "id": "works_team", "name_key": "opt-build-works-team", "desc_key": "opt-build-works-team-desc" },
+            { "id": "contractor", "name_key": "opt-build-contractor", "desc_key": "opt-build-contractor-desc",
+              "cost_factor": 1.25, "months": -6,
+              "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.01, "param": "height" } ] },
+            { "id": "landowners", "name_key": "opt-build-landowners", "desc_key": "opt-build-landowners-desc",
+              "cost_factor": 0.4, "effect_factor": 0.7, "months": 6,
+              "side_effects": [ { "type": "grievance", "class": "high", "min_age_band": 2, "per_unit": 0.03, "param": "height" } ] },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "residents", "slot": "residents", "name_key": "sponsor-residents-version",
+          "preset": { "where": "riverfront", "pay": "bond", "builder": "works_team" }, "params": { "height": 3 },
+          "price": { "type": "endorsement", "area": { "type": "slot", "slot": "hood" }, "approval": 0.04, "backlash": 0.01 } },
+        { "id": "builders", "slot": "builders", "name_key": "sponsor-builders-version",
+          "preset": { "where": "hood", "pay": "budget", "builder": "contractor" }, "params": { "height": 2 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-contract" } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "overheard", "at": ["diner", "market"] }, { "type": "action", "action": "canvass", "slot": "hood" } ],
+        "known": [ { "type": "meet", "slot": "residents" }, { "type": "action", "action": "town_hall", "slot": "hood" } ],
+        "detailed": [ { "type": "service", "service": "town_data_detailed" } ],
+        "lead": { "key": "lead-flood-wall", "to": { "type": "streets", "slot": "hood" } },
+      },
+    },
+
+    // --- Rebuild after a disaster (§2.20, was policy.rebuild_fund) ------------------------
+    {
+      "id": "family.rebuild",
+      "name_key": "family-rebuild",
+      "desc_key": "family-rebuild-desc",
+      "tier": "local", "category": "housing", "requires": "propose_ordinance",
+      "draw": { "rarity": "always", "weight": 4 },
+      // The neighbourhood most worried about recovery (the hardest hit), the
+      // hazard it is most exposed to, its organiser, and the builders.
+      "slots": [
+        { "id": "hood", "bind": { "type": "neighborhood", "concern": "concern.recovery", "top": 3, "pick": "most_concerned" } },
+        { "id": "hazard", "bind": { "type": "hazard", "hazards": ["flood", "storm", "wildfire"], "in_slot": "hood", "pick": "most_exposed" } },
+        { "id": "residents", "bind": { "type": "person", "occupations": ["occupation.organiser", "occupation.clergy"], "in_slot": "hood" }, "optional": true },
+        { "id": "builders", "bind": { "type": "person", "occupations": ["occupation.business_leader"], "fallback": "broker" }, "optional": true },
+      ],
+      // The situational unlock, unchanged.
+      "trigger": {
+        "any": [
+          { "type": "crisis", "kind": "crisis.disaster_recovery" },
+          { "type": "disaster", "within_months": 18 },
+        ],
+        "reason_key": "reason-rebuild",
+      },
+      "expiry": { "grace_months": 4, "max_months": 30, "cooldown_months": 12 },
+      "base": {
+        "params": [ { "id": "homes", "name_key": "param-rebuilt-homes", "min": 50, "max": 1500, "default": 200, "step": 50, "unit_key": "unit-homes-per-year" } ],
+        "cost": { "per_unit": 34000, "param": "homes" },
+        "mechanisms": [ { "type": "housing_supply", "param": "homes" } ],
+        "implementation_months": 9,
+        "signature": { "redistribution": 0.3, "tax_tolerance": 0.3, "environment": 0.2, "law_and_order": 0.2, "localism": 0.3 },
+        "secondary_keys": ["secondary-rebuild-wait"],
+        "side_effects": [
+          { "type": "disruption", "per_unit": 0.0003, "param": "homes" },
+          { "type": "grievance", "class": "high", "min_age_band": 2, "per_unit": 0.0002, "param": "homes" },
+        ],
+      },
+      "axes": [
+        { "id": "standard", "name_key": "axis-rebuild-standard", "default": "like_for_like",
+          "options": [
+            { "id": "like_for_like", "name_key": "opt-rebuild-like", "desc_key": "opt-rebuild-like-desc" },
+            // Higher floors and stronger roofs: dearer and slower, safer next time.
+            { "id": "higher", "name_key": "opt-rebuild-higher", "desc_key": "opt-rebuild-higher-desc",
+              "cost": { "per_unit": 5000, "param": "homes" }, "months": 3,
+              "mechanisms": [ { "type": "hazard_protection", "hazard": "@hazard", "param": "homes", "per_unit": 0.0004 } ],
+              "secondary_keys": ["secondary-rebuild-standard"] },
+          ] },
+        { "id": "where", "name_key": "axis-where", "default": "hood",
+          "options": [
+            { "id": "hood", "name_key": "opt-rebuild-hood", "desc_key": "opt-rebuild-hood-desc",
+              "area": { "type": "slot", "slot": "hood" }, "months": -2 },
+            { "id": "town", "name_key": "opt-rebuild-town", "desc_key": "opt-rebuild-town-desc",
+              "area": { "type": "town" } },
+          ] },
+        { "id": "builder", "name_key": "axis-who-builds", "default": "works_team",
+          "options": [
+            { "id": "works_team", "name_key": "opt-build-works-team", "desc_key": "opt-build-works-team-desc" },
+            { "id": "contractor", "name_key": "opt-build-contractor", "desc_key": "opt-build-contractor-desc",
+              "cost_factor": 1.2, "months": -4,
+              "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.00005, "param": "homes" } ] },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "residents", "slot": "residents", "name_key": "sponsor-residents-version",
+          "preset": { "standard": "higher", "where": "hood", "builder": "works_team" }, "params": { "homes": 300 },
+          "price": { "type": "endorsement", "area": { "type": "slot", "slot": "hood" }, "approval": 0.04, "backlash": 0.01 } },
+        { "id": "builders", "slot": "builders", "name_key": "sponsor-builders-version",
+          "preset": { "standard": "like_for_like", "where": "town", "builder": "contractor" }, "params": { "homes": 400 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-rebuild" } },
+      ],
+      "knowledge": {
+        "public": true,
+        "heard": [ { "type": "visit", "slot": "hood" } ],
+        "known": [ { "type": "meet", "slot": "residents" }, { "type": "action", "action": "town_hall", "slot": "hood" }, { "type": "action", "action": "canvass", "slot": "hood" } ],
+        "detailed": [ { "type": "service", "service": "town_data_detailed" } ],
+        "lead": { "key": "lead-rebuild", "to": { "type": "streets", "slot": "hood" } },
+      },
+    },
+
+    // --- Water for the farms ---------------------------------------------------------------
+    {
+      "id": "family.farm_water",
+      "name_key": "family-farm-water",
+      "desc_key": "family-farm-water-desc",
+      "tier": "local", "category": "environment", "requires": "propose_ordinance",
+      "draw": { "rarity": "uncommon", "weight": 2 },
+      "slots": [
+        { "id": "farm", "bind": { "type": "place", "kinds": ["farm"], "pick": "largest" } },
+        { "id": "sector", "bind": { "type": "sector", "of_slot": "farm" } },
+        { "id": "farmer", "bind": { "type": "person", "occupations": ["occupation.farmer"], "at_slot": "farm", "fallback": "broker" } },
+      ],
+      // A farming town, a fire, or a farming sector losing work.
+      "trigger": {
+        "any": [
+          { "type": "industry", "drivers": ["land_based"] },
+          { "type": "disaster", "within_months": 24, "hazard": "wildfire" },
+          { "type": "sector_decline", "slot": "sector", "min": 0.03 },
+        ],
+        "reason_key": "reason-farm-water",
+      },
+      "expiry": { "grace_months": 6, "max_months": 12, "cooldown_months": 24 },
+      "base": {
+        "params": [ { "id": "aid", "name_key": "param-water-aid", "min": 1, "max": 8, "default": 3, "step": 1, "unit_key": "unit-percent-wages" } ],
+        "cost": { "per_capita_per_unit": 6, "param": "aid" },
+        "mechanisms": [ { "type": "sector_subsidy", "sector": "@sector", "param": "aid", "elasticity": 1.2 } ],
+        "implementation_months": 6,
+        "signature": { "localism": 0.3, "tradition": 0.3, "environment": 0.1, "redistribution": 0.1 },
+        "secondary_keys": ["secondary-farm-water-town"],
+        "side_effects": [ { "type": "grievance", "class": "middle", "per_unit": 0.004, "param": "aid" } ],
+      },
+      "axes": [
+        { "id": "source", "name_key": "axis-farm-water-source", "default": "meters",
+          "options": [
+            // Meters and a fair share for each farm: cheap, and the farmers grumble.
+            { "id": "meters", "name_key": "opt-water-meters", "desc_key": "opt-water-meters-desc",
+              "cost_factor": 0.7,
+              "side_effects": [ { "type": "grievance", "min_age_band": 2, "per_unit": 0.003, "param": "aid" } ] },
+            // A reservoir: dearer and slow, and it holds water against fire.
+            { "id": "reservoir", "name_key": "opt-water-reservoir", "desc_key": "opt-water-reservoir-desc",
+              "effect_factor": 1.2, "months": 12,
+              "mechanisms": [ { "type": "hazard_protection", "hazard": "wildfire", "param": "aid", "per_unit": 0.03 } ],
+              "side_effects": [ { "type": "disruption", "per_unit": 0.01, "param": "aid" } ],
+              "works": { "kind": "reservoir", "at": "farm", "months": 18, "contractor_risk": 0.02 } },
+          ] },
+        { "id": "pay", "name_key": "axis-paid-by", "default": "budget",
+          "options": [
+            { "id": "budget", "name_key": "opt-pay-budget", "desc_key": "opt-pay-budget-desc" },
+            { "id": "bond", "name_key": "opt-pay-bond", "desc_key": "opt-pay-bond-desc",
+              "mechanisms": [ { "type": "borrow", "share": 1.0 } ],
+              "signature": { "tax_tolerance": 0.1 } },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "farmer", "slot": "farmer", "name_key": "sponsor-farmers-version",
+          "preset": { "source": "reservoir", "pay": "bond" }, "params": { "aid": 4 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-farm-water" } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "farm" }, { "type": "overheard", "at": ["market", "diner"] } ],
+        "known": [ { "type": "meet", "slot": "farmer" } ],
+        "detailed": [ { "type": "service", "service": "budget_papers" } ],
+        "lead": { "key": "lead-farm-water", "to": { "type": "slot", "slot": "farmer" } },
+      },
+    },
+  ],
+}

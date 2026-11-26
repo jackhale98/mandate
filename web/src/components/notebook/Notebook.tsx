@@ -21,6 +21,7 @@ import { PeopleList, PeopleTab, roleLine } from "./People";
 import { Row, RowList, Section } from "./rows";
 import { groupNotebook, itemFacts, itemText, itemTitle, matches, newCounts, personItems, subjectKey, type NotebookGroups, type NotebookItem } from "./notebookModel";
 import "./notebook.css";
+import { useProposal } from "../proposal/proposalStore";
 
 export const notebookTabId = (t: NotebookTab) => `notebook-tab-${t}`;
 export const notebookPanelId = (t: NotebookTab) => `notebook-panel-${t}`;
@@ -146,6 +147,13 @@ export function NotebookTabs() {
 /** Entries as rows: a title and the facts known (worries, support, proposals, places found). */
 export function EntryRows({ items, testId }: { items: NotebookItem[]; testId?: string }) {
   const tr = useGame((s) => s.tr);
+  const office = useGame((s) => s.office);
+  // A proposal still on the desk opens its sheet (DEC-092).
+  const sheetOf = (i: NotebookItem) => {
+    const s = i.subject;
+    const p = s.type === "proposal" ? office?.proposals.find((x) => x.id === s.proposal) : undefined;
+    return p ? () => void useProposal.getState().openProposal({ proposal: p.id, family: p.family }, { opener: document.activeElement instanceof HTMLElement ? document.activeElement : null }) : undefined;
+  };
   return (
     <RowList className="nb-entry-list" testId={testId}>
       {items.map((i) => (
@@ -163,6 +171,7 @@ export function EntryRows({ items, testId }: { items: NotebookItem[]; testId?: s
           }
           sub={itemFacts(tr, i).join(" · ") || null}
           reason={i.entry?.note ? tr.event(i.entry.note.key, i.entry.note.args) : null}
+          onActivate={sheetOf(i)}
           li={{ "data-testid": "notebook-entry", "data-subject": i.subject.type, "data-new": i.isNew ? "true" : undefined }}
         />
       ))}

@@ -1,0 +1,52 @@
+/* The proposal sheet (DEC-092, F6): over the place panel and the pocket, the
+   arc sheet's height on phones and the left panel on wide screens. An option
+   is a whole-row target of at least 44 px; the chosen one is marked by its
+   radio, a border and the word "Chosen" (never colour alone, DEC-051). */
+.proposal-scrim { z-index: 6; }
+.sheet.proposal-sheet { z-index: 7; }
+@media (max-width: 899px) { .sheet.proposal-sheet { max-height: 85vh; } }
+@media (min-width: 900px) {
+  .proposal-scrim { display: none; }
+  .sheet.proposal-sheet { max-height: none; }
+}
+.proposal-sheet h2 { overflow-wrap: anywhere; }
+.pp-body { gap: 10px; min-width: 0; }
+.pp-body p { margin: 0; }
+.pp-sec { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pp-sec .sub, .pp-axis .sub { margin: 4px 0 0; }
+.pp-package { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.pp-effects .impact { margin: 0; }
+.pp-why-btn { align-self: flex-start; min-height: 44px; }
+.pp-warn { padding-left: 10px; border-left: 3px solid var(--bad); }
+.pp-done { color: var(--text); }
+
+.pp-axis { margin: 0; padding: 0; border: 0; min-width: 0; }
+.pp-axis legend { padding: 0; font-weight: 600; }
+.pp-opts { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pp-opt { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.pp-opt-on { border: 2px solid var(--accent); background: var(--surface); }
+.pp-opt-off { opacity: 0.7; }
+.pp-opt-label { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: start; min-height: 44px; padding: 8px 10px; cursor: pointer; }
+.pp-opt-off .pp-opt-label { cursor: default; }
+.pp-opt-label input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); }
+.pp-opt-label:has(input:focus-visible) { outline: 3px solid var(--info); outline-offset: -3px; border-radius: 8px; }
+.pp-opt-lines { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pp-opt-l1 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pp-opt-l1 strong { min-width: 0; overflow-wrap: anywhere; }
+.pp-opt-l1 .num { white-space: nowrap; font-size: 0.88rem; }
+.pp-opt-l3, .pp-opt-desc, .pp-opt-why { overflow-wrap: anywhere; }
+.pp-opt-why { color: var(--text); }
+
+.pp-sponsors, .pp-bills { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pp-sponsor { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
+.pp-sponsor[data-matches="true"] { border: 2px solid var(--accent); }
+.pp-sponsor .btn { align-self: flex-start; min-height: 44px; }
+.pp-taken { align-self: flex-start; }
+.pp-bill { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pp-bill .btn { min-height: 44px; }
+.pp-amending { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-left: 3px solid var(--accent); }
+.pp-amending .btn { min-height: 44px; }
+.pp-act .btn { min-height: 48px; }
+.pp-stub { display: flex; flex-direction: column; gap: 8px; }
+/* Every target on the sheet is at least 44 px (DEC-113 L7), small buttons too. */
+.proposal-sheet .pp-body .btn { min-height: 44px; }

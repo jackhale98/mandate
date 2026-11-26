@@ -38,7 +38,7 @@
       "facts": [ { "type": "displaced", "slot": "hood" }, { "type": "recovered", "slot": "hood" } ],
       "sides": { "ally": "organiser", "opponent": "official" },
       "heat": { "start": 0.3, "floor": { "indicator": "recent_disaster", "scale": 0.4 } },
-      "answers": ["policy.rebuild_fund", "policy.flood_defenses", "policy.hardship_fund"],
+      "answers": ["policy.rebuild_fund", "policy.flood_defenses", "family.rebuild", "family.flood_wall", "policy.hardship_fund"],
       "stages": [
         // The first weeks: the hall, a second roof, and who pays.
         { "id": "struck", "key": "arc-flood-struck", "clock": { "days": [21, 28] },
@@ -90,7 +90,7 @@
           // to hear the plan, and a player who paid or sent a crew faces a
           // cooler room. Only a law answers the matter without one.
           "next": [
-            { "to": "rebuilding", "when": [ { "type": "law_in_force", "templates": ["policy.rebuild_fund", "policy.flood_defenses"] } ] },
+            { "to": "rebuilding", "when": [ { "type": "law_in_force", "templates": ["policy.rebuild_fund", "policy.flood_defenses", "family.rebuild", "family.flood_wall"] } ] },
             { "to": "meeting", "when": [
                 { "type": "any", "of": [ { "type": "arc_mark", "mark": "paid_first" }, { "type": "arc_mark", "mark": "crew" } ] },
                 { "type": "recovered", "slot": "hood", "min": 0.2 } ] },
@@ -153,7 +153,7 @@
                   { "key": "talk-arc-flood-date-yes", "agrees": true } ] } },
           ],
           "next": [
-            { "to": "rebuilding", "when": [ { "type": "law_in_force", "templates": ["policy.rebuild_fund", "policy.flood_defenses"] } ] },
+            { "to": "rebuilding", "when": [ { "type": "law_in_force", "templates": ["policy.rebuild_fund", "policy.flood_defenses", "family.rebuild", "family.flood_wall"] } ] },
             { "to": "rebuilding", "when": [ { "type": "arc_scene", "beat": "meeting.room", "outcomes": ["won", "split"] },
                 { "type": "recovered", "slot": "hood", "min": 0.2 } ] },
             { "to": "rebuilding", "when": [ { "type": "arc_mark", "mark": "dated" }, { "type": "recovered", "slot": "hood", "min": 0.45 } ] },
@@ -166,10 +166,10 @@
             { "id": "works", "type": "visit", "at": "hood", "verb_key": "visit-arc-flood-works", "outcome_key": "outcome-arc-flood-works",
               "time": "half", "relief": 0.03, "effects": [ { "type": "approval", "area": "hood", "delta": 0.01 } ] },
             { "id": "wall", "type": "press", "headline_key": "headline-arc-flood-wall",
-              "when": [ { "type": "law_in_force", "templates": ["policy.flood_defenses"] } ] },
+              "when": [ { "type": "law_in_force", "templates": ["policy.flood_defenses", "family.flood_wall"] } ] },
           ],
           "next": [
-            { "to": "defended", "when": [ { "type": "law_in_force", "templates": ["policy.flood_defenses"] }, { "type": "recovered", "slot": "hood", "min": 0.7 } ] },
+            { "to": "defended", "when": [ { "type": "law_in_force", "templates": ["policy.flood_defenses", "family.flood_wall"] }, { "type": "recovered", "slot": "hood", "min": 0.7 } ] },
             { "to": "rebuilt", "when": [ { "type": "recovered", "slot": "hood", "min": 0.85 } ] },
             { "to": "rebuilt", "when": [ { "type": "recovered", "slot": "hood", "min": 0.72 } ], "clock_within_days": 0 },
             { "to": "hollowed", "clock_within_days": 0 } ] },

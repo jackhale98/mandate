@@ -851,8 +851,8 @@ fn saves_and_the_character_registries() {
         mandate_sim::Engine::from_state(state, bundle)
     };
     // A used occupation removed: refused, naming it. (One only outlets,
-    // conversations and routines name besides its own file; those lose it
-    // too, so the content itself still validates.)
+    // conversations, routines and policy families name besides its own
+    // file; those lose it too, so the content itself still validates.)
     let all =
         read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
     let named_elsewhere = |id: &str| {
@@ -861,6 +861,7 @@ fn saves_and_the_character_registries() {
                 s.path.as_str(),
                 "base/occupations.jsonc" | "base/outlets.jsonc" | "base/routines.jsonc"
             ) && !s.path.starts_with("base/conversations/")
+                && !s.path.starts_with("base/policy_families/")
                 && s.text.contains(&format!("\"{id}\""))
         })
     };
@@ -922,6 +923,16 @@ fn saves_and_the_character_registries() {
                 items.retain(|x| !only_for(x, &gone));
             }
             strip(&mut v, &gone);
+            f.text = v.to_string();
+        }
+        // Policy families (F4): the occupation leaves every person slot.
+        for f in src
+            .iter_mut()
+            .filter(|s| s.path.starts_with("base/policy_families/"))
+        {
+            let mut v: serde_json::Value =
+                serde_json::from_str(&mandate_content::jsonc::to_strict_json(&f.text)).unwrap();
+            strip(&mut v, &serde_json::json!(used));
             f.text = v.to_string();
         }
     });
@@ -1255,7 +1266,13 @@ fn v13_saves_migrate_to_town_baselines() {
 /// is identical.
 #[test]
 fn v13_files_decode_with_town_baselines() {
-    let c = content();
+    // v13 predates policy families (v25): no family content, so no deck
+    // is drawn as play begins.
+    let c = {
+        let mut b = (*content()).clone();
+        b.policy_families.clear();
+        Arc::new(b)
+    };
     let e = generate(
         &WorldConfig {
             seed: 66,
@@ -1308,10 +1325,12 @@ fn older_saves_migrate_to_the_knowledge_ledger() {
     use mandate_sim::player::knowledge::{LedgerOrigin, Level, Source, Subject};
     // A v13 or v14 save holds no arc (arcs came with v27): the world is
     // played without arc content, so none is raised in its first weeks (a
-    // plant on short time raises one).
+    // plant on short time raises one). Nor a policy family's proposal
+    // (families came with v25): no family content either.
     let c = {
         let mut b = (*content()).clone();
         b.arcs.clear();
+        b.policy_families.clear();
         Arc::new(b)
     };
     let mut e = generate(

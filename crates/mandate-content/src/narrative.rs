@@ -1462,23 +1462,40 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
                         issues.push(Issue::error(&at, "slots must be 1–3"));
                     }
                 }
-                EffectDef::Draft { template, params } => match b.policies.get(template) {
-                    None => issues.push(Issue::error(&at, &format!("unknown policy `{template}`"))),
-                    Some(t) => {
-                        for (k, v) in params {
-                            let ok = t
-                                .params
-                                .iter()
-                                .any(|p| &p.id == k && in_range(*v, p.min, p.max));
-                            if !ok {
+                EffectDef::Draft { template, params } => {
+                    // A template, or a policy family (its open proposal in
+                    // the player's focus, DEC-092 §2.19).
+                    let defs: Option<Vec<&crate::types::ParamDef>> =
+                        match (b.policies.get(template), b.family(template)) {
+                            (Some(t), _) if t.retired => {
                                 issues.push(Issue::error(
                                     &at,
-                                    &format!("draft parameter `{k}` is unknown or out of range"),
+                                    &format!("`{template}` is retired: no one drafts it"),
                                 ));
+                                None
                             }
+                            (Some(t), _) => Some(t.params.iter().collect()),
+                            (None, Some(f)) => Some(f.all_params().collect()),
+                            (None, None) => {
+                                issues.push(Issue::error(
+                                    &at,
+                                    &format!("unknown policy or family `{template}`"),
+                                ));
+                                None
+                            }
+                        };
+                    for (k, v) in params {
+                        let ok = defs.as_ref().is_none_or(|d| {
+                            d.iter().any(|p| &p.id == k && in_range(*v, p.min, p.max))
+                        });
+                        if !ok {
+                            issues.push(Issue::error(
+                                &at,
+                                &format!("draft parameter `{k}` is unknown or out of range"),
+                            ));
                         }
                     }
-                },
+                }
                 EffectDef::Vote { role, .. } => {
                     let is_bill = d
                         .roles

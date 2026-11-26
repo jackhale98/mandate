@@ -1,0 +1,515 @@
+// Policy families about work and industry (DEC-092; M6_ENGINE_CONTRACTS
+// §2.16, §2.20, §2.21). A family binds to the town it is drawn in: its
+// slots name a real plant, sector, person or neighbourhood there, and its
+// options are design choices with their own costs and trade-offs (DEC-073).
+// Numbers are first guesses (TUNING_QUEUE, "policy families": tuned at the
+// end of M6). Fluent: locale/en/families.ftl.
+{
+  "kind": "policy_families",
+  "items": [
+    // --- Rescue deal for a plant losing jobs (§2.16) ------------------------------------
+    {
+      "id": "family.plant_rescue",
+      "name_key": "family-plant-rescue",
+      "desc_key": "family-plant-rescue-desc",
+      "tier": "local", "category": "economic_development", "requires": "propose_ordinance",
+      "draw": { "rarity": "common", "weight": 3 },
+      // The plant losing the most jobs, its sector, whoever runs it (else
+      // the power broker), and the union, if the town has one.
+      "slots": [
+        { "id": "plant", "bind": { "type": "place", "kinds": ["factory", "mill", "mine", "port"], "pick": "most_at_risk" } },
+        { "id": "sector", "bind": { "type": "sector", "of_slot": "plant" } },
+        { "id": "owner", "bind": { "type": "person", "occupations": ["occupation.plant_manager", "occupation.harbourmaster"], "at_slot": "plant", "fallback": "broker" } },
+        { "id": "union", "bind": { "type": "person", "occupations": ["occupation.union_steward", "occupation.shop_steward"] }, "optional": true },
+      ],
+      // On the table while the plant is open and its sector is shedding jobs.
+      "trigger": {
+        "all": [ { "type": "place_open", "slot": "plant" } ],
+        "any": [
+          { "type": "sector_decline", "slot": "sector", "min": 0.02 },
+          { "type": "crisis", "kind": "crisis.plant_closure" },
+        ],
+        "reason_key": "reason-plant-at-risk",
+      },
+      // Too late once it closes (the fresh start takes over).
+      "expiry": {
+        "when": { "any": [ { "type": "place_closed", "slot": "plant" } ], "reason_key": "reason-plant-closed" },
+        "grace_months": 3, "max_months": 18, "cooldown_months": 24,
+      },
+      "base": {
+        "params": [ { "id": "aid", "name_key": "param-wage-aid", "min": 2, "max": 12, "default": 5, "step": 1, "unit_key": "unit-percent-wages" } ],
+        "cost": { "per_capita_per_unit": 8, "param": "aid" },
+        "mechanisms": [ { "type": "sector_subsidy", "sector": "@sector", "param": "aid", "elasticity": 1.4 } ],
+        "implementation_months": 3,
+        "signature": { "localism": 0.3, "redistribution": 0.2, "tradition": 0.1 },
+        "secondary_keys": ["secondary-rescue-precedent"],
+        "side_effects": [ { "type": "grievance", "class": "high", "per_unit": 0.006, "param": "aid" } ],
+      },
+      "axes": [
+        { "id": "terms", "name_key": "axis-rescue-terms", "default": "no_strings",
+          "options": [
+            // Fast and full strength; workers resent a blank cheque.
+            { "id": "no_strings", "name_key": "opt-rescue-no-strings", "desc_key": "opt-rescue-no-strings-desc",
+              "signature": { "tax_tolerance": -0.1 },
+              "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.006, "param": "aid" } ] },
+            // More jobs kept per unit of aid; longer talks; the owners grumble.
+            { "id": "job_guarantee", "name_key": "opt-rescue-guarantee", "desc_key": "opt-rescue-guarantee-desc",
+              "effect_factor": 1.2, "months": 2,
+              "signature": { "redistribution": 0.2 },
+              "side_effects": [ { "type": "grievance", "class": "high", "per_unit": 0.006, "param": "aid" } ] },
+            // Money back if it closes anyway: cheaper, but the firm is less keen.
+            { "id": "clawback", "name_key": "opt-rescue-clawback", "desc_key": "opt-rescue-clawback-desc",
+              "cost_factor": 0.75, "effect_factor": 0.85,
+              "signature": { "tax_tolerance": 0.1 } },
+          ] },
+        { "id": "pay", "name_key": "axis-paid-by", "default": "budget",
+          "options": [
+            { "id": "budget", "name_key": "opt-pay-budget", "desc_key": "opt-pay-budget-desc" },
+            { "id": "bond", "name_key": "opt-pay-bond", "desc_key": "opt-pay-bond-desc",
+              "mechanisms": [ { "type": "borrow", "share": 1.0 } ],
+              "signature": { "tax_tolerance": 0.1 } },
+            { "id": "levy", "name_key": "opt-pay-levy", "desc_key": "opt-pay-levy-desc",
+              "params": [ { "id": "levy", "name_key": "param-levy", "min": 0.05, "max": 0.3, "default": 0.1, "step": 0.05, "unit_key": "unit-percent-points" } ],
+              "mechanisms": [ { "type": "local_tax_rate", "param": "levy" } ],
+              "side_effects": [ { "type": "grievance", "min_age_band": 1, "per_unit": 0.4, "param": "levy" } ] },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "union", "slot": "union", "name_key": "sponsor-union-version",
+          "preset": { "terms": "job_guarantee", "pay": "bond" }, "params": { "aid": 7 },
+          "price": { "type": "endorsement", "classes": ["low"], "approval": 0.03, "backlash": 0.02 } },
+        { "id": "owner", "slot": "owner", "name_key": "sponsor-owner-version",
+          "preset": { "terms": "no_strings", "pay": "budget" }, "params": { "aid": 6 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-rescue" } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "overheard", "at": ["union_hall", "diner", "market"] }, { "type": "visit", "slot": "plant" } ],
+        "known": [ { "type": "meet", "slot": "owner" }, { "type": "meet", "slot": "union" } ],
+        "detailed": [ { "type": "service", "service": "budget_papers" } ],
+        "lead": { "key": "lead-plant-rescue", "to": { "type": "slot", "slot": "union" },
+                  "else": { "key": "lead-plant-rescue-owner", "to": { "type": "slot", "slot": "owner" } } },
+      },
+    },
+
+    // --- After a closure: a fresh start (§2.20, was policy.closure_response) -------------
+    {
+      "id": "family.closure_response",
+      "name_key": "family-closure-response",
+      "desc_key": "family-closure-response-desc",
+      "tier": "local", "category": "economic_development", "requires": "propose_ordinance",
+      "draw": { "rarity": "always", "weight": 4 },
+      // The plant that shut (the hardest-hit of the town's works), its
+      // sector, the union, and the business association's chair.
+      "slots": [
+        { "id": "plant", "bind": { "type": "place", "kinds": ["factory", "mill", "mine", "port"], "open_only": false, "pick": "most_at_risk" } },
+        { "id": "sector", "bind": { "type": "sector", "of_slot": "plant" } },
+        { "id": "union", "bind": { "type": "person", "occupations": ["occupation.union_steward", "occupation.shop_steward"] }, "optional": true },
+        { "id": "business", "bind": { "type": "person", "occupations": ["occupation.business_leader"], "fallback": "broker" }, "optional": true },
+      ],
+      // The situational unlock, unchanged, once the bound plant has shut.
+      "trigger": {
+        "all": [ { "type": "place_closed", "slot": "plant" } ],
+        "any": [
+          { "type": "crisis", "kind": "crisis.plant_closure" },
+          { "type": "plant_closure", "within_months": 12 },
+          { "type": "indicator", "indicator": "job_loss", "min": 0.03 },
+        ],
+        "reason_key": "reason-plant-closed-jobs",
+      },
+      "expiry": { "grace_months": 4, "max_months": 30, "cooldown_months": 24 },
+      "base": {
+        "params": [ { "id": "stipend", "name_key": "param-stipend", "min": 500, "max": 3000, "default": 1500, "step": 250, "unit_key": "unit-currency-per-year" } ],
+        "cost": { "per_capita": 12, "per_capita_per_unit": 0.1, "param": "stipend" },
+        "mechanisms": [ { "type": "transfer", "class": "low", "param": "stipend" } ],
+        "implementation_months": 2,
+        "signature": { "redistribution": 0.6, "tax_tolerance": 0.2, "localism": 0.3, "tradition": 0.1, "reform_appetite": 0.2 },
+        "secondary_keys": ["secondary-closure-retraining"],
+        "side_effects": [ { "type": "labour_supply", "class": "low", "per_unit": -0.000004, "param": "stipend" } ],
+      },
+      "axes": [
+        { "id": "support", "name_key": "axis-closure-support", "default": "retrain",
+          "options": [
+            { "id": "retrain", "name_key": "opt-closure-retrain", "desc_key": "opt-closure-retrain-desc" },
+            // Wage subsidies for firms that take the workers on.
+            { "id": "rehire", "name_key": "opt-closure-rehire", "desc_key": "opt-closure-rehire-desc",
+              "params": [ { "id": "rehire", "name_key": "param-rehire", "min": 1, "max": 8, "default": 3, "step": 1, "unit_key": "unit-percent-wages" } ],
+              "cost": { "per_capita": 8 },
+              "mechanisms": [
+                { "type": "sector_subsidy", "sector": "@sector", "param": "rehire", "elasticity": 1.5 },
+                { "type": "sector_subsidy", "sector": "sector.construction", "param": "rehire", "elasticity": 1.2 },
+              ],
+              "signature": { "localism": 0.1, "redistribution": -0.1 },
+              "secondary_keys": ["secondary-closure-subsidy"],
+              "side_effects": [ { "type": "grievance", "class": "middle", "per_unit": 0.012, "param": "rehire" } ] },
+          ] },
+        { "id": "pay", "name_key": "axis-paid-by", "default": "budget",
+          "options": [
+            { "id": "budget", "name_key": "opt-pay-budget", "desc_key": "opt-pay-budget-desc" },
+            { "id": "bond", "name_key": "opt-pay-bond", "desc_key": "opt-pay-bond-desc",
+              "mechanisms": [ { "type": "borrow", "share": 1.0 } ],
+              "signature": { "tax_tolerance": 0.1 } },
+            { "id": "levy", "name_key": "opt-pay-levy", "desc_key": "opt-pay-levy-desc",
+              "params": [ { "id": "levy", "name_key": "param-levy", "min": 0.05, "max": 0.3, "default": 0.1, "step": 0.05, "unit_key": "unit-percent-points" } ],
+              "mechanisms": [ { "type": "local_tax_rate", "param": "levy" } ],
+              "side_effects": [ { "type": "grievance", "min_age_band": 1, "per_unit": 0.4, "param": "levy" } ] },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "union", "slot": "union", "name_key": "sponsor-union-version",
+          "preset": { "support": "retrain", "pay": "bond" }, "params": { "stipend": 2000 },
+          "price": { "type": "endorsement", "classes": ["low"], "approval": 0.03, "backlash": 0.02 } },
+        { "id": "business", "slot": "business", "name_key": "sponsor-business-version",
+          "preset": { "support": "rehire", "pay": "budget" }, "params": { "stipend": 1000, "rehire": 4 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-fresh-start" } },
+      ],
+      "knowledge": {
+        "public": true,
+        "heard": [ { "type": "overheard", "at": ["union_hall", "diner"] } ],
+        "known": [ { "type": "meet", "slot": "union" }, { "type": "meet", "slot": "business" }, { "type": "action", "action": "town_hall" } ],
+        "detailed": [ { "type": "service", "service": "budget_papers" } ],
+        "lead": { "key": "lead-closure-response", "to": { "type": "slot", "slot": "union" },
+                  "else": { "key": "lead-closure-response-hall", "to": { "type": "place_kind", "kind": "town_hall" } } },
+      },
+    },
+
+    // --- Living wage deal (§2.19, was policy.local_wage_floor) ------------------------------
+    {
+      "id": "family.living_wage_deal",
+      "name_key": "family-living-wage",
+      "desc_key": "family-living-wage-desc",
+      "tier": "local", "category": "administration", "requires": "propose_ordinance",
+      "draw": { "rarity": "common", "weight": 2 },
+      "slots": [
+        { "id": "union", "bind": { "type": "person", "occupations": ["occupation.union_steward", "occupation.shop_steward"] } },
+        { "id": "business", "bind": { "type": "person", "occupations": ["occupation.business_leader"], "fallback": "broker" }, "optional": true },
+      ],
+      // When wages do not stretch to the rent, or work is the worry.
+      "trigger": {
+        "any": [
+          { "type": "indicator", "indicator": "rent_burden", "min": 0.17 },
+          { "type": "concern", "concern": "concern.jobs", "top": 2 },
+          { "type": "concern", "concern": "concern.housing", "top": 2 },
+        ],
+        "reason_key": "reason-living-wage",
+      },
+      "expiry": { "grace_months": 4, "max_months": 12, "cooldown_months": 18 },
+      "base": {
+        "params": [ { "id": "pct", "name_key": "param-wage-uplift", "min": 5, "max": 30, "default": 10, "step": 5, "unit_key": "unit-percent" } ],
+        "cost": { "per_capita": 2 },
+        "mechanisms": [ { "type": "wage_floor", "param": "pct" } ],
+        "implementation_months": 6,
+        "signature": { "redistribution": 0.7, "tax_tolerance": 0.2, "social_liberalism": 0.1, "tradition": -0.1, "reform_appetite": 0.3 },
+        "secondary_keys": ["secondary-wage-floor-jobs"],
+      },
+      "axes": [
+        { "id": "covered", "name_key": "axis-living-wage-covered", "default": "everyone",
+          "options": [
+            // Every employer in town: the most pay, and the most resentment.
+            { "id": "everyone", "name_key": "opt-wage-everyone", "desc_key": "opt-wage-everyone-desc",
+              "side_effects": [ { "type": "grievance", "class": "high", "per_unit": 0.003, "param": "pct" } ] },
+            // The council and its contractors only: it pays the difference.
+            { "id": "council", "name_key": "opt-wage-council", "desc_key": "opt-wage-council-desc",
+              "effect_factor": 0.35, "cost": { "per_capita": 6 },
+              "signature": { "tax_tolerance": 0.1, "redistribution": -0.2 } },
+          ] },
+        { "id": "phase", "name_key": "axis-living-wage-phase", "default": "at_once",
+          "options": [
+            { "id": "at_once", "name_key": "opt-wage-at-once", "desc_key": "opt-wage-at-once-desc",
+              "side_effects": [ { "type": "grievance", "class": "middle", "per_unit": 0.002, "param": "pct" } ] },
+            { "id": "phased", "name_key": "opt-wage-phased", "desc_key": "opt-wage-phased-desc",
+              "months": 12 },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "union", "slot": "union", "name_key": "sponsor-union-version",
+          "preset": { "covered": "everyone", "phase": "at_once" }, "params": { "pct": 15 },
+          "price": { "type": "endorsement", "classes": ["low"], "approval": 0.04, "backlash": 0.02 } },
+        { "id": "business", "slot": "business", "name_key": "sponsor-business-version",
+          "preset": { "covered": "council", "phase": "phased" }, "params": { "pct": 10 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-living-wage" } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "overheard", "at": ["union_hall", "diner", "market"] } ],
+        "known": [ { "type": "meet", "slot": "union" }, { "type": "meet", "slot": "business" } ],
+        "detailed": [ { "type": "service", "service": "budget_papers" } ],
+        "lead": { "key": "lead-living-wage", "to": { "type": "slot", "slot": "union" } },
+      },
+    },
+
+    // --- Incubator at a campus (§2.19, was policy.tech_incubator) ---------------------------
+    {
+      "id": "family.campus_incubator",
+      "name_key": "family-incubator",
+      "desc_key": "family-incubator-desc",
+      "tier": "local", "category": "economic_development", "requires": "propose_ordinance",
+      "draw": { "rarity": "common", "weight": 1 },
+      "slots": [
+        { "id": "campus", "bind": { "type": "place", "kinds": ["university", "tech_campus"], "pick": "largest" } },
+        { "id": "sector", "bind": { "type": "sector", "of_slot": "campus" } },
+        { "id": "head", "bind": { "type": "person", "occupations": ["occupation.dean", "occupation.tech_founder"], "at_slot": "campus" }, "optional": true },
+        { "id": "business", "bind": { "type": "person", "occupations": ["occupation.business_leader"], "fallback": "broker" }, "optional": true },
+      ],
+      // Talk of start-ups where work or the young leaving is the worry.
+      "trigger": {
+        "any": [
+          { "type": "concern", "concern": "concern.jobs", "top": 3 },
+          { "type": "indicator", "indicator": "unemployment", "min": 0.04 },
+        ],
+        "reason_key": "reason-incubator",
+      },
+      "expiry": { "grace_months": 6, "max_months": 12, "cooldown_months": 24 },
+      "base": {
+        "params": [ { "id": "pct", "name_key": "param-subsidy", "min": 1, "max": 10, "default": 3, "step": 1, "unit_key": "unit-percent-wages" } ],
+        "cost": { "per_capita_per_unit": 10, "param": "pct" },
+        "mechanisms": [ { "type": "sector_subsidy", "sector": "@sector", "param": "pct", "elasticity": 1.2 } ],
+        "implementation_months": 12,
+        "signature": { "tax_tolerance": 0.1, "social_liberalism": 0.2, "environment": 0.1, "tradition": -0.2, "reform_appetite": 0.4 },
+        "secondary_keys": ["secondary-incubator-rents"],
+        "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.03, "param": "pct" } ],
+        "works": { "kind": "incubator", "at": "campus", "contractor_risk": 0.01 },
+      },
+      "axes": [
+        { "id": "terms", "name_key": "axis-incubator-terms", "default": "grants",
+          "options": [
+            { "id": "grants", "name_key": "opt-incubator-grants", "desc_key": "opt-incubator-grants-desc" },
+            // The council takes a stake: some money back, fewer takers.
+            { "id": "stake", "name_key": "opt-incubator-stake", "desc_key": "opt-incubator-stake-desc",
+              "effect_factor": 0.85,
+              "mechanisms": [ { "type": "revenue", "per_capita": 3 } ],
+              "signature": { "tax_tolerance": 0.1, "reform_appetite": -0.1 } },
+            // Firms must hire local people: slower, and fewer firms come.
+            { "id": "local_hiring", "name_key": "opt-incubator-local", "desc_key": "opt-incubator-local-desc",
+              "effect_factor": 0.9, "months": 3,
+              "signature": { "localism": 0.3 },
+              "side_effects": [ { "type": "grievance", "class": "low", "per_unit": -0.01, "param": "pct" } ] },
+          ] },
+        { "id": "pay", "name_key": "axis-paid-by", "default": "budget",
+          "options": [
+            { "id": "budget", "name_key": "opt-pay-budget", "desc_key": "opt-pay-budget-desc" },
+            { "id": "bond", "name_key": "opt-pay-bond", "desc_key": "opt-pay-bond-desc",
+              "mechanisms": [ { "type": "borrow", "share": 1.0 } ],
+              "signature": { "tax_tolerance": 0.1 } },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "head", "slot": "head", "name_key": "sponsor-campus-version",
+          "preset": { "terms": "grants", "pay": "bond" }, "params": { "pct": 5 },
+          "price": { "type": "endorsement", "classes": ["middle", "high"], "approval": 0.03, "backlash": 0.02 } },
+        { "id": "business", "slot": "business", "name_key": "sponsor-business-version",
+          "preset": { "terms": "stake", "pay": "budget" }, "params": { "pct": 3 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-incubator" } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "campus" }, { "type": "overheard", "at": ["diner", "market"] } ],
+        "known": [ { "type": "meet", "slot": "head" }, { "type": "meet", "slot": "business" }, { "type": "action", "action": "fundraise" } ],
+        "detailed": [ { "type": "service", "service": "budget_papers" } ],
+        "lead": { "key": "lead-incubator", "to": { "type": "slot", "slot": "head" },
+                  "else": { "key": "lead-incubator-campus", "to": { "type": "slot", "slot": "campus" } } },
+      },
+    },
+
+    // --- Safety at the mine --------------------------------------------------------------
+    {
+      "id": "family.mine_safety",
+      "name_key": "family-mine-safety",
+      "desc_key": "family-mine-safety-desc",
+      "tier": "local", "category": "safety", "requires": "propose_ordinance",
+      "draw": { "rarity": "uncommon", "weight": 2 },
+      "slots": [
+        { "id": "mine", "bind": { "type": "place", "kinds": ["mine"], "pick": "largest" } },
+        { "id": "sector", "bind": { "type": "sector", "of_slot": "mine" } },
+        { "id": "manager", "bind": { "type": "person", "occupations": ["occupation.plant_manager"], "at_slot": "mine", "fallback": "broker" } },
+        { "id": "union", "bind": { "type": "person", "occupations": ["occupation.union_steward", "occupation.shop_steward"] }, "optional": true },
+      ],
+      // While the mine works, and once the pits or safety are talked about.
+      "trigger": {
+        "all": [ { "type": "place_open", "slot": "mine" } ],
+        "any": [
+          { "type": "concern", "concern": "concern.jobs", "top": 3 },
+          { "type": "concern", "concern": "concern.environment", "top": 3 },
+          { "type": "sector_decline", "slot": "sector", "min": 0.02 },
+        ],
+        "reason_key": "reason-mine-safety",
+      },
+      "expiry": {
+        "when": { "any": [ { "type": "place_closed", "slot": "mine" } ], "reason_key": "reason-mine-closed" },
+        "grace_months": 4, "max_months": 12, "cooldown_months": 24,
+      },
+      "base": {
+        "params": [ { "id": "inspections", "name_key": "param-inspections", "min": 1, "max": 4, "default": 2, "step": 1, "unit_key": "unit-level" } ],
+        "cost": { "per_capita_per_unit": 5, "param": "inspections" },
+        "mechanisms": [ { "type": "service", "category": "safety", "param": "inspections", "per_unit": 0.02 } ],
+        "implementation_months": 4,
+        "signature": { "law_and_order": 0.3, "redistribution": 0.2, "environment": 0.1, "tradition": 0.1 },
+        "secondary_keys": ["secondary-mine-output"],
+        "side_effects": [ { "type": "grievance", "class": "high", "per_unit": 0.008, "param": "inspections" } ],
+      },
+      "axes": [
+        { "id": "inspector", "name_key": "axis-mine-inspector", "default": "council",
+          "options": [
+            { "id": "council", "name_key": "opt-mine-council", "desc_key": "opt-mine-council-desc" },
+            // The company inspects itself and reports: cheap, and patchy.
+            { "id": "company", "name_key": "opt-mine-company", "desc_key": "opt-mine-company-desc",
+              "cost_factor": 0.4, "effect_factor": 0.6,
+              "signature": { "law_and_order": -0.1 },
+              "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.01, "param": "inspections" } ] },
+          ] },
+        { "id": "scope", "name_key": "axis-mine-scope", "default": "inspections",
+          "options": [
+            { "id": "inspections", "name_key": "opt-mine-inspections", "desc_key": "opt-mine-inspections-desc" },
+            // Training paid by the council keeps more miners in work.
+            { "id": "training", "name_key": "opt-mine-training", "desc_key": "opt-mine-training-desc",
+              "cost": { "per_capita_per_unit": 3, "param": "inspections" }, "months": 3,
+              "mechanisms": [ { "type": "sector_subsidy", "sector": "@sector", "param": "inspections", "elasticity": 0.6 } ] },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "union", "slot": "union", "name_key": "sponsor-union-version",
+          "preset": { "inspector": "council", "scope": "training" }, "params": { "inspections": 3 },
+          "price": { "type": "endorsement", "classes": ["low"], "approval": 0.03, "backlash": 0.02 } },
+        { "id": "manager", "slot": "manager", "name_key": "sponsor-owner-version",
+          "preset": { "inspector": "company", "scope": "inspections" }, "params": { "inspections": 2 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-mine-safety" } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "mine" }, { "type": "overheard", "at": ["union_hall", "diner"] } ],
+        "known": [ { "type": "meet", "slot": "manager" }, { "type": "meet", "slot": "union" } ],
+        "detailed": [ { "type": "service", "service": "town_data_detailed" } ],
+        "lead": { "key": "lead-mine-safety", "to": { "type": "slot", "slot": "union" },
+                  "else": { "key": "lead-mine-safety-manager", "to": { "type": "slot", "slot": "manager" } } },
+      },
+    },
+
+    // --- Port expansion -----------------------------------------------------------------
+    {
+      "id": "family.port_expansion",
+      "name_key": "family-port-expansion",
+      "desc_key": "family-port-expansion-desc",
+      "tier": "local", "category": "infrastructure", "requires": "propose_ordinance",
+      "draw": { "rarity": "uncommon", "weight": 2 },
+      "slots": [
+        { "id": "port", "bind": { "type": "place", "kinds": ["port"], "pick": "largest" } },
+        { "id": "hood", "bind": { "type": "neighborhood", "of_slot": "port" } },
+        { "id": "sector", "bind": { "type": "sector", "of_slot": "port" } },
+        { "id": "harbourmaster", "bind": { "type": "person", "occupations": ["occupation.harbourmaster", "occupation.plant_manager"], "at_slot": "port", "fallback": "broker" } },
+        { "id": "residents", "bind": { "type": "person", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.resident"], "in_slot": "hood" }, "optional": true },
+      ],
+      "trigger": {
+        "all": [ { "type": "place_open", "slot": "port" } ],
+        "any": [
+          { "type": "concern", "concern": "concern.jobs", "top": 3 },
+          { "type": "indicator", "indicator": "unemployment", "min": 0.05 },
+          { "type": "sector_decline", "slot": "sector", "min": 0.02 },
+        ],
+        "reason_key": "reason-port-expansion",
+      },
+      "expiry": { "grace_months": 6, "max_months": 12, "cooldown_months": 24 },
+      "base": {
+        "params": [ { "id": "berths", "name_key": "param-berths", "min": 1, "max": 4, "default": 2, "step": 1, "unit_key": "unit-berths" } ],
+        "cost": { "per_capita_per_unit": 14, "param": "berths" },
+        "mechanisms": [ { "type": "sector_capacity", "sector": "@sector", "param": "berths", "per_unit": 40 } ],
+        "implementation_months": 18,
+        "signature": { "localism": 0.2, "environment": -0.3, "reform_appetite": 0.2, "tax_tolerance": 0.1 },
+        "secondary_keys": ["secondary-port-lorries"],
+        "side_effects": [
+          { "type": "disruption", "per_unit": 0.02, "param": "berths" },
+          { "type": "grievance", "min_age_band": 2, "per_unit": 0.006, "param": "berths" },
+        ],
+        "works": { "kind": "port_berths", "at": "port", "contractor_risk": 0.02 },
+      },
+      "axes": [
+        { "id": "pay", "name_key": "axis-paid-by", "default": "budget",
+          "options": [
+            { "id": "budget", "name_key": "opt-pay-budget", "desc_key": "opt-pay-budget-desc" },
+            { "id": "bond", "name_key": "opt-pay-bond", "desc_key": "opt-pay-bond-desc",
+              "mechanisms": [ { "type": "borrow", "share": 1.0 } ],
+              "signature": { "tax_tolerance": 0.1 } },
+            // Ships pay dues on the new berths: income back, a little less trade.
+            { "id": "dues", "name_key": "opt-port-dues", "desc_key": "opt-port-dues-desc",
+              "effect_factor": 0.85,
+              "mechanisms": [ { "type": "revenue", "per_capita": 6 } ] },
+          ] },
+        { "id": "builder", "name_key": "axis-who-builds", "default": "works_team",
+          "options": [
+            { "id": "works_team", "name_key": "opt-build-works-team", "desc_key": "opt-build-works-team-desc" },
+            { "id": "contractor", "name_key": "opt-build-contractor", "desc_key": "opt-build-contractor-desc",
+              "cost_factor": 1.25, "months": -6,
+              "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.005, "param": "berths" } ] },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "harbour", "slot": "harbourmaster", "name_key": "sponsor-harbour-version",
+          "preset": { "pay": "bond", "builder": "contractor" }, "params": { "berths": 3 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-port" } },
+        { "id": "residents", "slot": "residents", "name_key": "sponsor-residents-version",
+          "preset": { "pay": "dues", "builder": "works_team" }, "params": { "berths": 1 },
+          "price": { "type": "endorsement", "area": { "type": "slot", "slot": "hood" }, "approval": 0.03, "backlash": 0.01 } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "port" }, { "type": "overheard", "at": ["diner", "union_hall"] } ],
+        "known": [ { "type": "meet", "slot": "harbourmaster" }, { "type": "meet", "slot": "residents" } ],
+        "detailed": [ { "type": "service", "service": "budget_papers" } ],
+        "lead": { "key": "lead-port-expansion", "to": { "type": "slot", "slot": "harbourmaster" } },
+      },
+    },
+
+    // --- Hotel bed tax ---------------------------------------------------------------------
+    {
+      "id": "family.hotel_bed_tax",
+      "name_key": "family-bed-tax",
+      "desc_key": "family-bed-tax-desc",
+      "tier": "local", "category": "administration", "requires": "propose_ordinance",
+      "draw": { "rarity": "uncommon", "weight": 1 },
+      "slots": [
+        { "id": "hotel", "bind": { "type": "place", "kinds": ["hotel"], "pick": "largest" } },
+        { "id": "sector", "bind": { "type": "sector", "of_slot": "hotel" } },
+        { "id": "manager", "bind": { "type": "person", "occupations": ["occupation.hotel_manager"], "at_slot": "hotel", "fallback": "broker" } },
+      ],
+      // When money is short or the rates are the worry.
+      "trigger": {
+        "any": [
+          { "type": "concern", "concern": "concern.taxes", "top": 3 },
+          { "type": "indicator", "indicator": "budget_stress", "min": 0.15 },
+          { "type": "concern", "concern": "concern.services", "top": 2 },
+        ],
+        "reason_key": "reason-bed-tax",
+      },
+      "expiry": { "grace_months": 6, "max_months": 12, "cooldown_months": 18 },
+      "base": {
+        "params": [ { "id": "rate", "name_key": "param-bed-tax", "min": 1, "max": 5, "default": 2, "step": 1, "unit_key": "unit-currency-per-night" } ],
+        "cost": { "per_capita": 0.5 },
+        "mechanisms": [ { "type": "revenue", "per_capita": 1, "per_unit": 9000, "param": "rate" } ],
+        "implementation_months": 2,
+        "signature": { "localism": 0.2, "tax_tolerance": 0.3, "redistribution": 0.1, "reform_appetite": 0.1 },
+        "secondary_keys": ["secondary-bed-tax-visitors"],
+        "side_effects": [ { "type": "grievance", "class": "high", "per_unit": 0.004, "param": "rate" } ],
+      },
+      "axes": [
+        { "id": "spend", "name_key": "axis-bed-tax-spend", "default": "general",
+          "options": [
+            // Into the general fund: the most money back.
+            { "id": "general", "name_key": "opt-bed-tax-general", "desc_key": "opt-bed-tax-general-desc" },
+            // Streets and bins where the visitors go.
+            { "id": "streets", "name_key": "opt-bed-tax-streets", "desc_key": "opt-bed-tax-streets-desc",
+              "cost": { "per_capita": 3 },
+              "mechanisms": [ { "type": "service", "category": "infrastructure", "param": "rate", "per_unit": 0.01 } ] },
+            // Promote the town: keeps the visitors coming, slowly.
+            { "id": "promotion", "name_key": "opt-bed-tax-promotion", "desc_key": "opt-bed-tax-promotion-desc",
+              "cost": { "per_capita": 2 }, "months": 4,
+              "mechanisms": [ { "type": "sector_subsidy", "sector": "@sector", "param": "rate", "elasticity": 0.8 } ] },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "manager", "slot": "manager", "name_key": "sponsor-hotel-version",
+          "preset": { "spend": "promotion" }, "params": { "rate": 1 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-bed-tax" } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "hotel" }, { "type": "overheard", "at": ["diner", "market"] } ],
+        "known": [ { "type": "meet", "slot": "manager" }, { "type": "service", "service": "budget_papers" } ],
+        "detailed": [ { "type": "service", "service": "town_data_detailed" } ],
+        "lead": { "key": "lead-bed-tax", "to": { "type": "slot", "slot": "manager" } },
+      },
+    },
+  ],
+}

@@ -473,16 +473,29 @@ fn each_opening_does_what_its_preview_says() {
             Some(mandate_sim::actions::press_gaffe_risk(e.state(), &c))
         );
         let mut ok = twin(&e, &c);
+        // A member the preview says will distance themselves, whose
+        // compliance can still fall (one already at 0 cannot).
         let member = p
             .opinions
             .iter()
-            .find(|(h, t, _)| *t == b && *h != me)
+            .find(|(h, t, d)| {
+                *t == b && *h != me && *d < 0.0 && compliance(&ok.state().politics, *h, b) > 0.0
+            })
             .map(|x| x.0)
             .expect("members distance themselves");
+        // A member with no relationship to the broker yet forms one, from
+        // their first impression, when the opinion lands; `compliance` reads
+        // a missing one as neutral. Form it first, so `was` is what moves.
+        ok.setup(|s| {
+            characters::change_opinion(&mut s.politics, &c, member, b, 0.0);
+        });
         let was = compliance(&ok.state().politics, member, b);
         ok.setup(|s| broker::apply(s, &c, Opening::Expose, &p, false));
         assert!(compliance(&ok.state().politics, member, b) < was);
         let mut bad = twin(&e, &c);
+        bad.setup(|s| {
+            characters::change_opinion(&mut s.politics, &c, member, b, 0.0);
+        });
         let before = approval_by_class(&bad);
         bad.setup(|s| broker::apply(s, &c, Opening::Expose, &p, true));
         let after = approval_by_class(&bad);

@@ -3,7 +3,8 @@
 // falls below `end` (so it does not flicker), and its severity runs from 0 at
 // `end` to 1 at `severe`. A town's live crisis is its most severe one.
 // `concern` is the voter concern it sharpens; `policies` are the templates
-// that answer it (NPC agendas favour them while it lasts). Indicators:
+// and policy families that answer it (NPC agendas favour them, and open
+// proposals of those families, while it lasts). Indicators:
 // unemployment, unemployment_rise, rent_burden, pollution, tax_burden,
 // budget_stress, recent_disaster, job_loss. Registry order breaks ties.
 {
@@ -13,21 +14,21 @@
     { "id": "crisis.plant_closure", "name_key": "crisis-plant_closure",
       "indicator": "job_loss", "begin": 0.025, "end": 0.01, "severe": 0.08,
       "concern": "concern.jobs",
-      "policies": ["policy.closure_response", "policy.small_business_grants", "policy.local_wage_floor", "policy.hardship_fund", "policy.tech_incubator"] },
+      "policies": ["family.closure_response", "family.plant_rescue", "policy.small_business_grants", "family.living_wage_deal", "policy.hardship_fund", "family.campus_incubator"] },
     // 1 just after a disaster, fading over two years.
     { "id": "crisis.disaster_recovery", "name_key": "crisis-disaster_recovery",
       "indicator": "recent_disaster", "begin": 0.6, "end": 0.25, "severe": 1.0,
       "concern": "concern.recovery",
-      "policies": ["policy.rebuild_fund", "policy.flood_defenses", "policy.hardship_fund", "policy.affordable_housing"] },
+      "policies": ["family.rebuild", "family.flood_wall", "policy.hardship_fund", "policy.affordable_housing"] },
     // Annual rent of an average home / typical income.
     { "id": "crisis.housing_squeeze", "name_key": "crisis-housing_squeeze",
       "indicator": "rent_burden", "begin": 0.22, "end": 0.19, "severe": 0.35,
       "concern": "concern.housing",
-      "policies": ["policy.emergency_rent", "policy.affordable_housing", "policy.upzoning", "policy.hardship_fund"] },
+      "policies": ["family.rent_relief", "policy.affordable_housing", "policy.upzoning", "policy.hardship_fund"] },
     // Town debt / annual budget.
     { "id": "crisis.fiscal_hole", "name_key": "crisis-fiscal_hole",
       "indicator": "budget_stress", "begin": 0.4, "end": 0.25, "severe": 1.0,
       "concern": "concern.services",
-      "policies": ["policy.fiscal_bridge"] },
+      "policies": ["family.fiscal_bridge", "policy.property_tax", "family.hotel_bed_tax"] },
   ],
 }

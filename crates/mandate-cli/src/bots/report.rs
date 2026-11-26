@@ -54,6 +54,56 @@ pub(super) fn play_all(
     out
 }
 
+/// Which policy families (DEC-092) the bots drafted (DEC-077 §5, the
+/// variety check, M6_ENGINE_CONTRACTS §2.14): per strategy over all worlds,
+/// and for the best informed style of each world (within `VARIETY_TIE` of
+/// the highest share, as `variety` counts them). Reported, not enforced.
+pub(super) fn families_drafted(
+    results: &BTreeMap<(&'static str, u64, bool), Played>,
+    shares: &BTreeMap<u64, BTreeMap<&'static str, f64>>,
+    informed: &[&'static str],
+    seeds: u64,
+) -> serde_json::Value {
+    let mut by_strategy: BTreeMap<&'static str, BTreeMap<String, u32>> = BTreeMap::new();
+    for s in STRATEGIES {
+        for seed in 1..=seeds {
+            if let Some(p) = results.get(&(s, seed, false)) {
+                let row = by_strategy.entry(s).or_default();
+                for (f, n) in &p.families {
+                    *row.entry(f.clone()).or_default() += n;
+                }
+            }
+        }
+    }
+    let mut by_winners: BTreeMap<String, u32> = BTreeMap::new();
+    let mut worlds_with_family = 0u32;
+    for (seed, row) in shares {
+        let top = informed
+            .iter()
+            .filter_map(|s| row.get(s))
+            .copied()
+            .fold(f64::MIN, f64::max);
+        let mut any = false;
+        for s in informed {
+            if row.get(s).is_some_and(|v| *v >= top - VARIETY_TIE)
+                && let Some(p) = results.get(&(*s, *seed, false))
+            {
+                for (f, n) in &p.families {
+                    *by_winners.entry(f.clone()).or_default() += n;
+                    any = true;
+                }
+            }
+        }
+        worlds_with_family += any as u32;
+    }
+    json!({
+        "by_strategy": by_strategy,
+        "by_winners": by_winners,
+        "distinct_by_winners": by_winners.len(),
+        "worlds_where_winners_drafted_one": worlds_with_family,
+    })
+}
+
 /// The share of each verb in a mix (verbs used / all verbs used).
 pub(super) fn mix_shares(mix: &BTreeMap<&'static str, u32>) -> BTreeMap<&'static str, f64> {
     let total = mix.values().sum::<u32>().max(1) as f64;
@@ -173,6 +223,7 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
     let skill_gap = best_informed_mean >= best_rote_mean + SKILL_SHARE_MARGIN
         && best_informed_rate >= best_rote_rate + SKILL_WIN_MARGIN;
     let styles = variety(&shares, &situations, &informed);
+    let families = families_drafted(&results, &shares, &informed, seeds);
     // Skipping is a convenience, never the best way to play (DEC-097,
     // DEC-012): the proxy alone stays at or below the median informed style.
     let directed = mean("directed").unwrap_or(1.0);
@@ -314,6 +365,7 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
         "good_styles_vary": styles["pass"],
         "good_styles_vary_b": styles["b"],
         "styles": styles,
+        "families": families,
         "corrupt_minus_best_honest": corrupt - best,
         "corrupt_not_dominant": corrupt_ok,
         "proxy_not_optimal": proxy_not_optimal,

@@ -10,13 +10,17 @@ import { useGame } from "../../state/gameStore";
 import { routeFor } from "../../state/routing";
 import { Row, When, shortDate, useFold } from "./rows";
 
+const capitalFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export function BillRow({ b, p, testId }: { b: PocketBillView; p: PocketView; testId: string }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
   const visit = useGame((s) => s.visit);
+  // A bill drafted from a proposal names its bound things (the desk's view carries the arguments).
+  const family = useGame((s) => s.office?.bills.find((x) => x.id === b.id)?.family);
   const [open, setOpen] = useFold(`row-${testId}`, false);
   const route = routeFor(p, { action: b.status === "draft" ? "draft" : "vote", lateNight: false, neighborhood: null });
-  const name = tr.t(b.name_key);
+  const name = family ? capitalFirst(tr.event(b.name_key, family.args)) : tr.t(b.name_key);
   const status = [tr.t(`status-${b.status}`)];
   if (b.status === "under_consideration") status.push(tr.t("ui-whip-about", { yes: b.about_yes, seats: b.seats, needed: b.needed }));
   if (b.can_vote) status.push(tr.t("ui-awaits-your-vote"));

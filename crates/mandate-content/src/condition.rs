@@ -617,6 +617,12 @@ pub enum Condition {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         closes_within_days: Option<u32>,
     },
+    // --- Policy families (DEC-092; tier-generic) -----------------------------------
+    /// An open proposal of this policy family is on the table in the
+    /// jurisdiction: `$proposal_<slot>` for each of its place and
+    /// neighbourhood slots (their names), `$proposal_<slot>_key` for its
+    /// sector, crisis and hazard slots. People are never named.
+    Proposal { family: ContentKey },
     // --- Composition ----------------------------------------------------------------
     /// Any one of these holds (the first that does gives the arguments).
     Any { of: Vec<Condition> },
@@ -871,6 +877,7 @@ impl Condition {
             C::LastRace { .. } => "last_race",
             C::SponsorsBill { .. } => "sponsors_bill",
             C::Plant { .. } => "plant",
+            C::Proposal { .. } => "proposal",
             C::Any { .. } => "any",
         }
     }
@@ -1096,6 +1103,8 @@ impl Condition {
                 "closes_year",
             ]),
             C::Tells { subject, .. } | C::PlayerKnows { subject, .. } => set(subject.args()),
+            // The family's own slots.
+            C::Proposal { .. } => None,
             C::Any { of } => {
                 let mut it = of.iter().map(|c| c.provides());
                 let mut acc = it.next().flatten()?;
@@ -1910,6 +1919,14 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
         | C::CanVote { .. }
         | C::PlaceOpen { .. }
         | C::PlaceClosed { .. } => {}
+        C::Proposal { family } => {
+            if b.family(family).is_none() {
+                err(
+                    issues,
+                    format!("proposal: unknown policy family `{family}`"),
+                );
+            }
+        }
     }
 }
 

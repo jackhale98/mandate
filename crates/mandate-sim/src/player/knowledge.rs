@@ -617,7 +617,7 @@ pub fn resolve(
             GrantSubject::PolicySupport => {
                 // The standard menu: local templates that are always on the table.
                 for t in content.policies.values() {
-                    if t.tier == TierKey::Local && t.unlock.is_none() {
+                    if t.tier == TierKey::Local && t.unlock.is_none() && !t.retired {
                         subjects.push(Subject::PolicySupport {
                             town,
                             policy: PolicyRef::Template {
@@ -1215,7 +1215,7 @@ impl<'a> Knowing<'a> {
     /// is never gated; a situational template must be on the table and seen
     /// properly (`known`, as the catalogue shows it).
     pub fn on_menu(&self, template: &mandate_content::PolicyTemplate) -> bool {
-        if template.tier != TierKey::Local {
+        if template.tier != TierKey::Local || template.retired {
             return false;
         }
         if template.unlock.is_none() {

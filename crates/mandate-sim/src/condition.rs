@@ -1210,6 +1210,63 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
                     && v.can_vote(b.id.0)
             })
         }
+        C::Proposal { family } => {
+            let (Some(at), Some(f)) = (cx.at, v.r.content.family(family)) else {
+                return false;
+            };
+            let families = match cx.st {
+                Some(st) => &st.policy.families,
+                None => &v.r.policy().families,
+            };
+            let Some(inst) = families.open_at(at).find(|i| &i.family == family) else {
+                return false;
+            };
+            // Places, neighbourhoods, sectors, crises and hazards; never a
+            // person (what residents say names no one the player has not met).
+            // A place with no name of its own is named by a key, as the
+            // proposal's view names it: a named plant's, else its kind's.
+            for s in &f.slots {
+                let kind = s.bind.kind();
+                if kind == mandate_content::policy_family::SlotKind::Person {
+                    continue;
+                }
+                let k = if kind.keyed_arg() {
+                    format!("{}_key", s.id)
+                } else {
+                    s.id.clone()
+                };
+                match (inst.args.get(&k), inst.place(&s.id)) {
+                    (Some(x), _) if !x.is_empty() => {
+                        args.insert(format!("proposal_{k}"), x.clone());
+                    }
+                    (_, Some(place)) => {
+                        let key = format!("proposal_{}_key", s.id);
+                        let econ = v.r.economy();
+                        match crate::economy::plants::at_place(econ, place) {
+                            Some(plant) => {
+                                for (x, val) in
+                                    crate::economy::plants::text_args(econ, v.r.content, plant.id)
+                                {
+                                    let x = if x == "plant_key" {
+                                        key.clone()
+                                    } else {
+                                        x.into()
+                                    };
+                                    args.entry(x).or_insert(val);
+                                }
+                            }
+                            None => {
+                                if let Some(p) = v.r.world.places.get(place.index()) {
+                                    args.insert(key, crate::talk::context::place_talk_key(p.kind));
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            true
+        }
         // --- Composition -------------------------------------------------------------
         C::Any { of } => {
             for x in of {

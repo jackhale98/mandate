@@ -188,6 +188,23 @@ pub struct Played {
     pub industry: String,
     /// The verbs used up to the election (the action mix).
     pub mix: BTreeMap<&'static str, u32>,
+    /// Bills the player drafted from policy-family proposals (DEC-092), by
+    /// family: what the variety check counts.
+    pub families: BTreeMap<String, u32>,
+}
+
+/// The policy families of the bills a politician sponsored, counted.
+pub(super) fn drafted_families(
+    e: &Engine,
+    me: mandate_sim::politics::PoliticianId,
+) -> BTreeMap<String, u32> {
+    let mut out = BTreeMap::new();
+    for p in &e.state().policy.instances {
+        if p.family.is_some() && p.sponsor == Some(me) {
+            *out.entry(p.template.clone()).or_default() += 1;
+        }
+    }
+    out
 }
 
 /// The player's town's situation when play begins.
@@ -225,12 +242,13 @@ pub fn play_full_with(
     let mut e = new_game_with(content, seed, omniscient)?;
     take_mix();
     let (crisis, industry) = situation(&e);
-    let lost = |crisis: String, industry: String| Played {
+    let lost = |crisis: String, industry: String, families| Played {
         won: false,
         share: 0.0,
         crisis,
         industry,
         mix: take_mix(),
+        families,
     };
     let me = e.state().player.as_ref()?.politician;
     let start = e.state().calendar.date;
@@ -246,7 +264,7 @@ pub fn play_full_with(
         }
         if turn(&mut e, content, strategy, start_turn).is_err() {
             // The career ended (DEC-006): the election is lost.
-            return Some(lost(crisis, industry));
+            return Some(lost(crisis, industry, drafted_families(&e, me)));
         }
     }
     let st = e.state();
@@ -259,7 +277,7 @@ pub fn play_full_with(
         .find(|r| r.date == date && r.candidates.iter().any(|c| c.politician == me))
     else {
         // Not on the ballot (in prison, or deselected): a loss.
-        return Some(lost(crisis, industry));
+        return Some(lost(crisis, industry, drafted_families(&e, me)));
     };
     let share = r.candidates.iter().find(|c| c.politician == me)?.share as f64;
     Some(Played {
@@ -268,5 +286,6 @@ pub fn play_full_with(
         crisis,
         industry,
         mix: take_mix(),
+        families: drafted_families(&e, me),
     })
 }

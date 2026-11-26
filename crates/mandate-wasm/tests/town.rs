@@ -19,7 +19,7 @@ use std::sync::Arc;
 /// Re-pinned (b9a9760d -> fc8b7717) when the power broker began to lean on
 /// votes and back candidates (M6 note 27), recorded with the conversations
 /// work and the exchange scenes merged: the burn-in's history changed.
-const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "2be5666a");
+const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "dd992c6f");
 
 fn fnv1a(s: &str) -> String {
     let mut h: u32 = 0x811c_9dc5;
@@ -247,7 +247,17 @@ fn town_state_is_rounded_except_at_the_town_hall() {
         at_home
             .places
             .iter()
-            .all(|p| p.status == TownPlaceStatus::Open && p.months == 0)
+            // As play begins nothing is new and nothing open has changed;
+            // a place may have closed in the world's history.
+            .all(|p| p.status != TownPlaceStatus::New
+                && (p.status == TownPlaceStatus::Closed || p.months == 0)),
+        "{:?}",
+        at_home
+            .places
+            .iter()
+            .filter(|p| p.status == TownPlaceStatus::New
+                || (p.status == TownPlaceStatus::Open && p.months != 0))
+            .collect::<Vec<_>>()
     );
     // At the town hall: precise.
     let hall = s

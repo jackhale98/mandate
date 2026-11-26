@@ -14,6 +14,7 @@ import { TradeOffs } from "./TradeOffs";
 import { personName } from "./Knowing";
 import { signerText } from "./posts";
 import { WhyButton } from "./why/WhyButton";
+import { useProposal } from "./proposal/proposalStore";
 
 /** Signed −1..1 score shown as −100..+100 with a text label (never colour alone, DEC-051). */
 export function SupportBars({ s }: { s: SupportView }) {
@@ -60,7 +61,7 @@ function impactSize(v: number | null, unit: string): string {
   return new Intl.NumberFormat("en", { maximumSignificantDigits: 2 }).format(v);
 }
 
-function impactLine(tr: ReturnType<typeof useGame.getState>["tr"], l: ImpactLine): string {
+export function impactLine(tr: ReturnType<typeof useGame.getState>["tr"], l: ImpactLine): string {
   return tr.event(l.key, { ...l.args, form: l.form, lo: impactSize(l.lo, l.unit), hi: impactSize(l.hi, l.unit) });
 }
 
@@ -129,11 +130,18 @@ export function BillCard({ bill, template, town }: { bill: BillView; template: T
 
   const status = bill.status === "ended" && bill.end_reason ? tr.t(`end-${bill.end_reason}`) : tr.t(`status-${bill.status}`);
   const hasClause = (t: ClauseDto["type"]) => clauses.some((c) => c.type === t);
+  // A bill drafted from a proposal (DEC-092): its name takes the proposal's arguments, and it is amended on the proposal's sheet.
+  const fam = bill.family;
+  const name = fam ? tr.event(bill.name_key, fam.args) : tr.t(bill.name_key);
+  const amendOnSheet = (e: { currentTarget: HTMLElement }) => {
+    if (!fam) return;
+    void useProposal.getState().openProposal({ proposal: fam.proposal, family: bill.template, bill: bill.id, choices: fam.choices, params: bill.params }, { opener: e.currentTarget });
+  };
 
   return (
     <article className="bill" data-testid={`bill-${bill.id}`}>
       <div className="card-head">
-        <h3 className="bill-title">{tr.t(bill.name_key)}</h3>
+        <h3 className="bill-title">{fam ? name.charAt(0).toUpperCase() + name.slice(1) : name}</h3>
         <span className={bill.status === "ended" ? "chip chip-muted" : "chip"}>{status}</span>
       </div>
       <p className="muted small">
@@ -182,8 +190,13 @@ export function BillCard({ bill, template, town }: { bill: BillView; template: T
           {tr.t("ui-why")}
         </button>
         {/* How it came to pass, fail or lapse (the causal chain); "Why?" above is the bill's support and trade-offs. */}
-        <WhyButton event={bill.outcome_event} label="ui-why-led" about={tr.t(bill.name_key)} />
-        {editable && (
+        <WhyButton event={bill.outcome_event} label="ui-why-led" about={name} />
+        {editable && fam && (
+          <button type="button" className="btn btn-sm btn-ghost" onClick={amendOnSheet} data-testid="bill-amend-proposal">
+            {tr.t("ui-amend-open")}
+          </button>
+        )}
+        {editable && !fam && (
           <button type="button" className="btn btn-sm btn-ghost" aria-expanded={editing} onClick={() => setEditing(!editing)}>
             {tr.t("ui-amend-open")}
           </button>

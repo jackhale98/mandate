@@ -52,7 +52,7 @@
       "facts": [ { "type": "plant", "slot": "site" } ],
       "sides": { "ally": "steward", "opponent": "owner" },
       "heat": { "start": 0.15, "floor": { "indicator": "job_loss", "scale": 4.0 } },
-      "answers": ["policy.closure_response", "policy.hardship_fund", "policy.small_business_grants"],
+      "answers": ["policy.closure_response", "family.closure_response", "family.plant_rescue", "policy.hardship_fund", "policy.small_business_grants"],
       "stages": [
         // Signs: the hours are cut, and nobody has said why. Asking now is
         // cheap and quiet.
@@ -127,7 +127,7 @@
                   { "key": "talk-arc-plant-case-yes", "agrees": true, "sets": "offered",
                     "when": [ { "type": "any", "of": [
                       { "type": "arc_mark", "mark": "conceded" },
-                      { "type": "law_in_force", "templates": ["policy.closure_response", "policy.small_business_grants"] } ] } ],
+                      { "type": "law_in_force", "templates": ["policy.closure_response", "family.closure_response", "policy.small_business_grants"] } ] } ],
                     "effects": [ { "type": "plant_relief", "place": "site", "relief": 0.08, "months": 12 } ] },
                   { "key": "talk-arc-plant-case-no" } ] } },
             // With nobody at the table, the steward stops the line.
@@ -191,14 +191,14 @@
                   { "key": "talk-arc-plant-case-yes", "agrees": true, "sets": "offered",
                     "when": [ { "type": "any", "of": [
                       { "type": "arc_mark", "mark": "conceded" },
-                      { "type": "law_in_force", "templates": ["policy.closure_response", "policy.small_business_grants"] } ] } ],
+                      { "type": "law_in_force", "templates": ["policy.closure_response", "family.closure_response", "policy.small_business_grants"] } ] } ],
                     "effects": [ { "type": "plant_relief", "place": "site", "relief": 0.08, "months": 12 } ] },
                   { "key": "talk-arc-plant-case-no" } ] } },
           ],
           "next": [
             { "to": "reprieved", "when": [ { "type": "plant", "slot": "site", "status": ["short_time", "running"] } ] },
             { "to": "answered", "when": [ { "type": "plant", "slot": "site", "status": ["closed"] },
-                { "type": "law_in_force", "templates": ["policy.closure_response", "policy.hardship_fund"] } ] },
+                { "type": "law_in_force", "templates": ["policy.closure_response", "family.closure_response", "policy.hardship_fund"] } ] },
             { "to": "closed", "when": [ { "type": "plant", "slot": "site", "status": ["closed"] } ] },
             { "to": "eve", "clock_within_days": 0 } ] },
 
@@ -213,7 +213,7 @@
           "next": [
             { "to": "reprieved", "when": [ { "type": "plant", "slot": "site", "status": ["short_time", "running"] } ] },
             { "to": "answered", "when": [ { "type": "plant", "slot": "site", "status": ["closed"] },
-                { "type": "law_in_force", "templates": ["policy.closure_response", "policy.hardship_fund"] } ] },
+                { "type": "law_in_force", "templates": ["policy.closure_response", "family.closure_response", "policy.hardship_fund"] } ] },
             { "to": "closed", "when": [ { "type": "plant", "slot": "site", "status": ["closed"] } ] },
             // The economy closes a plant on its date or lifts the notice
             // before it: this edge is never taken in a world that runs.

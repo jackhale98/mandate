@@ -175,7 +175,14 @@ fn v18_file(state: &mandate_sim::State) -> Vec<u8> {
 
 #[test]
 fn v18_saves_migrate_without_a_log_and_keep_their_hash() {
-    let c = content();
+    // A v18 save holds no arc run (v27) and no policy family (v25): the
+    // world is played without that content.
+    let c = {
+        let mut b = (*content()).clone();
+        b.arcs.clear();
+        b.policy_families.clear();
+        Arc::new(b)
+    };
     let s = setup();
     let mut e = new_game(&c, &s);
     let mut log = RunLog::start(s, &e);

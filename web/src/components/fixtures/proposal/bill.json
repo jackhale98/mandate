@@ -1,0 +1,687 @@
+{
+  "awareness": 0.0,
+  "can_vote": false,
+  "clauses": [],
+  "end_reason": null,
+  "est_annual_cost": 1787808.1070373289,
+  "expected_yes": 6.0,
+  "family": {
+    "area": [],
+    "args": {
+      "business": "Wilma Hale",
+      "union": "Cosmo Stone"
+    },
+    "choices": [
+      {
+        "axis": "covered",
+        "option": "council"
+      },
+      {
+        "axis": "phase",
+        "option": "at_once"
+      }
+    ],
+    "proposal": 0,
+    "sponsor": null
+  },
+  "funded_pct": 0.0,
+  "id": 597,
+  "impact": {
+    "at": {
+      "id": 8,
+      "kind": "municipality",
+      "name": "Mireenwick",
+      "name_key": "jurisdiction-municipality",
+      "tier": "local"
+    },
+    "cost": {
+      "borrowed_pct": 0,
+      "budget_pct": 0.42,
+      "funded_first_pct": 100,
+      "funded_later_pct": 100,
+      "key": "impact-cost",
+      "paid_from": "rates",
+      "paid_key": "impact-paid-rates",
+      "yearly": 1787808.1070373289
+    },
+    "groups": [
+      {
+        "gains": true,
+        "group": "low",
+        "key": "impact-gains-low"
+      },
+      {
+        "gains": false,
+        "group": "middle",
+        "key": "impact-loses-middle"
+      },
+      {
+        "gains": false,
+        "group": "high",
+        "key": "impact-loses-high"
+      }
+    ],
+    "horizon_key": "impact-horizon-y1",
+    "horizon_months": 12,
+    "in_time": false,
+    "lines": [
+      {
+        "args": {
+          "direction": "up"
+        },
+        "direction": "up",
+        "form": "exact",
+        "hi": null,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-target-wage-uplift",
+        "lead": true,
+        "lo": 3.5,
+        "outcome": "target",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "down",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-jobs-down",
+        "lead": true,
+        "lo": null,
+        "outcome": "jobs",
+        "tradeoff": true,
+        "unit": "count"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "down",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-rent-down",
+        "lead": true,
+        "lo": null,
+        "outcome": "rent",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "up",
+        "form": "range",
+        "hi": 3.4000000000000004,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-low-income-up",
+        "lead": true,
+        "lo": 2.4000000000000004,
+        "outcome": "low_income",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-homes-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "homes",
+        "tradeoff": false,
+        "unit": "count"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-debt-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "debt",
+        "tradeoff": false,
+        "unit": "money"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-services-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "services",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-approval-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval",
+        "tradeoff": false,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "group": "low"
+        },
+        "direction": "up",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-approval-up",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval_low",
+        "tradeoff": false,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "group": "middle"
+        },
+        "direction": "down",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-approval-down",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval_middle",
+        "tradeoff": true,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "group": "high"
+        },
+        "direction": "down",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 12,
+        "in_time": false,
+        "key": "impact-approval-down",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval_high",
+        "tradeoff": true,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "direction": "up"
+        },
+        "direction": "up",
+        "form": "exact",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-target-wage-uplift",
+        "lead": false,
+        "lo": 3.5,
+        "outcome": "target",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "down",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-homes-down",
+        "lead": false,
+        "lo": null,
+        "outcome": "homes",
+        "tradeoff": true,
+        "unit": "count"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "down",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-jobs-down",
+        "lead": false,
+        "lo": null,
+        "outcome": "jobs",
+        "tradeoff": true,
+        "unit": "count"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "down",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-rent-down",
+        "lead": false,
+        "lo": null,
+        "outcome": "rent",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "up",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-low-income-up",
+        "lead": false,
+        "lo": null,
+        "outcome": "low_income",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-debt-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "debt",
+        "tradeoff": false,
+        "unit": "money"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-services-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "services",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-approval-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval",
+        "tradeoff": false,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "group": "low"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-approval-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval_low",
+        "tradeoff": false,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "group": "middle"
+        },
+        "direction": "down",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-approval-down",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval_middle",
+        "tradeoff": true,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "group": "high"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 36,
+        "in_time": false,
+        "key": "impact-approval-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval_high",
+        "tradeoff": false,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "direction": "up"
+        },
+        "direction": "up",
+        "form": "exact",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-target-wage-uplift",
+        "lead": false,
+        "lo": 3.5,
+        "outcome": "target",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-homes-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "homes",
+        "tradeoff": false,
+        "unit": "count"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-jobs-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "jobs",
+        "tradeoff": false,
+        "unit": "count"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "down",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-rent-down",
+        "lead": false,
+        "lo": null,
+        "outcome": "rent",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-low-income-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "low_income",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-debt-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "debt",
+        "tradeoff": false,
+        "unit": "money"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-services-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "services",
+        "tradeoff": false,
+        "unit": "percent"
+      },
+      {
+        "args": {
+          "group": "all"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-approval-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval",
+        "tradeoff": false,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "group": "low"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-approval-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval_low",
+        "tradeoff": false,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "group": "middle"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-approval-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval_middle",
+        "tradeoff": false,
+        "unit": "points"
+      },
+      {
+        "args": {
+          "group": "high"
+        },
+        "direction": "flat",
+        "form": "words",
+        "hi": null,
+        "horizon_months": 60,
+        "in_time": false,
+        "key": "impact-approval-flat",
+        "lead": false,
+        "lo": null,
+        "outcome": "approval_high",
+        "tradeoff": false,
+        "unit": "points"
+      }
+    ],
+    "source": {
+      "args": {},
+      "key": "impact-source-statistician"
+    },
+    "sureness": "fair",
+    "when": [
+      {
+        "args": {
+          "n": "2"
+        },
+        "key": "impact-when-building"
+      },
+      {
+        "args": {
+          "n": "7"
+        },
+        "key": "impact-when-full"
+      }
+    ]
+  },
+  "ledger": [],
+  "my_vote": null,
+  "name_key": "family-living-wage",
+  "needed": 4,
+  "next_stage_key": null,
+  "next_vote": null,
+  "note": {
+    "args": {},
+    "key": "know-bill-support"
+  },
+  "owe_sponsor": false,
+  "params": [
+    {
+      "id": "pct",
+      "value": 10.0
+    }
+  ],
+  "party_line": "yes",
+  "party_line_reason": {
+    "args": {},
+    "key": "party-reason-own"
+  },
+  "progress": 0.0,
+  "seats": 7,
+  "side_effects": [
+    {
+      "amount": 0.02,
+      "group": "middle",
+      "kind": "grievance",
+      "older": false,
+      "size": "small"
+    }
+  ],
+  "signer": {
+    "lean": "sign",
+    "office": {
+      "at": {
+        "id": 8,
+        "kind": "municipality",
+        "name": "Mireenwick",
+        "name_key": "jurisdiction-municipality",
+        "tier": "local"
+      },
+      "constituency_number": null,
+      "id": "mayor",
+      "kind": "office",
+      "label_key": "office-mayor",
+      "role_key": "role-mayor"
+    }
+  },
+  "sponsor_is_player": true,
+  "sponsor_name": "Ines Rook",
+  "status": "draft",
+  "support": {
+    "band": "popular",
+    "high": null,
+    "level": "unknown",
+    "low": null,
+    "middle": null,
+    "overall": null
+  },
+  "template": "family.living_wage_deal",
+  "votes": [],
+  "ward_against_pct": 35,
+  "ward_certainty": "rough",
+  "ward_for_pct": 65,
+  "ward_lean": "leans_for",
+  "ward_support": 0.25,
+  "whip": [],
+  "whip_exact": false
+}

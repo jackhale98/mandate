@@ -100,6 +100,49 @@
     { "id": "overheard.broker.say_so", "key": "heard-broker-say-so", "weight": 0.6,
       "when": [ { "type": "broker" } ], "teaches": [ { "type": "broker" } ] },
 
+    // --- Proposals on the table (DEC-092 §2.7) ---------------------------------------------
+    // Talk of an open policy-family proposal in the town, heard where its
+    // `overheard` hook says (arriving there teaches the proposal at `heard`;
+    // these lines are what people say about it). `proposal` gives
+    // `$proposal_<slot>` for the family's places and neighbourhoods and
+    // `$proposal_<slot>_key` for its sectors and hazards; never a person.
+    { "id": "overheard.proposal.plant_rescue", "key": "heard-proposal-plant-rescue", "weight": 2.5,
+      "when": [ { "type": "proposal", "family": "family.plant_rescue" } ] },
+    { "id": "overheard.proposal.closure_response", "key": "heard-proposal-closure-response", "weight": 2.5,
+      "when": [ { "type": "proposal", "family": "family.closure_response" } ] },
+    { "id": "overheard.proposal.living_wage", "key": "heard-proposal-living-wage", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.living_wage_deal" } ] },
+    { "id": "overheard.proposal.incubator", "key": "heard-proposal-incubator", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.campus_incubator" } ] },
+    { "id": "overheard.proposal.mine_safety", "key": "heard-proposal-mine-safety", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.mine_safety" } ] },
+    { "id": "overheard.proposal.port_expansion", "key": "heard-proposal-port-expansion", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.port_expansion" } ] },
+    { "id": "overheard.proposal.bed_tax", "key": "heard-proposal-bed-tax", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.hotel_bed_tax" } ] },
+    { "id": "overheard.proposal.flood_wall", "key": "heard-proposal-flood-wall", "weight": 2.5,
+      "when": [ { "type": "proposal", "family": "family.flood_wall" } ] },
+    { "id": "overheard.proposal.rebuild", "key": "heard-proposal-rebuild", "concern": "concern.recovery", "weight": 2.5,
+      "when": [ { "type": "proposal", "family": "family.rebuild" } ] },
+    { "id": "overheard.proposal.farm_water", "key": "heard-proposal-farm-water", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.farm_water" } ] },
+    { "id": "overheard.proposal.market", "key": "heard-proposal-market", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.market_licences" } ] },
+    { "id": "overheard.proposal.community_centre", "key": "heard-proposal-community-centre", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.community_centre" } ] },
+    { "id": "overheard.proposal.park", "key": "heard-proposal-park", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.park" } ] },
+    { "id": "overheard.proposal.night_buses", "key": "heard-proposal-night-buses", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.night_buses" } ] },
+    { "id": "overheard.proposal.clinic_hours", "key": "heard-proposal-clinic-hours", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.clinic_hours" } ] },
+    { "id": "overheard.proposal.clean_air", "key": "heard-proposal-clean-air", "concern": "concern.environment", "weight": 2.0,
+      "when": [ { "type": "proposal", "family": "family.clean_air" } ] },
+    { "id": "overheard.proposal.rent_relief", "key": "heard-proposal-rent-relief", "concern": "concern.housing", "weight": 2.5,
+      "when": [ { "type": "proposal", "family": "family.rent_relief" } ] },
+    { "id": "overheard.proposal.fiscal_bridge", "key": "heard-proposal-fiscal-bridge", "weight": 2.5,
+      "when": [ { "type": "proposal", "family": "family.fiscal_bridge" } ] },
+
     // --- Scandals and the news (DEC-034) --------------------------------------------------
     { "id": "overheard.scandal.player", "key": "heard-scandal-player", "weight": 3.0,
       "when": [ { "type": "scandal", "about": "player" } ] },

@@ -1423,7 +1423,7 @@ fn gaps(gate: &Gate<'_>) -> Vec<NotebookGapView> {
     }
     // The standard menu (as `GrantSubject::PolicySupport` resolves it).
     for t in content.policies.values() {
-        if t.tier == mandate_content::TierKey::Local && t.unlock.is_none() {
+        if t.tier == mandate_content::TierKey::Local && t.unlock.is_none() && !t.retired {
             subjects.push(Subject::PolicySupport {
                 town,
                 policy: PolicyRef::Template {
