@@ -21,6 +21,7 @@ import { capital } from "../components/DecisionSheet";
 import { Newspaper } from "../components/Newspaper";
 import { TalkButton } from "../components/talk/TalkButton";
 import { CaseworkHere } from "../components/asks/Asks";
+import { DeskProposals, ProposalsHere } from "../components/proposal/ProposalList";
 
 /** Decisions whose scene happens here (DEC-079: here, the conversation). */
 function WaitingHere({ v }: { v: PlacePanelView }) {
@@ -434,6 +435,7 @@ export function PlacePanel() {
           {offers("draft") && (
             <>
               <MyBills statuses={["draft"]} testId="bills" />
+              <DeskProposals />
               <Catalog />
             </>
           )}
@@ -448,6 +450,8 @@ export function PlacePanel() {
           {v.overheard && <Overheard o={v.overheard} />}
           {v.newspaper && <Newspaper n={v.newspaper} />}
           {v.decisions_here.length > 0 && <WaitingHere v={v} />}
+          {/* At the desk the office's list has them all; elsewhere, those about this place. */}
+          {!offers("draft") && <ProposalsHere proposals={v.proposals_here} />}
           <People v={v} />
           <Verbs v={v} />
           <Actions v={v} skip={skip} />

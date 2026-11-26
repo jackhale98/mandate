@@ -22,6 +22,7 @@ import { Epilogue } from "../components/act/Epilogue";
 import { PromisePicker } from "../components/asks/PromisePicker";
 import { WhyPanel } from "../components/why/WhyPanel";
 import { WhyButton } from "../components/why/WhyButton";
+import { ProposalSheet } from "../components/proposal/ProposalSheet";
 
 function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
   const tr = useGame((s) => s.tr);
@@ -180,6 +181,7 @@ export function Game() {
       <DecisionSheet />
       <CharacterSheet />
       <TalkSheet />
+      <ProposalSheet />
       <TermReview />
       <SkipSummary />
       <PromisePicker />

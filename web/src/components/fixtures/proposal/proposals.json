@@ -1,0 +1,288 @@
+[
+  {
+    "args": {
+      "business": "Wilma Hale",
+      "union": "Cosmo Stone"
+    },
+    "at": {
+      "id": 8,
+      "kind": "municipality",
+      "name": "Mireenwick",
+      "name_key": "jurisdiction-municipality",
+      "tier": "local"
+    },
+    "bills": [
+      597
+    ],
+    "bindings": [
+      {
+        "kind": "person",
+        "location": null,
+        "name": "Cosmo Stone",
+        "name_key": null,
+        "person": {
+          "ambient_slot": null,
+          "can_talk": false,
+          "has_news": true,
+          "id": 1294,
+          "level": "unknown",
+          "name": "Cosmo Stone",
+          "role_key": "occupation-union_steward",
+          "rumoured": false,
+          "tier": "principal"
+        },
+        "slot": "union"
+      },
+      {
+        "kind": "person",
+        "location": null,
+        "name": "Wilma Hale",
+        "name_key": null,
+        "person": {
+          "ambient_slot": null,
+          "can_talk": false,
+          "has_news": true,
+          "id": 1293,
+          "level": "unknown",
+          "name": "Wilma Hale",
+          "role_key": "occupation-business_leader",
+          "rumoured": false,
+          "tier": "principal"
+        },
+        "slot": "business"
+      }
+    ],
+    "blocked_key": null,
+    "can_draft": true,
+    "category": "administration",
+    "desc_key": "family-living-wage-desc",
+    "est_annual_cost": 446952.0267593322,
+    "family": "family.living_wage_deal",
+    "id": 0,
+    "knowledge": {
+      "as_of": null,
+      "lead": null,
+      "level": "known",
+      "stale": false
+    },
+    "lapse_reason": null,
+    "level": "known",
+    "months": 6,
+    "name_key": "family-living-wage",
+    "opened": {
+      "day": 1,
+      "day_number": 737331,
+      "month": 2,
+      "year": 2020
+    },
+    "proposers": [
+      {
+        "at": {
+          "id": 8,
+          "kind": "municipality",
+          "name": "Mireenwick",
+          "name_key": "jurisdiction-municipality",
+          "tier": "local"
+        },
+        "constituency_number": null,
+        "id": "council",
+        "kind": "seat",
+        "label_key": "body-council",
+        "role_key": "role-councillor"
+      },
+      {
+        "at": {
+          "id": 8,
+          "kind": "municipality",
+          "name": "Mireenwick",
+          "name_key": "jurisdiction-municipality",
+          "tier": "local"
+        },
+        "constituency_number": null,
+        "id": "mayor",
+        "kind": "office",
+        "label_key": "office-mayor",
+        "role_key": "role-mayor"
+      }
+    ],
+    "reason_key": "reason-living-wage",
+    "requires": "propose_ordinance",
+    "sponsors": [
+      {
+        "id": "union",
+        "name_key": "sponsor-union-version",
+        "person": {
+          "ambient_slot": null,
+          "can_talk": false,
+          "has_news": true,
+          "id": 1294,
+          "level": "unknown",
+          "name": "Cosmo Stone",
+          "role_key": "occupation-union_steward",
+          "rumoured": false,
+          "tier": "principal"
+        }
+      },
+      {
+        "id": "business",
+        "name_key": "sponsor-business-version",
+        "person": {
+          "ambient_slot": null,
+          "can_talk": false,
+          "has_news": true,
+          "id": 1293,
+          "level": "unknown",
+          "name": "Wilma Hale",
+          "role_key": "occupation-business_leader",
+          "rumoured": false,
+          "tier": "principal"
+        }
+      }
+    ],
+    "status": "open"
+  },
+  {
+    "args": {
+      "hood": "Quarryrow",
+      "industry_key": "industry-metals",
+      "owner": "",
+      "plant_key": "plant-name-place",
+      "product_key": "product-steel",
+      "stem": "Mireenwick",
+      "works_key": "works-steelworks"
+    },
+    "at": {
+      "id": 8,
+      "kind": "municipality",
+      "name": "Mireenwick",
+      "name_key": "jurisdiction-municipality",
+      "tier": "local"
+    },
+    "bills": [],
+    "bindings": [],
+    "blocked_key": "proposal-blocked-heard",
+    "can_draft": false,
+    "category": "environment",
+    "desc_key": "family-clean-air-desc",
+    "est_annual_cost": null,
+    "family": "family.clean_air",
+    "id": 1,
+    "knowledge": {
+      "as_of": null,
+      "lead": {
+        "args": {
+          "hood": "Quarryrow",
+          "industry_key": "industry-metals",
+          "owner": "",
+          "plant_key": "plant-name-place",
+          "policy_key": "family-clean-air",
+          "product_key": "product-steel",
+          "proposal": "1",
+          "stem": "Mireenwick",
+          "to_hood": "Quarryrow",
+          "works_key": "works-steelworks"
+        },
+        "key": "lead-clean-air-streets",
+        "level": "known",
+        "route": {
+          "action": "go",
+          "here": false,
+          "late_night": false,
+          "neighborhood": 99,
+          "to": {
+            "kind_key": "streets",
+            "location": {
+              "neighborhood": 99,
+              "type": "street"
+            },
+            "name": "",
+            "neighborhood": 99,
+            "neighborhood_name": "Quarryrow"
+          }
+        },
+        "since": {
+          "day": 1,
+          "day_number": 737331,
+          "month": 2,
+          "year": 2020
+        },
+        "subject": {
+          "proposal": 1,
+          "type": "proposal"
+        },
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 99,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 99,
+          "neighborhood_name": "Quarryrow"
+        }
+      },
+      "level": "heard",
+      "stale": false
+    },
+    "lapse_reason": null,
+    "level": "heard",
+    "months": null,
+    "name_key": "family-clean-air",
+    "opened": {
+      "day": 1,
+      "day_number": 737331,
+      "month": 2,
+      "year": 2020
+    },
+    "proposers": [
+      {
+        "at": {
+          "id": 8,
+          "kind": "municipality",
+          "name": "Mireenwick",
+          "name_key": "jurisdiction-municipality",
+          "tier": "local"
+        },
+        "constituency_number": null,
+        "id": "council",
+        "kind": "seat",
+        "label_key": "body-council",
+        "role_key": "role-councillor"
+      },
+      {
+        "at": {
+          "id": 8,
+          "kind": "municipality",
+          "name": "Mireenwick",
+          "name_key": "jurisdiction-municipality",
+          "tier": "local"
+        },
+        "constituency_number": null,
+        "id": "mayor",
+        "kind": "office",
+        "label_key": "office-mayor",
+        "role_key": "role-mayor"
+      }
+    ],
+    "reason_key": "reason-clean-air",
+    "requires": "propose_ordinance",
+    "sponsors": [
+      {
+        "id": "owner",
+        "name_key": "sponsor-owner-version",
+        "person": {
+          "ambient_slot": null,
+          "can_talk": false,
+          "has_news": true,
+          "id": 1295,
+          "level": "unknown",
+          "name": "",
+          "role_key": "occupation-plant_manager",
+          "rumoured": false,
+          "tier": "principal"
+        }
+      }
+    ],
+    "status": "open"
+  }
+]

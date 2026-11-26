@@ -10,6 +10,7 @@ import { useGame } from "../state/gameStore";
 import { ActionForm, type FormAction } from "../components/ActionForm";
 import { ChamberWhip } from "../components/Chamber";
 import { Catalog, MyBills } from "../components/Desk";
+import { DeskProposals } from "../components/proposal/ProposalList";
 import { Calendar } from "../components/CampaignCards";
 import { useSheetClose } from "../components/useSheetClose";
 import { actionKey } from "../places/labels";
@@ -57,6 +58,7 @@ export function HotspotSheet({ hotspot, view, onClose }: { hotspot: HotspotDef; 
           {actions.length + services.length === 0 && <p className="muted">{tr.t("ui-interior-nothing")}</p>}
           {whip && <ChamberWhip />}
           {statuses.length > 0 && <MyBills statuses={statuses} testId="hotspot-bills" />}
+          {has("draft") && <DeskProposals />}
           {has("draft") && <Catalog />}
           {has("file") && campaign && <Calendar c={campaign} />}
           {actions
