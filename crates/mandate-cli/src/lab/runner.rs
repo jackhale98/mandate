@@ -57,7 +57,8 @@ pub enum Driver {
     Bot { strategy: String },
     /// A stand-in player (`mandate_sim::standin`: `passive`, `engaged`,
     /// `contrarian`, `attends`) plays, by commands alone; `attends` skips
-    /// the quiet weeks.
+    /// the quiet weeks. A play style for scenes may follow
+    /// (`engaged/bold`; `absent`, `cautious`, `bold`).
     StandIn { kind: String },
 }
 
@@ -88,6 +89,12 @@ impl Driver {
     pub fn standin(kind: mandate_sim::standin::Kind) -> Driver {
         Driver::StandIn {
             kind: kind.key().to_string(),
+        }
+    }
+    /// A stand-in with a play style for scenes.
+    pub fn styled(kind: mandate_sim::standin::Kind, play: mandate_sim::standin::Play) -> Driver {
+        Driver::StandIn {
+            kind: mandate_sim::standin::styled_key(kind, play),
         }
     }
 }
@@ -247,10 +254,10 @@ impl Game {
     /// Change who plays from here on (a fork played by another stand-in).
     pub fn set_driver(&mut self, driver: Driver) -> Result<(), String> {
         self.career = match &driver {
-            Driver::StandIn { kind } => Some(mandate_sim::standin::Career::new(
-                mandate_sim::standin::Kind::parse(kind)
+            Driver::StandIn { kind } => Some(
+                mandate_sim::standin::Career::parse(kind)
                     .ok_or_else(|| format!("no stand-in `{kind}`"))?,
-            )),
+            ),
             _ => None,
         };
         self.driver = driver;

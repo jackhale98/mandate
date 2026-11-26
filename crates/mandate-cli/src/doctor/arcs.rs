@@ -27,7 +27,11 @@
 //!
 //! Dynamic (`--seeds`): `arc-never-raised`, `arc-cast-fails`,
 //! `arc-stage-unvisited`, `arc-exit-unvisited`, `arc-too-long`, from the
-//! grader's worlds (`crate::arcs_grade`).
+//! grader's worlds (`crate::arcs_grade`); and for a template with a scene
+//! (EXCHANGE_SCENES §9.4), from the stand-ins' play of it:
+//! `exchange-outcome-unvisited`, `exchange-outcome-lopsided`,
+//! `exchange-kind-dominant`, `exchange-prep-idle`, `exchange-not-offered`
+//! ([`turn_findings`]).
 
 use super::{Out, Sev};
 use mandate_content::arcs::{ArcBeat, ArcDef, ArcEffect, BeatKind, StageDef};
@@ -561,7 +565,75 @@ pub(super) fn dynamic_checks(b: &Arc<ContentBundle>, seeds: u64, out: &mut Out) 
                 ),
             );
         }
+        if let Some(t) = &g.turn {
+            for (check, message) in turn_findings(t) {
+                out.add(Sev::Warn, check, item, message);
+            }
+        }
     }
+}
+
+/// The dynamic lints of a template's turn (EXCHANGE_SCENES §9.4), from
+/// what the stand-ins' scenes came to: an outcome none reached, one
+/// outcome taking most engaged scenes, one kind of line taking most
+/// engaged rounds, preparation that does not show in the room, a scene
+/// the player was never offered.
+pub(crate) fn turn_findings(t: &crate::arcs_grade::TurnGrade) -> Vec<(&'static str, String)> {
+    use crate::arcs_grade::{SCENE_KIND_SHARE_MAX, SCENE_OUTCOME_SHARE_MAX};
+    let mut out = Vec::new();
+    let runs: u32 = t.by_player.values().map(|s| s.runs).sum();
+    let beats = t.beats.join(", ");
+    for o in t.unvisited() {
+        out.push((
+            "exchange-outcome-unvisited",
+            format!("no stand-in's scene ({beats}) ended `{o}` in {runs} runs"),
+        ));
+    }
+    if let Some((o, x)) = t.lopsided()
+        && x > SCENE_OUTCOME_SHARE_MAX
+    {
+        out.push((
+            "exchange-outcome-lopsided",
+            format!(
+                "`{o}` ends {:.0}% of the engaged stand-in's scenes ({beats}); the bar is {:.0}%",
+                x * 100.0,
+                SCENE_OUTCOME_SHARE_MAX * 100.0
+            ),
+        ));
+    }
+    if let Some((k, x)) = t.dominant()
+        && x > SCENE_KIND_SHARE_MAX
+    {
+        out.push((
+            "exchange-kind-dominant",
+            format!(
+                "`{k}` is the engaged stand-in's line in {:.0}% of rounds ({beats}); the bar is {:.0}%",
+                x * 100.0,
+                SCENE_KIND_SHARE_MAX * 100.0
+            ),
+        ));
+    }
+    if let Some(d) = t.prep_worth()
+        && d <= 0.0
+    {
+        out.push((
+            "exchange-prep-idle",
+            format!(
+                "the engaged stand-in does no better in the room ({beats}) than the one that only attends the stops: {d:.0} thousandths"
+            ),
+        ));
+    }
+    if let Some((absent, n)) = t.engaged_absent()
+        && absent > 0
+    {
+        out.push((
+            "exchange-not-offered",
+            format!(
+                "the engaged stand-in, which begins every scene offered to it, met an empty chair in {absent} of {n} scenes ({beats}): the scene was never on offer at the start of a turn (a stage's clock shorter than a turn, or another arc's scene held that chapter)"
+            ),
+        ));
+    }
+    out
 }
 
 #[cfg(test)]
@@ -673,6 +745,65 @@ mod tests {
         assert!(!found("arc-no-lever", "stage `a`"), "{}", show());
         assert!(!found("arc-nothing-to-do", "stage `a`"), "{}", show());
         assert!(!found("arc-exit-flavour", "exit `y`"), "{}", show());
+    }
+
+    /// A turn's grade with every defect the dynamic scene lints name, and
+    /// one with none.
+    #[test]
+    fn each_dynamic_scene_lint_has_a_failing_fixture() {
+        use crate::arcs_grade::{ScenesSeen, TurnGrade};
+        use std::collections::BTreeMap;
+        let seen = |outcomes: &[(&str, u32)], kinds: &[(&str, u32)], mean: f64| ScenesSeen {
+            runs: 10,
+            held: 10,
+            outcomes: outcomes.iter().map(|(k, v)| (k.to_string(), *v)).collect(),
+            kinds: kinds.iter().map(|(k, v)| (k.to_string(), *v)).collect(),
+            mean_result_pm: Some(mean),
+        };
+        let grade = |engaged: ScenesSeen, attends: ScenesSeen, passive: ScenesSeen| TurnGrade {
+            beats: vec!["showdown.debate".into()],
+            by_player: BTreeMap::from([
+                ("engaged".to_string(), engaged),
+                ("attends".to_string(), attends),
+                ("passive".to_string(), passive),
+            ]),
+        };
+        // Engaged: won 8 of 10 and one empty chair, `record` in 8 of 10
+        // rounds, no better than the one that attends; nobody lost.
+        let bad = grade(
+            seen(
+                &[("won", 8), ("split", 1), ("absent", 1)],
+                &[("record", 8), ("pass", 2)],
+                40.0,
+            ),
+            seen(&[("won", 10)], &[("record", 10)], 55.0),
+            seen(&[("absent", 10)], &[], -300.0),
+        );
+        let found = super::turn_findings(&bad);
+        let has =
+            |check: &str, text: &str| found.iter().any(|f| f.0 == check && f.1.contains(text));
+        assert!(has("exchange-outcome-unvisited", "`lost`"), "{found:?}");
+        assert!(
+            has("exchange-outcome-lopsided", "`won` ends 80%"),
+            "{found:?}"
+        );
+        assert!(has("exchange-kind-dominant", "`record`"), "{found:?}");
+        assert!(has("exchange-prep-idle", "-15"), "{found:?}");
+        assert!(has("exchange-not-offered", "1 of 10"), "{found:?}");
+        let good = grade(
+            seen(
+                &[("won", 5), ("split", 3), ("lost", 2)],
+                &[("record", 5), ("heard", 3), ("pass", 2)],
+                80.0,
+            ),
+            seen(&[("won", 3), ("lost", 7)], &[("record", 10)], 20.0),
+            seen(&[("absent", 10)], &[], -300.0),
+        );
+        assert!(
+            super::turn_findings(&good).is_empty(),
+            "{:?}",
+            super::turn_findings(&good)
+        );
     }
 
     #[test]
