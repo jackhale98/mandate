@@ -273,7 +273,7 @@ fn digests(
 /// that merge.
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
     (2026, "idle", 96, "cebdae00cb41038a", "d8ba2cd3c0cda014"), // 2015 events
-    (2026, "mixed", 96, "f46db71fc62e3235", "6c41d8a58aad2273"), // 3672 events
+    (2026, "mixed", 96, "f46db71fc62e3235", "fcd6dbcd2a6cd701"), // 3672 events
     (7, "idle", 96, "d4a947cbd3bf85a5", "73409ebb60c39005"),    // 1764 events
     (7, "corrupt", 96, "b2ebfe0b0b5f9c77", "5c3ebe2ecb61b532"), // 3276 events
     (31, "idle", 96, "c89ca66286d70ada", "6cdad0610a99efcc"),   // 2058 events
@@ -289,7 +289,7 @@ const PINS: [(u64, &str, u32, &str, &str); 8] = [
         "mixed+prison",
         96,
         "ccfc0eed9cdb47ac",
-        "2ec78fbff3aa81f1",
+        "3fc523aa273b9f5c",
     ), // 2735 events
     (
         2026,
