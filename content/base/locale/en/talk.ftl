@@ -104,6 +104,12 @@ talk-open-warm-3 = { $speaker } makes room for you without being asked.
 talk-open-trusted = { $speaker } draws you a little way off, out of earshot.
 talk-open-trusted-2 = "I was going to ring you, actually," says { $speaker }, and means it.
 talk-open-trusted-3 = { $speaker } leans in, voice low, as if picking up a conversation from yesterday.
+# A familiar face (DEC-114 §5): greeted by name.
+talk-open-familiar-face = { $speaker } knows you on sight. "{ $player }, isn't it? Thought so."
+talk-open-familiar-face-2 = { $speaker } waves you over. "{ $player }! I know your face by now."
+talk-open-familiar-nod = { $speaker } nods as you come over, the way people do with someone they see about. "{ $player }."
+talk-open-familiar-nod-2 = "Back again, { $player }," says { $speaker }, pleased to see you.
+talk-open-familiar-ours = "There's our { $player }," says { $speaker }, and shifts along to make room.
 
 ## Openers, by voice and relationship.
 

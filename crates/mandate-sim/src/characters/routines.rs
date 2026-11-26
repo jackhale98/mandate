@@ -1,14 +1,21 @@
 //! Daily routines (DEC-031 "Daily routines"; DEC-013 day parts): where each
 //! stored character is now. Derived, never stored: a pure function of the
 //! state, the content's routines registry (`routines.jsonc`) and the turn's
-//! representative day and part.
+//! day played and part.
 //!
-//! **The day.** A turn stands for a span of days played as one stylised day
-//! (DEC-013). Its *representative day* is the span's first day plus the turn
-//! number modulo the span, so the weekday moves on by one each turn and
-//! weekday rules ("the diner on Thursdays") come round. Its *part* follows
-//! the player's standard slots (morning, afternoon, evening); once they are
-//! spent only the late-night slot is left, and it is late at night.
+//! **The day.** A turn stands for a span of days played as one day
+//! (DEC-013), the *day played* (DEC-114, one date per turn): the engine
+//! chooses it as the turn begins, the date of the fortnight's main event or
+//! a working day (`characters::calendar`), and the bar, the calendar and
+//! routines all use it, so the date shown and the people present agree.
+//! Weekday rules ("the diner on Thursdays") hold when the day played is
+//! that weekday. Its *part* follows the player's standard slots (morning,
+//! afternoon, evening); once they are spent only the late-night slot is
+//! left, and it is late at night.
+//!
+//! **Events.** While a calendar event is held in someone's town, in its
+//! part, its `attendees` rules are tried before their own routines, and a
+//! rule may require an event (`events: ["event.<name>"]`).
 //!
 //! **Who.** A person's routines are tried in order: the broker's or the
 //! rival's (a town's featured characters), their post's (by its role word
@@ -27,8 +34,8 @@ use crate::places::Location;
 use crate::politics::{PoliticsState, Post};
 use crate::state::{GamePhase, State};
 use crate::world::{Jurisdiction, MunicipalityId, NeighborhoodId, PlaceId, PlaceKind};
+use mandate_content::ContentBundle;
 use mandate_content::routines::{RoutineDay, RoutineDef, RoutineEvent, RoutineRole, Season};
-use mandate_content::{ContentBundle, StageDef};
 use mandate_core::SimDate;
 
 pub use mandate_content::routines::DayPart;
@@ -72,11 +79,9 @@ pub fn turn_days(state: &State, content: &ContentBundle) -> u32 {
     days.max(1)
 }
 
-/// The turn's representative day: its first day plus the turn number modulo
-/// the span (the weekday moves on each turn).
-pub fn representative_day(state: &State, content: &ContentBundle) -> SimDate {
-    let span = turn_days(state, content);
-    state.calendar.date.add_days(state.calendar.turn % span)
+/// The day played this turn (DEC-114): see `characters::calendar`.
+pub fn day_played(state: &State, content: &ContentBundle) -> SimDate {
+    super::calendar::play_day(state, content)
 }
 
 /// The town's community meeting night (one weekday, Monday to Thursday,
@@ -108,7 +113,7 @@ pub fn sitting_day(seed: u64, at: Jurisdiction) -> RoutineDay {
 pub struct Now {
     /// The turn's first day.
     pub date: SimDate,
-    /// The representative day (weekday, season, keyed draws).
+    /// The day played (weekday, season, keyed draws; DEC-114).
     pub day: SimDate,
     pub span: u32,
     pub part: DayPart,
@@ -121,6 +126,9 @@ pub struct Now {
     pub votes: Vec<Jurisdiction>,
     /// Jurisdictions with a race running.
     pub campaigns: Vec<Jurisdiction>,
+    /// The calendar's events held on the day played in the player's focus
+    /// towns, each in its part (DEC-114).
+    pub held: Vec<super::calendar::Held>,
 }
 
 impl Now {
@@ -133,29 +141,10 @@ impl Now {
     pub fn at(state: &State, content: &ContentBundle, part: DayPart) -> Now {
         let date = state.calendar.date;
         let span = turn_days(state, content);
-        let day = representative_day(state, content);
-        let mut sessions = Vec::new();
-        let mut votes = Vec::new();
-        let c = content.constitutions.get(&state.meta.constitution);
-        let until = date.add_days(span);
-        for p in &state.policy.instances {
-            if p.status != crate::policy::PolicyStatus::UnderConsideration
-                || p.next_stage_on.is_none_or(|d| d >= until)
-            {
-                continue;
-            }
-            let at = p.at();
-            let stage = c
-                .and_then(|c| c.tier(p.tier))
-                .and_then(|t| t.procedure("ordinance"))
-                .and_then(|pr| pr.stages.get(p.stage as usize));
-            if !sessions.contains(&at) {
-                sessions.push(at);
-            }
-            if matches!(stage, Some(StageDef::Vote { .. })) && !votes.contains(&at) {
-                votes.push(at);
-            }
-        }
+        let day = day_played(state, content);
+        let turn = super::calendar::Span::now(state, content);
+        let (sessions, votes) = super::calendar::law_making(state, content, turn);
+        let held = super::calendar::held_today(state, content, turn, day, &sessions);
         let mut campaigns = Vec::new();
         for r in &state.politics.elections.races {
             let at = r.seat.at();
@@ -173,6 +162,7 @@ impl Now {
             sessions,
             votes,
             campaigns,
+            held,
         }
     }
 }
@@ -364,12 +354,27 @@ fn resolve(
     }
 }
 
-fn holds(now: &Now, w: &Who<'_>, e: RoutineEvent, seed: u64) -> bool {
+fn holds(content: &ContentBundle, now: &Now, w: &Who<'_>, e: &RoutineEvent, seed: u64) -> bool {
+    let held = |id: &str| {
+        now.held
+            .iter()
+            .any(|h| h.town() == Some(w.town) && h.def(content).id == id)
+    };
     match e {
         RoutineEvent::Session => now.session(seed, w.at),
         RoutineEvent::Vote => now.votes.contains(&w.at),
         RoutineEvent::Campaign => now.campaigns.contains(&w.at),
-        RoutineEvent::MeetingNight => meeting_night(seed, w.town) == now.weekday,
+        // As the calendar holds it in a focus town (it may have given the
+        // evening to another event); elsewhere, the weekday.
+        RoutineEvent::MeetingNight => match now.held.iter().any(|h| h.town() == Some(w.town)) {
+            true => now.held.iter().any(|h| {
+                h.town() == Some(w.town)
+                    && h.def(content).cadence
+                        == mandate_content::calendar::CalendarCadence::MeetingNight
+            }),
+            false => meeting_night(seed, w.town) == now.weekday,
+        },
+        RoutineEvent::Calendar(id) => held(id),
     }
 }
 
@@ -388,8 +393,8 @@ fn place_by(
         if (!rule.parts.is_empty() && !rule.parts.contains(&now.part))
             || (!rule.days.is_empty() && !rule.days.contains(&now.weekday))
             || (!rule.seasons.is_empty() && !rule.seasons.contains(&now.season))
-            || !rule.events.iter().all(|e| holds(now, w, *e, seed))
-            || rule.unless.iter().any(|e| holds(now, w, *e, seed))
+            || !rule.events.iter().all(|e| holds(content, now, w, e, seed))
+            || rule.unless.iter().any(|e| holds(content, now, w, e, seed))
         {
             continue;
         }
@@ -470,6 +475,11 @@ pub fn locate(
             return Some(met);
         }
     }
+    // A calendar event held in their town now: its attendee rules first
+    // (the first that covers them, with its keyed chance).
+    if let Some(l) = attend(state, content, now, &w) {
+        return Some(l);
+    }
     let mut order: Vec<&RoutineDef> = Vec::new();
     if w.broker {
         order.extend(content.routines_for_role(RoutineRole::Broker));
@@ -493,6 +503,82 @@ pub fn locate(
         }
     }
     resolve(state, content, &state.politics, now, &w, "works").or_else(|| home_streets(state, &w))
+}
+
+/// The venue of a calendar event held now in someone's town, if one of its
+/// attendee rules covers them and its draw comes up.
+fn attend(state: &State, content: &ContentBundle, now: &Now, w: &Who<'_>) -> Option<Location> {
+    let mut roles: Vec<RoutineRole> = Vec::new();
+    if w.broker {
+        roles.push(RoutineRole::Broker);
+    }
+    if w.rival {
+        roles.push(RoutineRole::Rival);
+    }
+    if w.politician && w.post.is_none() {
+        roles.push(RoutineRole::Politician);
+    }
+    roles.push(RoutineRole::Anyone);
+    for h in now
+        .held
+        .iter()
+        .filter(|h| h.part == Some(now.part) && h.town() == Some(w.town))
+    {
+        let def = h.def(content);
+        let Some((i, a)) = def
+            .attendees
+            .iter()
+            .enumerate()
+            .find(|(_, a)| super::calendar::covers(a, w.word, w.occupation, &roles))
+        else {
+            continue;
+        };
+        if super::calendar::attends(state.meta.seed, w.id, now.day, def, i, a.chance) {
+            return Some(h.location());
+        }
+    }
+    None
+}
+
+/// The weekdays someone is a regular at a location in a part of the day
+/// (`BEING_THERE.md` §6.1): derived from their routines over four weeks
+/// from the turn's first day (no calendar events), a weekday counting when
+/// they are there on at least three of its four. Every day of the week
+/// listed means "most days".
+pub fn regular_days(
+    state: &State,
+    content: &ContentBundle,
+    id: CharacterId,
+    at: Location,
+    part: DayPart,
+) -> Vec<RoutineDay> {
+    let base = Now::at(state, content, part);
+    let mut hits = [0u8; 7];
+    for i in 0..28 {
+        let day = state.calendar.date.add_days(i);
+        let mut now = base.clone();
+        now.day = day;
+        now.weekday = RoutineDay::of(day);
+        now.season = Season::of(day);
+        now.held.clear();
+        if locate(state, content, &now, id) == Some(at) {
+            hits[day.weekday() as usize] += 1;
+        }
+    }
+    const DAYS: [RoutineDay; 7] = [
+        RoutineDay::Mon,
+        RoutineDay::Tue,
+        RoutineDay::Wed,
+        RoutineDay::Thu,
+        RoutineDay::Fri,
+        RoutineDay::Sat,
+        RoutineDay::Sun,
+    ];
+    DAYS.iter()
+        .zip(hits)
+        .filter(|(_, n)| *n >= 3)
+        .map(|(d, _)| *d)
+        .collect()
 }
 
 /// Where someone is right now (this turn, the player's part of the day).

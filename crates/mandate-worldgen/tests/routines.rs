@@ -95,17 +95,22 @@ fn placement_is_deterministic_and_varies_by_part_and_day() {
 }
 
 #[test]
-fn the_weekday_moves_on_each_turn() {
+fn the_weekday_is_the_day_played_and_comes_round() {
+    // One date per turn (DEC-114): routines use the day played, a working
+    // day by keyed draw when no occasion chooses it, so weekday rules
+    // ("the diner on Tuesdays and Thursdays") still come round.
     let c = base();
     let mut e = engine(&c, 22);
     let mut days = Vec::new();
-    for _ in 0..7 {
-        days.push(Now::of(e.state(), &c).weekday);
+    for _ in 0..20 {
+        let now = Now::of(e.state(), &c);
+        assert_eq!(now.day, e.state().calendar.day);
+        days.push(now.weekday);
         e.apply(Command::EndTurn).unwrap();
     }
     days.sort();
     days.dedup();
-    assert_eq!(days.len(), 7, "every weekday comes round: {days:?}");
+    assert!(days.len() >= 4, "weekdays come round: {days:?}");
 }
 
 #[test]

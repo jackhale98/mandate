@@ -32,6 +32,8 @@
 //! they are evaluated (DEC-018).
 
 pub mod ambient;
+pub mod calendar;
+pub mod familiar;
 pub mod goals;
 pub mod knows;
 pub mod routines;
@@ -232,6 +234,15 @@ pub struct Relationship {
     /// 0..1.
     pub trust: f32,
     pub bonds: Vec<Bond>,
+    /// Familiarity (DEC-114 §5): how well the holder knows the other's
+    /// face, built by presence (`characters.jsonc` `familiarity`). A deed,
+    /// kept for the player only and shown in words, never counted.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub familiar: u8,
+}
+
+fn is_zero(n: &u8) -> bool {
+    *n == 0
 }
 
 /// Favours owed: `debtor` owes `creditor` `count` favours over a subject.
@@ -671,6 +682,7 @@ fn edge_mut<'a>(
             opinion: first,
             trust,
             bonds: Vec::new(),
+            familiar: 0,
         })
 }
 

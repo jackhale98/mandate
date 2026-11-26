@@ -1,7 +1,10 @@
 // Daily routines (DEC-031 "Daily routines", DEC-013 day parts): where stored
 // characters are through the day. Types: `mandate-content/src/routines.rs`.
-// The engine derives placement from the state and the turn's day; nothing is
-// stored (`mandate-sim/src/characters/routines.rs`).
+// The engine derives placement from the state and the turn's day played (one
+// date per turn, DEC-114: the fortnight's main calendar event's date, else a
+// working day); nothing is stored (`mandate-sim/src/characters/routines.rs`).
+// While a calendar event is held in someone's town, in its part, its
+// `attendees` (calendar.jsonc) are tried before these routines.
 //
 // A routine is for one of:
 // - `post`: a role word from the constitution (a body's `member_key`, an
@@ -15,14 +18,14 @@
 // - `parts`: morning | afternoon | evening | late_night (the player's
 //   standard slots are the first three; with none left it is late night);
 //   lunch is the afternoon;
-// - `days`: weekdays of the turn's representative day (mon … sun; it moves
-//   on one day each turn);
+// - `days`: weekdays of the day played (mon … sun);
 // - `seasons`: winter | spring | summer | autumn;
 // - `events` (all) and `unless` (none): `session` (their jurisdiction's
 //   legislature sits: a law-making stage this turn, or its regular sitting
 //   day, one weekday per jurisdiction), `vote` (a vote stage), `campaign` (a race
 //   for one of its posts is running), `meeting_night` (the town's community
-//   meeting night, one weekday per town);
+//   meeting night, one weekday per town, as the calendar holds it), or a
+//   calendar event's id (`event.market_day`: held today in their town);
 // - `chance`: a keyed draw per person, day and part (default 1).
 // Then `at` picks by `weight` among the spots that exist in their town:
 // `works` (their post's workplace or their own place), `home_streets`,
@@ -180,8 +183,7 @@
     {
       "id": "routine.farmer", "occupation": "occupation.farmer",
       "rules": [
-        // Market day.
-        { "parts": ["morning"], "days": ["sat"], "at": [{ "to": "market" }] },
+        // Market day is the calendar's (calendar.jsonc `event.market_day`).
         { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
         { "parts": ["evening"], "chance": 0.3, "at": [{ "to": "diner" }] },
         { "at": [{ "to": "home_streets" }] },
@@ -268,7 +270,6 @@
     {
       "id": "routine.farmhand", "occupation": "occupation.farmhand",
       "rules": [
-        { "parts": ["morning"], "days": ["sat"], "chance": 0.5, "at": [{ "to": "market" }] },
         { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
         { "parts": ["evening"], "chance": 0.3, "at": [{ "to": "diner" }] },
         { "at": [{ "to": "home_streets" }] },

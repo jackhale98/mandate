@@ -512,11 +512,29 @@ pub fn last_seen(engine: &Engine, person: CharacterId) -> Option<SeenView> {
     Some(seen_view(st, "seen-last", s))
 }
 
-/// Where someone usually is, as far as the player has seen.
+/// Where someone usually is, as far as the player has seen: a place and
+/// part they were seen at twice. When their routine has them there on one
+/// or two weekdays only, those days too (`BEING_THERE.md` §6.1: "Usually at
+/// the diner on Tuesdays and Thursdays, in the afternoon"), derived from
+/// their routines (`seen-usually-on`, `seen-usually-on-2`).
 pub fn usually_seen(engine: &Engine, person: CharacterId) -> Option<SeenView> {
     let st = engine.state();
     let s = st.player.as_ref()?.knowledge.usually(person)?;
-    Some(seen_view(st, "seen-usually", s))
+    let days =
+        mandate_sim::characters::routines::regular_days(st, engine.content(), person, s.at, s.part);
+    let key = match days.len() {
+        1 => "seen-usually-on",
+        2 => "seen-usually-on-2",
+        _ => "seen-usually",
+    };
+    let mut v = seen_view(st, key, s);
+    if key != "seen-usually" {
+        for (i, d) in days.iter().enumerate() {
+            v.args
+                .insert(format!("day{}_key", i + 1), format!("weekdays-{}", d.key()));
+        }
+    }
+    Some(v)
 }
 
 /// A lead from a habit the player has seen: "Usually at the diner around

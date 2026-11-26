@@ -36,8 +36,10 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// sector's long average of jobs. v30: the impact estimate a law passed
 /// with, kept with it (DEC-111). v31: exchange scenes (X1, DEC-112): a
 /// scene under way and the scenes finished on an arc run, a story's source
-/// that is a scene, the community filter of an approval request.
-pub const SAVE_FORMAT_VERSION: u16 = 31;
+/// that is a scene, the community filter of an approval request. v32: the
+/// town calendar and familiarity (B1, DEC-114): the day played, the events
+/// the player was at this turn, familiarity on a relationship.
+pub const SAVE_FORMAT_VERSION: u16 = 32;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -261,6 +263,10 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Exchange scenes (X1, DEC-112): v30 → v31. Renumber only this key
         // if another bump merges first.
         (30, exchange_scenes),
+        // The calendar and familiarity (B1, DEC-114): the previous format to
+        // the next. Renumber only this key if another bump merges first (the
+        // step names no version).
+        (31, calendar_familiarity),
     ];
     let mut value = value;
     let mut v = from;
@@ -1067,6 +1073,14 @@ fn frozen_estimates(mut value: serde_json::Value) -> Result<serde_json::Value, S
 /// (it lapses, as a decision does whose situation dissolved), and the
 /// debate is not held for that campaign (an older run has no hall cast).
 /// The run itself carries on by its edges.
+/// The town calendar and familiarity (B1, DEC-114). The cheapest step:
+/// everyone starts a stranger (no familiarity: the field's default), no
+/// event attended this turn, and no day played kept, so the engine chooses
+/// this turn's day as it loads the state (`Engine::from_state`).
+fn calendar_familiarity(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    Ok(value)
+}
+
 fn exchange_scenes(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
     /// Decisions that were an arc's beat and are an exchange now.
     const RETIRED: [&str; 1] = ["dilemma.debate_challenge"];

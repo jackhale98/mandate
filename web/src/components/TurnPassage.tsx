@@ -10,7 +10,7 @@
 // it (`afterPassage`). The date is announced (a live region); focus stays
 // where it was.
 import { useEffect, useRef } from "react";
-import { formatDate } from "../i18n/format";
+import { formatDay } from "../i18n/format";
 import type { Translator } from "../i18n/fluent";
 import { useGame, type Passage } from "../state/gameStore";
 import { Loader } from "./Brand";
@@ -85,7 +85,7 @@ function PassageCard({ p, tr }: { p: Passage; tr: Translator }) {
   if (!p.to) {
     return (
       <>
-        <span className="turn-passage-date">{formatDate(tr, p.from)}</span>
+        <span className="turn-passage-date">{formatDay(tr, p.from, p.fromWeekday)}</span>
         <Loader compact decorative />
         <span className="visually-hidden">{tr.t("ui-passage-working")}</span>
       </>
@@ -93,10 +93,18 @@ function PassageCard({ p, tr }: { p: Passage; tr: Translator }) {
   }
   return (
     <>
-      <strong className="turn-passage-date" data-testid="turn-passage-date">
-        {formatDate(tr, p.to)}
-      </strong>
       <span className="turn-passage-span">{passageSpan(tr, p.days)}</span>
+      {/* What the fortnight held (DEC-114): the engine's lines, with their dates. */}
+      {p.fortnight.length > 0 && (
+        <ul className="turn-passage-fortnight small" aria-label={tr.t("ui-passage-fortnight")} data-testid="turn-passage-fortnight">
+          {p.fortnight.map((e) => (
+            <li key={e.id}>{tr.event(e.text_key, e.args)}</li>
+          ))}
+        </ul>
+      )}
+      <strong className="turn-passage-date" data-testid="turn-passage-date">
+        {formatDay(tr, p.to, p.toWeekday)}
+      </strong>
       <span className="muted small turn-passage-skip">{tr.t("ui-passage-skip")}</span>
     </>
   );

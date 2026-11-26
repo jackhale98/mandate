@@ -192,6 +192,7 @@ fn what_a_member_offers_depends_on_what_the_player_knows() {
                 opinion: -80.0,
                 trust: 0.2,
                 bonds: Vec::new(),
+                familiar: 0,
             },
         );
     });
@@ -217,6 +218,7 @@ fn shown_equals_rolled_for_every_argument() {
                         opinion: 80.0,
                         trust: 0.8,
                         bonds: vec![Bond::Ally],
+                        familiar: 0,
                     },
                 );
                 let d = st.calendar.date;
@@ -336,6 +338,7 @@ fn an_ally_brings_several_votes_at_once() {
                         opinion: 90.0,
                         trust: 0.9,
                         bonds: vec![Bond::Ally],
+                        familiar: 0,
                     },
                 );
             });

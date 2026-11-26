@@ -554,6 +554,7 @@ pub fn salience(kind: &EventKind) -> Salience {
     match kind {
         K::TurnEnded { .. }
         | K::YearBegan { .. }
+        | K::CalendarEvent { .. }
         | K::PollsPublished { .. }
         | K::PlayerDeed { .. }
         | K::DirectorIntervention { .. }
@@ -632,6 +633,7 @@ pub fn kind_key(kind: &EventKind) -> &'static str {
         K::HistoryBegan { .. } => "history_began",
         K::YearBegan { .. } => "year_began",
         K::TurnEnded { .. } => "turn_ended",
+        K::CalendarEvent { .. } => "calendar_event",
         K::GlobalRecessionBegan { .. } => "global_recession_began",
         K::GlobalRecoveryBegan => "global_recovery_began",
         K::CommodityShock { .. } => "commodity_shock",

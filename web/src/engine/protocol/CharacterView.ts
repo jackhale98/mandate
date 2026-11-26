@@ -44,6 +44,11 @@ opinion_band: string,
  */
 trust_band: string, 
 /**
+ * How well they know the player's face, in words (`familiar-*`,
+ * DEC-114 §5); none for a stranger. Never a count.
+ */
+familiar_key: string | null, 
+/**
  * Bonds they hold toward the player (`ally`, `rival`, `family`, …).
  */
 bonds: Array<string>, owes_you: number, you_owe: number, favours: Array<FavourView>, 

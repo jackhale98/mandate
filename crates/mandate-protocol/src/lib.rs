@@ -5,6 +5,7 @@
 pub mod act;
 pub mod arcs;
 pub mod asks;
+pub mod calendar;
 pub mod campaign;
 pub mod characters;
 #[cfg(feature = "dev-tools")]
@@ -31,6 +32,7 @@ pub mod why;
 pub use act::*;
 pub use arcs::*;
 pub use asks::*;
+pub use calendar::*;
 pub use campaign::*;
 pub use characters::*;
 pub use exchange::*;

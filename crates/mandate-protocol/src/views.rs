@@ -49,7 +49,15 @@ pub struct EventView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct OverviewView {
+    /// The turn's first day.
     pub date: DateView,
+    /// The day played (DEC-114, one date per turn): the bar shows it, with
+    /// its weekday (`weekday-<mon…sun>`), and people's routines follow it.
+    pub day: DateView,
+    pub weekday_key: String,
+    /// What the turn just played held (its calendar occasions, with their
+    /// dates): the turn's passage tells them.
+    pub passage: Vec<EventView>,
     pub turn: u32,
     pub turn_days: u32,
     pub seed: String,
@@ -323,6 +331,21 @@ fn arc_event(e: &DomainEvent, engine: &Engine) -> Option<(String, BTreeMap<Strin
     Some((key, args))
 }
 
+/// A day as Fluent arguments: `weekday_key`, `day`, `month_key`.
+pub fn day_args(d: mandate_core::SimDate) -> [(&'static str, String); 3] {
+    let c = d.calendar();
+    [
+        ("weekday_key", format!("weekday-{}", weekday(d))),
+        ("day", c.day.to_string()),
+        ("month_key", format!("month-{}", c.month)),
+    ]
+}
+
+/// A day's weekday as content writes it (`mon` ... `sun`).
+pub fn weekday(d: mandate_core::SimDate) -> &'static str {
+    mandate_content::routines::RoutineDay::of(d).key()
+}
+
 pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
     if let Some((text_key, args)) = arc_event(e, engine) {
         return EventView {
@@ -352,6 +375,31 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
         EventKind::TurnEnded { turn } => {
             put("turn", turn.to_string());
             "event-turn-ended"
+        }
+        // A calendar occasion (DEC-114), with its date and part.
+        EventKind::CalendarEvent {
+            municipality,
+            name_key,
+            on,
+            part,
+            attended,
+            missed,
+            ..
+        } => {
+            put("town", muni_name(engine, *municipality));
+            put("event_key", name_key.clone());
+            for (k, v) in day_args(*on) {
+                put(k, v);
+            }
+            if let Some(p) = part {
+                put("part_key", format!("day-part-{}", p.replace('_', "-")));
+            }
+            match (part.is_some(), attended, missed) {
+                (_, _, true) => "event-calendar-missed",
+                (true, true, _) => "event-calendar-attended",
+                (true, false, _) => "event-calendar-held",
+                (false, _, _) => "event-calendar-reported",
+            }
         }
         EventKind::GlobalRecessionBegan { depth_pct } => {
             put("depth", depth_pct.to_string());
@@ -844,7 +892,11 @@ pub fn overview(engine: &Engine) -> OverviewView {
         .map(|t| t.debt.units() as f64)
         .unwrap_or(0.0);
     let profile = s.narrative.profile(engine.content());
+    let (day, weekday_key) = crate::calendar::day_played(engine);
     OverviewView {
+        day,
+        weekday_key,
+        passage: crate::calendar::passage(engine),
         act: s.player.as_ref().map(|_| crate::act_status(engine)),
         storyteller: profile.map(|p| p.id.clone()).unwrap_or_default(),
         storyteller_name_key: profile.map(|p| p.name_key.clone()).unwrap_or_default(),

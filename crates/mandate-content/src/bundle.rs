@@ -131,6 +131,9 @@ pub struct ContentBundle {
     /// Daily routines (DEC-031), in load order.
     #[serde(default)]
     pub routines: Vec<crate::routines::RoutineDef>,
+    /// The town calendar (DEC-114), in load order.
+    #[serde(default)]
+    pub calendar: Vec<crate::calendar::CalendarEventDef>,
     /// Conversation topics (DEC-093), in load order.
     #[serde(default)]
     pub talk_topics: Vec<crate::conversation::TopicDef>,
@@ -472,6 +475,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut town_map_layers: Vec<crate::town_map_layers::TownMapLayerDef> = Vec::new();
     let mut interiors: Vec<crate::interiors::InteriorRecipe> = Vec::new();
     let mut routines: Vec<crate::routines::RoutineDef> = Vec::new();
+    let mut calendar: Vec<crate::calendar::CalendarEventDef> = Vec::new();
     let mut talk_topics: Vec<crate::conversation::TopicDef> = Vec::new();
     let mut talk_lines: Vec<crate::conversation::TalkLineDef> = Vec::new();
     let mut talk_voices: Vec<crate::conversation::VoiceDef> = Vec::new();
@@ -827,6 +831,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::Calendar { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        calendar.push(x);
+                    }
+                }
+            }
             ContentFile::TalkTopics { items } => {
                 for x in items {
                     if claim(&x.id, &mut issues) {
@@ -1128,6 +1139,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         town_map_layers,
         interiors,
         routines,
+        calendar,
         talk_topics,
         talk_lines,
         talk_voices,

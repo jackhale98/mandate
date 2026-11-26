@@ -16,7 +16,7 @@ describe("the night between turns", () => {
   });
 
   it("goes dusk → night → (the engine answers) → dawn → done, and only then opens what waited for it", () => {
-    useGame.setState({ passage: { phase: "dusk", from, to: null, days: 14, id: 1 } });
+    useGame.setState({ passage: { phase: "dusk", from, fromWeekday: "", to: null, toWeekday: "", fortnight: [], days: 14, id: 1 } });
     render(<TurnPassage />);
     expect(screen.getByTestId("turn-passage").dataset.phase).toBe("dusk");
     act(() => vi.advanceTimersByTime(PASSAGE_MS.dusk));
@@ -26,7 +26,7 @@ describe("the night between turns", () => {
     expect(useGame.getState().passage?.phase).toBe("night");
     expect(screen.queryByTestId("turn-passage-date")).toBeNull();
     // It answers, and an election night is due: it waits for the passage.
-    act(() => useGame.setState({ passage: { phase: "night", from, to, days: 14, id: 1 }, afterPassage: { electionNight: true } }));
+    act(() => useGame.setState({ passage: { phase: "night", from, fromWeekday: "", to, toWeekday: "", fortnight: [], days: 14, id: 1 }, afterPassage: { electionNight: true } }));
     expect(screen.getByTestId("turn-passage-date").textContent).toBe("15 January 2020");
     expect(screen.getByRole("status").textContent).toContain("2 weeks later");
     act(() => vi.advanceTimersByTime(0));
@@ -39,7 +39,7 @@ describe("the night between turns", () => {
   });
 
   it("lasts at least the night's length even when the engine answers at once", () => {
-    useGame.setState({ passage: { phase: "dusk", from, to, days: 7, id: 2 } });
+    useGame.setState({ passage: { phase: "dusk", from, fromWeekday: "", to, toWeekday: "", fortnight: [], days: 7, id: 2 } });
     render(<TurnPassage />);
     act(() => vi.advanceTimersByTime(PASSAGE_MS.dusk));
     expect(useGame.getState().passage?.phase).toBe("night");
@@ -50,12 +50,12 @@ describe("the night between turns", () => {
   });
 
   it("skips to the end on a tap or a key once the engine has answered, not before", () => {
-    useGame.setState({ passage: { phase: "night", from, to: null, days: 7, id: 3 } });
+    useGame.setState({ passage: { phase: "night", from, fromWeekday: "", to: null, toWeekday: "", fortnight: [], days: 7, id: 3 } });
     render(<TurnPassage />);
     fireEvent.click(screen.getByTestId("turn-passage"));
     fireEvent.keyDown(window, { key: "Enter" });
     expect(useGame.getState().passage).not.toBeNull();
-    act(() => useGame.setState({ passage: { phase: "night", from, to, days: 7, id: 3 } }));
+    act(() => useGame.setState({ passage: { phase: "night", from, fromWeekday: "", to, toWeekday: "", fortnight: [], days: 7, id: 3 } }));
     fireEvent.keyDown(window, { key: "Tab" });
     expect(useGame.getState().passage).not.toBeNull();
     fireEvent.keyDown(window, { key: " " });

@@ -810,6 +810,12 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             });
             (p != me && (talked || met)) == *is
         }
+        C::Familiar { slot, at_least, is } => {
+            let (Some(p), Some(me)) = (cx.person(slot), cx.me()) else {
+                return false;
+            };
+            p != me && (characters::familiar::band(pol, content, p, me) >= *at_least) == *is
+        }
         C::IsBroker { slot, is } => {
             let Some(p) = cx.person(slot) else {
                 return false;

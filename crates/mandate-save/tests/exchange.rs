@@ -1333,7 +1333,8 @@ fn an_older_save_with_the_challenge_waiting_loads_without_it() {
     };
     decisions.push(waiting("dilemma.debate_challenge"));
     decisions.push(waiting("dilemma.rival_offer"));
-    let out = migrate(SAVE_FORMAT_VERSION - 1, payload).unwrap();
+    // v30 is the format before `exchange_scenes` (a later bump adds steps after it).
+    let out = migrate(30, payload).unwrap();
     let after = out
         .pointer("/state/narrative/decisions")
         .unwrap()

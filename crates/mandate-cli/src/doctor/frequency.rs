@@ -174,6 +174,11 @@ pub(super) fn career(
                 }
             }
         }
+        // The town calendar's events of the turn (DEC-114), held or
+        // reported: an event no town of the careers holds is dead content.
+        for h in mandate_sim::characters::calendar::this_turn(st, content) {
+            seen.pick("calendar", &h.def(content).id);
+        }
         // This week's talk at every place where people talk.
         for p in explain::talk_places(st, content) {
             let loc = mandate_sim::places::Location::Place { place: p };
@@ -261,6 +266,9 @@ pub(super) fn all_items(b: &ContentBundle) -> Vec<(&'static str, String, String,
     }
     for v in &b.talk_voices {
         out.push(("voice", v.id.clone(), v.id.clone(), None));
+    }
+    for c in &b.calendar {
+        out.push(("calendar", c.id.clone(), c.id.clone(), None));
     }
     out
 }
@@ -461,6 +469,7 @@ pub(super) fn dynamic_checks(
         "topic",
         "line",
         "voice",
+        "calendar",
     ];
     order.iter().filter_map(|k| stats.get(k).cloned()).collect()
 }

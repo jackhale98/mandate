@@ -441,6 +441,11 @@ impl KnowledgeLedger {
         true
     }
 
+    /// Every sighting kept of someone, oldest first.
+    pub fn sightings(&self, person: CharacterId) -> &[Sighting] {
+        self.seen.get(&person).map(|v| v.as_slice()).unwrap_or(&[])
+    }
+
     /// Where the player last saw someone.
     pub fn last_seen(&self, person: CharacterId) -> Option<Sighting> {
         self.seen.get(&person).and_then(|v| v.last()).copied()
@@ -991,6 +996,24 @@ pub fn note_sightings(state: &mut State, content: &ContentBundle) -> usize {
         part: now.part,
         at,
     };
+    // Familiarity (DEC-114 §5): the first time this turn the player is
+    // where someone is, more at an event with time to talk.
+    let talk =
+        crate::characters::calendar::at_location(&now, at).is_some_and(|h| h.def(content).talk);
+    let first: Vec<CharacterId> = match state.player.as_ref() {
+        Some(pl) => here
+            .iter()
+            .copied()
+            .filter(|c| !pl.knowledge.sightings(*c).iter().any(|x| x.on == s.on))
+            .collect(),
+        None => return 0,
+    };
+    if let Some(me) = me {
+        for c in first {
+            crate::characters::familiar::met(&mut state.politics, content, c, me, talk);
+        }
+    }
+    crate::characters::calendar::note_presence(state, content);
     let Some(pl) = state.player.as_mut() else {
         return 0;
     };

@@ -152,6 +152,10 @@ pub enum ContentFile {
     Routines {
         items: Vec<crate::routines::RoutineDef>,
     },
+    /// The town calendar: recurring events attended by routine (DEC-114).
+    Calendar {
+        items: Vec<crate::calendar::CalendarEventDef>,
+    },
     /// Knowledge is earned (DEC-091): start profiles, the local option, the
     /// party primer, place introductions, and the effectiveness terms.
     Knowledge {

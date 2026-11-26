@@ -20,6 +20,7 @@ import type { StoryView } from "../engine/protocol/StoryView";
 import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { LocationView } from "../engine/protocol/LocationView";
 import type { DateView } from "../engine/protocol/DateView";
+import type { EventView } from "../engine/protocol/EventView";
 import type { QueryDto } from "../engine/protocol/QueryDto";
 import type { NotebookView } from "../engine/protocol/NotebookView";
 import type { PeopleView } from "../engine/protocol/PeopleView";
@@ -65,9 +66,14 @@ export const WALK_MS = 600;
 export interface Passage {
   /** dusk: the light going to night; night: the date card, waiting for the engine if need be; dawn: into the morning. */
   phase: "dusk" | "night" | "dawn";
+  /** The day played in the turn that ends (DEC-114), and its weekday key. */
   from: DateView;
-  /** The new turn's date, once the engine has answered. */
+  fromWeekday: string;
+  /** The new turn's day played, once the engine has answered. */
   to: DateView | null;
+  toWeekday: string;
+  /** What the fortnight held (the engine's `OverviewView.passage`): told on the card. */
+  fortnight: EventView[];
   /** Days the turn spans (`OverviewView.turn_days`). */
   days: number;
   /** Counts passages (a new one restarts the timeline). */
@@ -1058,7 +1064,7 @@ export const useGame = create<GameState>((set, get) => {
       set({
         busy: true,
         error: null,
-        passage: from ? { phase: "dusk", from: from.date, to: null, days: from.turn_days, id: ++passageCount } : null,
+        passage: from ? { phase: "dusk", from: from.day, fromWeekday: from.weekday_key, to: null, toWeekday: "", fortnight: [], days: from.turn_days, id: ++passageCount } : null,
       });
       noteCommand({ type: "end_turn" });
       try {
@@ -1073,8 +1079,8 @@ export const useGame = create<GameState>((set, get) => {
         // lives, on a ballot or not (play note 20).
         const night = lastDay !== null && lastDay !== before && (after?.results.length ?? 0) > 0;
         const p = get().passage;
-        const date = get().overview?.date ?? null;
-        if (p && date) set({ passage: { ...p, to: date }, afterPassage: { electionNight: night } });
+        const ov = get().overview;
+        if (p && ov) set({ passage: { ...p, to: ov.day, toWeekday: ov.weekday_key, fortnight: ov.passage }, afterPassage: { electionNight: night } });
         else if (night) set({ electionNight: true });
       } catch (e) {
         set({ error: errText(e), passage: null });

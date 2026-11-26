@@ -148,6 +148,7 @@ fn world() -> World {
                 opinion: 50.0,
                 trust: 0.8,
                 bonds: Vec::new(),
+                familiar: 0,
             },
         );
         pol.characters.favours.push(characters::Favour {
@@ -686,6 +687,17 @@ fn every_variant_evaluates_in_a_synthetic_state() {
         ),
         (
             parse(r#"{ "type": "met", "slot": "speaker" }"#),
+            At::Talk(None),
+            true,
+        ),
+        // A stranger: no familiarity on the edge (DEC-114 §5).
+        (
+            parse(r#"{ "type": "familiar", "slot": "speaker", "at_least": "face" }"#),
+            At::Talk(None),
+            false,
+        ),
+        (
+            parse(r#"{ "type": "familiar", "slot": "speaker", "is": false }"#),
             At::Talk(None),
             true,
         ),

@@ -103,6 +103,17 @@ pub fn verbs_at<'a>(
             }
         }
     }
+    // A calendar event held here now adds its verbs (DEC-114).
+    if !content.calendar.is_empty() {
+        let now = characters::routines::Now::of(state, content);
+        if let Some(h) = characters::calendar::at_location(&now, loc) {
+            for v in &h.def(content).verbs {
+                if !ids.contains(&v.as_str()) {
+                    ids.push(v);
+                }
+            }
+        }
+    }
     // The location's own kind's order first, then any fallback-hosted ones.
     let own: Vec<&str> = place_at(state, loc)
         .and_then(|p| kind_of(content, p))

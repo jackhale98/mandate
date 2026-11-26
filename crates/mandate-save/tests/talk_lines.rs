@@ -199,6 +199,7 @@ fn relate(e: &mut Engine, holder: CharacterId, opinion: f32, trust: f32) {
                 opinion,
                 trust,
                 bonds: Vec::new(),
+                familiar: 0,
             },
         );
     });
@@ -634,8 +635,10 @@ fn sample_exchanges() {
         }
         // A guarded councillor (cautious): friendly, but one level more discreet.
         // On a day the council sits, where the engine says its members are.
+        // The day played is chosen each turn (DEC-114), so a sitting can be
+        // some turns away.
         let at = mandate_sim::world::Jurisdiction::town(town(&e));
-        for _ in 0..8 {
+        for _ in 0..40 {
             let now = mandate_sim::characters::routines::Now::of(e.state(), e.content());
             if now.session(e.state().meta.seed, at) {
                 break;

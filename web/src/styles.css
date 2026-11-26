@@ -691,6 +691,10 @@ html:has(.game), html:has(.game) body { overflow: hidden; overscroll-behavior: n
   .pocket-btn { flex: 0 1 auto; flex-wrap: wrap; align-content: center; justify-content: center; gap: 2px 3px; padding: 2px 4px; min-width: 44px; max-width: 4.8rem; }
   .pocket-btn .badge { padding: 1px 4px; font-size: 0.68rem; }
 }
+/* The day played's weekday (DEC-114) gives way on the narrowest phones before the date would be cut. */
+@media (max-width: 340px) {
+  .gamebar-weekday { display: none; }
+}
 /* Skip link (DEC-051): hidden until focused, then the first thing on screen. */
 .skip-link {
   position: fixed; left: 8px; top: 8px; z-index: 11; padding: 10px 16px; border-radius: 10px;

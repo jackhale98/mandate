@@ -19,7 +19,7 @@ use crate::validate::{Issue, valid_key};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// A part of the representative day (DEC-013): the three standard slots and
+/// A part of the day played (DEC-013, DEC-114): the three standard slots and
 /// the late-night one. The engine reads it from the player's progress
 /// through the turn (`characters::routines::day_part`).
 #[derive(
@@ -124,11 +124,10 @@ impl Season {
     }
 }
 
-/// Something going on in the person's jurisdiction this turn.
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
-)]
-#[serde(rename_all = "snake_case")]
+/// Something going on in the person's jurisdiction this turn. Written as a
+/// word (`session`, `vote`, `campaign`, `meeting_night`) or a calendar
+/// event's id (`event.<name>`, DEC-114: held today in their town).
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RoutineEvent {
     /// The jurisdiction's legislature sits: a law-making stage (a vote, a
     /// signature) falls in this turn, or it is its regular sitting day (one
@@ -141,6 +140,65 @@ pub enum RoutineEvent {
     /// The town's community meeting night (one weekday per town, keyed by
     /// the world seed).
     MeetingNight,
+    /// A calendar event (`calendar.jsonc`) is held today in their town, in
+    /// any part of the day (DEC-114).
+    Calendar(ContentKey),
+}
+
+impl RoutineEvent {
+    /// As content writes it.
+    pub fn word(&self) -> &str {
+        match self {
+            RoutineEvent::Session => "session",
+            RoutineEvent::Vote => "vote",
+            RoutineEvent::Campaign => "campaign",
+            RoutineEvent::MeetingNight => "meeting_night",
+            RoutineEvent::Calendar(id) => id,
+        }
+    }
+
+    /// From a word or a calendar event's id.
+    pub fn parse(s: &str) -> Option<RoutineEvent> {
+        Some(match s {
+            "session" => RoutineEvent::Session,
+            "vote" => RoutineEvent::Vote,
+            "campaign" => RoutineEvent::Campaign,
+            "meeting_night" => RoutineEvent::MeetingNight,
+            id if id.starts_with("event.") => RoutineEvent::Calendar(id.into()),
+            _ => return None,
+        })
+    }
+}
+
+impl Serialize for RoutineEvent {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.word())
+    }
+}
+
+impl<'de> Deserialize<'de> for RoutineEvent {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        RoutineEvent::parse(&s).ok_or_else(|| {
+            serde::de::Error::custom(format!(
+                "`{s}` is not a routine event (session, vote, campaign, meeting_night or event.<name>)"
+            ))
+        })
+    }
+}
+
+impl JsonSchema for RoutineEvent {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "RoutineEvent".into()
+    }
+
+    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "description": "A routine event: `session`, `vote`, `campaign`, `meeting_night`, or a calendar event's id (`event.<name>`, held today in their town).",
+            "type": "string",
+            "pattern": "^(session|vote|campaign|meeting_night|event\\.[a-z0-9_.]+)$"
+        })
+    }
 }
 
 /// Special roles a routine can be for.
@@ -202,7 +260,7 @@ pub struct RoutineRule {
     /// Day parts it applies in (none listed: all).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parts: Vec<DayPart>,
-    /// Weekdays of the turn's representative day (none listed: all).
+    /// Weekdays of the day played this turn (none listed: all).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub days: Vec<RoutineDay>,
     /// Seasons (none listed: all).
@@ -303,6 +361,13 @@ pub fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             }
             if rule.events.iter().any(|e| rule.unless.contains(e)) {
                 err(format!("rule {i}: an event is both required and excluded"));
+            }
+            for e in rule.events.iter().chain(&rule.unless) {
+                if let RoutineEvent::Calendar(id) = e
+                    && b.calendar_event(id).is_none()
+                {
+                    err(format!("rule {i}: unknown calendar event `{id}`"));
+                }
             }
             for s in &rule.at {
                 if !(s.weight.is_finite() && s.weight > 0.0) {

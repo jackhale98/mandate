@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useGame } from "../state/gameStore";
-import { formatCount, formatDate } from "../i18n/format";
+import { formatCount, formatDate, formatDay } from "../i18n/format";
 import { MunicipalityPanel } from "../components/MunicipalityPanel";
 import { NationalEconomy } from "../components/NationalEconomy";
 import { ElectionNight } from "../components/CampaignCards";
@@ -209,9 +209,14 @@ export function Game() {
         </button>
         <div className="gamebar-date">
           <strong>
-            <span className="gamebar-date-full">{formatDate(tr, overview.date)}</span>
+            {/* The day played (DEC-114): the one date the turn has, with its weekday. */}
+            <span className="gamebar-date-full" data-testid="bar-day">
+              {formatDay(tr, overview.day, overview.weekday_key)}
+            </span>
             <span className="gamebar-date-short" aria-hidden="true">
-              {tr.t("ui-date-short", { day: overview.date.day, month: tr.t(`month-short-${overview.date.month}`) })}
+              {/* On the narrowest phones the weekday gives way before the date would be cut. */}
+              <span className="gamebar-weekday">{tr.t(overview.weekday_key.replace("weekday-", "weekday-short-"))} </span>
+              {tr.t("ui-date-short", { day: overview.day.day, month: tr.t(`month-short-${overview.day.month}`) })}
             </span>
           </strong>
           <span className="gamebar-sub muted">

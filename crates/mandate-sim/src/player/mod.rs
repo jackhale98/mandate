@@ -59,6 +59,10 @@ pub struct PlayerState {
     /// Ad buys this turn (the local market saturates).
     #[serde(default)]
     pub ads_this_turn: u8,
+    /// Calendar events the player was at this turn (DEC-114; ids, cleared
+    /// as the turn ends).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub at_events: Vec<String>,
     /// The last election whose result has been applied to the tracks.
     #[serde(default)]
     pub last_election_seen: Option<SimDate>,

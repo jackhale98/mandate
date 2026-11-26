@@ -319,6 +319,7 @@ fn the_whole_town_is_a_subject_of_its_own() {
                 opinion: 40.0,
                 trust: 0.6,
                 bonds: Vec::new(),
+                familiar: 0,
             },
         );
     });

@@ -5,7 +5,21 @@ import type { EventView } from "./EventView";
 import type { NationalView } from "./NationalView";
 import type { RegionView } from "./RegionView";
 
-export type OverviewView = { date: DateView, turn: number, turn_days: number, seed: string, content_hash: string, state_hash: string, total_population: number, regions: Array<RegionView>, recent_events: Array<EventView>, economy: NationalView, 
+export type OverviewView = { 
+/**
+ * The turn's first day.
+ */
+date: DateView, 
+/**
+ * The day played (DEC-114, one date per turn): the bar shows it, with
+ * its weekday (`weekday-<mon…sun>`), and people's routines follow it.
+ */
+day: DateView, weekday_key: string, 
+/**
+ * What the turn just played held (its calendar occasions, with their
+ * dates): the turn's passage tells them.
+ */
+passage: Array<EventView>, turn: number, turn_days: number, seed: string, content_hash: string, state_hash: string, total_population: number, regions: Array<RegionView>, recent_events: Array<EventView>, economy: NationalView, 
 /**
  * The run's storyteller profile (DEC-033): id and Fluent name key.
  */

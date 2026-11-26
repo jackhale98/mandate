@@ -51,11 +51,19 @@ pub enum GamePhase {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Calendar {
+    /// The turn's first day.
     pub date: SimDate,
     pub turn: u32,
     pub phase: GamePhase,
     pub act: u8,
     pub chapter: u32,
+    /// The day played this turn (DEC-114, one date per turn): chosen by the
+    /// engine as the turn begins (`characters::calendar::choose_day`) and
+    /// read by everything that names a day (the bar, people's routines, the
+    /// calendar's events). One outside the turn's span (a save from before
+    /// it, a lab advance) is chosen again when read.
+    #[serde(default)]
+    pub day: SimDate,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
