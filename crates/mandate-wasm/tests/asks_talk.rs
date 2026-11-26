@@ -377,6 +377,15 @@ fn a_cold_official_declines_and_the_ask_says_so() {
 
 /// The registry lists a hook's choices for the right person only, and the
 /// talk panel carries them with their arguments.
+/// The asks' choices offered with someone (other systems' choices, such as
+/// an agenda verb had with them (DEC-114, B5), are theirs).
+fn asks_offered(e: &Engine, person: CharacterId) -> Vec<hooks::Choice> {
+    hooks::offered(e.state(), e.content(), person)
+        .into_iter()
+        .filter(|c| c.id.starts_with("choice.ask."))
+        .collect()
+}
+
 #[test]
 fn hooks_list_choices_for_the_person_the_need_names() {
     let c = content();
@@ -393,14 +402,14 @@ fn hooks_list_choices_for_the_person_the_need_names() {
             .unwrap()
             .id
     };
-    assert!(hooks::offered(e.state(), e.content(), off).is_empty());
+    assert!(asks_offered(&e, off).is_empty());
     let id = introduction(&mut e, asker, off, 30);
-    let at_official = hooks::offered(e.state(), e.content(), off);
+    let at_official = asks_offered(&e, off);
     assert_eq!(at_official.len(), 1);
     assert_eq!(at_official[0].id, format!("choice.ask.{}", id.0));
     assert_eq!(at_official[0].replies.len(), 3);
-    assert!(hooks::offered(e.state(), e.content(), asker).is_empty());
-    assert!(hooks::offered(e.state(), e.content(), other).is_empty());
+    assert!(asks_offered(&e, asker).is_empty());
+    assert!(asks_offered(&e, other).is_empty());
     let (h, ch) = hooks::find(e.state(), e.content(), off, &at_official[0].id).unwrap();
     assert_eq!(h.owner, "ask");
     assert_eq!(ch, at_official[0]);
@@ -410,7 +419,7 @@ fn hooks_list_choices_for_the_person_the_need_names() {
             a.status = AskStatus::Offered;
         }
     });
-    assert!(hooks::offered(e.state(), e.content(), off).is_empty());
+    assert!(asks_offered(&e, off).is_empty());
     // An unknown choice is refused, and changes nothing.
     find(&mut e, off);
     let before = e.state().player.as_ref().unwrap().slots_used;

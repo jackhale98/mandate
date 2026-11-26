@@ -271,8 +271,13 @@ fn the_proxy_makes_no_promises_and_files_for_nothing() {
                         PlayerCommand::File { .. }
                             | PlayerCommand::Promise { .. }
                             | PlayerCommand::RespondAsk { .. }
-                            | PlayerCommand::Talk { .. }
                             | PlayerCommand::Meet { .. }
+                    ) && !matches!(
+                        // An agenda verb is had in conversation (DEC-114,
+                        // B5): the one action, not a talk of the proxy's own.
+                        inner(&cmd),
+                        PlayerCommand::Talk { topic, .. }
+                            if mandate_sim::actions::verbs::Verb::of_topic(topic).is_none()
                     ),
                     "the skip's stand-in sent {cmd:?}"
                 );
