@@ -76,6 +76,7 @@
         "level": "unknown",
         "stale": false
       },
+      "doors": 60,
       "id": 90,
       "in_ward": false,
       "is_home": false,
@@ -385,6 +386,7 @@
         "level": "unknown",
         "stale": false
       },
+      "doors": 60,
       "id": 91,
       "in_ward": false,
       "is_home": false,
@@ -454,6 +456,7 @@
         "level": "known",
         "stale": false
       },
+      "doors": 60,
       "id": 92,
       "in_ward": true,
       "is_home": true,
@@ -560,6 +563,7 @@
         "level": "unknown",
         "stale": false
       },
+      "doors": 60,
       "id": 93,
       "in_ward": false,
       "is_home": false,
@@ -599,6 +603,7 @@
         "level": "heard",
         "stale": false
       },
+      "doors": 60,
       "id": 94,
       "in_ward": false,
       "is_home": false,
@@ -736,6 +741,7 @@
         "level": "unknown",
         "stale": false
       },
+      "doors": 60,
       "id": 95,
       "in_ward": false,
       "is_home": false,
@@ -775,6 +781,7 @@
         "level": "unknown",
         "stale": false
       },
+      "doors": 60,
       "id": 96,
       "in_ward": false,
       "is_home": false,

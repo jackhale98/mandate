@@ -593,6 +593,8 @@ impl Engine {
     /// One turn: decisions falling due take their default, NPCs act, the
     /// calendar advances. Returns the days advanced.
     fn end_one_turn(&mut self) -> u32 {
+        // A canvass under way ends with the turn (DEC-114 §3.3).
+        crate::actions::close_street(&mut self.state, &self.content);
         let days = self.turn_days();
         // Decisions whose deadline falls in this turn take their
         // default: the player let them pass (DEC-077 §4).

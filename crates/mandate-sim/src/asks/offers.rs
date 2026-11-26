@@ -1,5 +1,8 @@
 //! Offers (ENGAGEMENT §3.2): the weekly draw at a sliding rate, and the
-//! doorstep and conversation asks that a canvass or a talk brings.
+//! doorstep and conversation asks that a canvass or a talk brings. A
+//! doorstep ask comes from a household the canvass knocked on (DEC-114
+//! §3.4), whose speaker the canvass promoted when its roll came up
+//! (`doorstep_due`), else from a resident of the neighbourhood.
 //!
 //! The week's chance of an offer is
 //! `min(1, new_per_month × 12 / 52 × intent_by_open(open) × intent_by_quiet(days since the last offer))`:
@@ -120,13 +123,7 @@ pub(crate) fn from_deeds(
             Deed::Talk { person, .. } => (AskFrom::Talk, Some(*person), None),
             _ => continue,
         };
-        let roll = mandate_core::rng::keyed(
-            r.meta.seed,
-            Stream::Asks,
-            &[super::KEY_DOORSTEP, *event as u64],
-        )
-        .next_f64();
-        if roll >= p.doorstep_chance {
+        if doorstep_roll(r.meta.seed, *event) >= p.doorstep_chance {
             continue;
         }
         let pol = r.politics();
@@ -138,7 +135,18 @@ pub(crate) fn from_deeds(
             }
             let people: Vec<CharacterId> = match (person, hood) {
                 (Some(x), _) => vec![x],
-                (None, Some(h)) => residents(&v, &t.asker, h),
+                // A household knocked on today first (DEC-114 §3.4: its
+                // speaker was promoted as the street finished), then the
+                // neighbourhood's residents.
+                (None, Some(h)) => {
+                    let mut v2 = speakers(r, h, d.on);
+                    for x in residents(&v, &t.asker, h) {
+                        if !v2.contains(&x) {
+                            v2.push(x);
+                        }
+                    }
+                    v2
+                }
                 _ => Vec::new(),
             };
             for x in people {
@@ -159,6 +167,41 @@ pub(crate) fn from_deeds(
             offer(a, r, out, c);
         }
     }
+}
+
+/// The doorstep roll of a deed (one a canvass or a talk, keyed by its
+/// event): below `doorstep_chance`, the deed brings an ask.
+pub fn doorstep_roll(seed: u64, event: u32) -> f64 {
+    mandate_core::rng::keyed(seed, Stream::Asks, &[super::KEY_DOORSTEP, event as u64]).next_f64()
+}
+
+/// Whether a canvass's deed will bring a doorstep ask, as [`from_deeds`]
+/// decides it (an active player with room for an ask, the roll): the
+/// canvass then promotes the speaker of a household it knocked on
+/// (`actions::ground`), whom `from_deeds` casts first.
+pub fn doorstep_due(
+    state: &crate::State,
+    content: &mandate_content::ContentBundle,
+    event: u32,
+) -> bool {
+    let p = &content.ask_params;
+    state.player.as_ref().is_some_and(|pl| pl.status.active())
+        && !content.asks.is_empty()
+        && state.asks.open_asks() < p.max_open as usize
+        && doorstep_roll(state.meta.seed, event) < p.doorstep_chance
+}
+
+/// The speakers of the households knocked on in `hood` on the canvass's
+/// day (promoted to Named residents), in the order of their records.
+fn speakers(r: &Reads<'_>, hood: NeighborhoodId, on: SimDate) -> Vec<CharacterId> {
+    r.politics()
+        .characters
+        .households
+        .records
+        .iter()
+        .filter(|x| x.hood == hood && x.on == on)
+        .filter_map(|x| x.speaker)
+        .collect()
 }
 
 /// Named people (not politicians) who could be the asker and live in `hood`.

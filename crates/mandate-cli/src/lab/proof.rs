@@ -273,24 +273,24 @@ fn digests(
 /// that merge.
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
     (2026, "idle", 96, "cebdae00cb41038a", "d8ba2cd3c0cda014"), // 2015 events
-    (2026, "mixed", 96, "cfb9dce597edbe8d", "20067451fc3cfb9c"), // 3754 events
+    (2026, "mixed", 96, "cca097e95504c57d", "cbf19fe78adb432b"), // 3761 events
     (7, "idle", 96, "d4a947cbd3bf85a5", "73409ebb60c39005"),    // 1764 events
-    (7, "corrupt", 96, "7f203baf60884965", "0648b865394dfc71"), // 3399 events
+    (7, "corrupt", 96, "64086494c31fd715", "b5782a6572469fae"), // 3382 events
     (31, "idle", 96, "ff24b41ef5734380", "4fa5efc271ed51fb"),   // 2058 events
     (
         31,
         "explorer_legislator",
         96,
         "caa789851a561f37",
-        "b2ccc94e074b7e0d",
+        "b48e993005c92925",
     ), // 4477 events
     (
         2026,
         "mixed+prison",
         96,
-        "830eb48d7360dfab",
-        "eecd77d4f2fc5ff3",
-    ), // 2775 events
+        "3ce0e46e81660a5d",
+        "a50e0233008004b0",
+    ), // 2787 events
     (
         2026,
         "idle+six_years",
@@ -371,24 +371,24 @@ fn the_spine_changes_no_outcome() {
 /// them.
 const BEFORE_ARCS: [(u64, &str, u32, &str, &str); 8] = [
     (2026, "idle", 96, "76722819bb111a6b", "285c5936a9f7208f"), // 1868 events
-    (2026, "mixed", 96, "0714f77bd3b78fc9", "bbde0e86146df7df"), // 3200 events
+    (2026, "mixed", 96, "03091f28dedf5880", "8ac3db7ceb8371c0"), // 2922 events
     (7, "idle", 96, "eb56537a698088fe", "025d2da0674bcfbe"),    // 1626 events
-    (7, "corrupt", 96, "12b4366c138b4189", "ad381849d47131c8"), // 3190 events
+    (7, "corrupt", 96, "a149976eb37f7ffe", "ae6c3e7f1bb1b1d3"), // 3165 events
     (31, "idle", 96, "f74f307f5a7a57c4", "f3bb8842fd47229c"),   // 1939 events
     (
         31,
         "explorer_legislator",
         96,
-        "10818f03d7c9a8ee",
-        "0c089a3b435a05fe",
-    ), // 4335 events
+        "a47a699963fa2008",
+        "5e61b888d42b6095",
+    ), // 4337 events
     (
         2026,
         "mixed+prison",
         96,
-        "9cdf8cebaa5f6013",
-        "9868659dc4fe5c88",
-    ), // 2521 events
+        "a66c1709d3a8cda6",
+        "f04b3dc000a49da3",
+    ), // 2520 events
     (
         2026,
         "idle+six_years",

@@ -374,6 +374,17 @@ impl Session {
                             format!("no scene {beat} in arc {arc}"),
                         )
                     }),
+                QueryDto::Door { neighborhood, door } => {
+                    let e = self.engine_mut()?;
+                    let d = u16::try_from(door).ok().and_then(|d| {
+                        mandate_protocol::doors::door_view(
+                            e,
+                            mandate_sim::world::NeighborhoodId(neighborhood),
+                            d,
+                        )
+                    });
+                    Ok(ResponseBody::Door(d))
+                }
                 QueryDto::Canvass { neighborhood } => {
                     canvass_view(self.engine_mut()?, neighborhood)
                         .map(ResponseBody::Canvass)
@@ -672,6 +683,16 @@ fn player_command(
                 } => Action::Canvass {
                     neighborhood,
                     issue,
+                },
+                ActionDto::Doorstep {
+                    neighborhood,
+                    door,
+                    choice,
+                } => Action::Doorstep {
+                    neighborhood,
+                    door: u16::try_from(door)
+                        .map_err(|_| err(ErrorCode::InvalidCommand, "no such door".to_string()))?,
+                    choice: choice.to_sim(),
                 },
                 ActionDto::Rest => Action::Rest,
                 ActionDto::Advertise => Action::Advertise,

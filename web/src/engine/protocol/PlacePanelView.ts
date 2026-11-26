@@ -10,6 +10,7 @@ import type { OverheardView } from "./OverheardView";
 import type { PersonRefView } from "./PersonRefView";
 import type { PlantView } from "./PlantView";
 import type { ProposalView } from "./ProposalView";
+import type { StreetDoorsView } from "./StreetDoorsView";
 import type { TownDataView } from "./TownDataView";
 import type { VerbOfferView } from "./VerbOfferView";
 
@@ -71,4 +72,9 @@ proposals_here: Array<ProposalView>,
  * lately repaired (DEC-114). (Always sent; optional in the generated
  * type, as `SpotView.now`.)
  */
-faults?: Array<FaultView>, };
+faults?: Array<FaultView>, 
+/**
+ * On a neighbourhood's streets in the player's town: its doors
+ * (DEC-114 §2), as rows and for the street's houses.
+ */
+doors?: StreetDoorsView, };

@@ -19,6 +19,589 @@
   ],
   "budget": null,
   "decisions_here": [],
+  "doors": {
+    "ask": "poster",
+    "blocked_key": "ui-doors-blocked-away",
+    "can_knock": false,
+    "canvass": null,
+    "doors": [
+      {
+        "door": 0,
+        "family": "Brackenley",
+        "knocked": false,
+        "last": null,
+        "number": 1,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 1,
+        "family": "Northson",
+        "knocked": false,
+        "last": null,
+        "number": 2,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 2,
+        "family": "Hale",
+        "knocked": false,
+        "last": null,
+        "number": 3,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 3,
+        "family": "Hale",
+        "knocked": false,
+        "last": null,
+        "number": 4,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 4,
+        "family": "Lindqvistwood",
+        "knocked": false,
+        "last": null,
+        "number": 5,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 5,
+        "family": "Achterwood",
+        "knocked": false,
+        "last": null,
+        "number": 6,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 6,
+        "family": "Ferranteby",
+        "knocked": false,
+        "last": null,
+        "number": 7,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 7,
+        "family": "Sedgeer",
+        "knocked": false,
+        "last": null,
+        "number": 8,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 8,
+        "family": "Ardenby",
+        "knocked": false,
+        "last": null,
+        "number": 9,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 9,
+        "family": "Whiter",
+        "knocked": false,
+        "last": null,
+        "number": 10,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 10,
+        "family": "Okafor",
+        "knocked": false,
+        "last": null,
+        "number": 11,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 11,
+        "family": "Rasku",
+        "knocked": false,
+        "last": null,
+        "number": 12,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 12,
+        "family": "Rook",
+        "knocked": false,
+        "last": null,
+        "number": 13,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 13,
+        "family": "Tamsin",
+        "knocked": false,
+        "last": null,
+        "number": 14,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 14,
+        "family": "Marsh",
+        "knocked": false,
+        "last": null,
+        "number": 15,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 15,
+        "family": "Orme",
+        "knocked": false,
+        "last": null,
+        "number": 16,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 16,
+        "family": "Kemp",
+        "knocked": false,
+        "last": null,
+        "number": 17,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 17,
+        "family": "Lark",
+        "knocked": false,
+        "last": null,
+        "number": 18,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 18,
+        "family": "Sallow",
+        "knocked": false,
+        "last": null,
+        "number": 19,
+        "poster": false,
+        "vacant": true
+      },
+      {
+        "door": 19,
+        "family": "Hart",
+        "knocked": false,
+        "last": null,
+        "number": 20,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 20,
+        "family": "Wexler",
+        "knocked": false,
+        "last": null,
+        "number": 21,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 21,
+        "family": "Kader",
+        "knocked": false,
+        "last": null,
+        "number": 22,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 22,
+        "family": "Fenn",
+        "knocked": false,
+        "last": null,
+        "number": 23,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 23,
+        "family": "Harrow",
+        "knocked": false,
+        "last": null,
+        "number": 24,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 24,
+        "family": "Bakr",
+        "knocked": false,
+        "last": null,
+        "number": 25,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 25,
+        "family": "Achter",
+        "knocked": false,
+        "last": null,
+        "number": 26,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 26,
+        "family": "Fairley",
+        "knocked": false,
+        "last": null,
+        "number": 27,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 27,
+        "family": "Janssen",
+        "knocked": false,
+        "last": null,
+        "number": 28,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 28,
+        "family": "Barrow",
+        "knocked": false,
+        "last": null,
+        "number": 29,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 29,
+        "family": "Mercerwood",
+        "knocked": false,
+        "last": null,
+        "number": 30,
+        "poster": false,
+        "vacant": true
+      },
+      {
+        "door": 30,
+        "family": "Rasku",
+        "knocked": false,
+        "last": null,
+        "number": 31,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 31,
+        "family": "Gold",
+        "knocked": false,
+        "last": null,
+        "number": 32,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 32,
+        "family": "Raskuwood",
+        "knocked": false,
+        "last": null,
+        "number": 33,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 33,
+        "family": "Galloway",
+        "knocked": false,
+        "last": null,
+        "number": 34,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 34,
+        "family": "Vane",
+        "knocked": false,
+        "last": null,
+        "number": 35,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 35,
+        "family": "Nash",
+        "knocked": false,
+        "last": null,
+        "number": 36,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 36,
+        "family": "Orme",
+        "knocked": false,
+        "last": null,
+        "number": 37,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 37,
+        "family": "Wade",
+        "knocked": false,
+        "last": null,
+        "number": 38,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 38,
+        "family": "Hale",
+        "knocked": false,
+        "last": null,
+        "number": 39,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 39,
+        "family": "Tallisley",
+        "knocked": false,
+        "last": null,
+        "number": 40,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 40,
+        "family": "Ironby",
+        "knocked": false,
+        "last": null,
+        "number": 41,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 41,
+        "family": "Yatesfield",
+        "knocked": false,
+        "last": null,
+        "number": 42,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 42,
+        "family": "Hollisson",
+        "knocked": false,
+        "last": null,
+        "number": 43,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 43,
+        "family": "Lowe",
+        "knocked": false,
+        "last": null,
+        "number": 44,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 44,
+        "family": "Farrow",
+        "knocked": false,
+        "last": null,
+        "number": 45,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 45,
+        "family": "Harrow",
+        "knocked": false,
+        "last": null,
+        "number": 46,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 46,
+        "family": "Pike",
+        "knocked": false,
+        "last": null,
+        "number": 47,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 47,
+        "family": "Calder",
+        "knocked": false,
+        "last": null,
+        "number": 48,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 48,
+        "family": "Lang",
+        "knocked": false,
+        "last": null,
+        "number": 49,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 49,
+        "family": "Whit",
+        "knocked": false,
+        "last": null,
+        "number": 50,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 50,
+        "family": "Reedwood",
+        "knocked": false,
+        "last": null,
+        "number": 51,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 51,
+        "family": "Talliswell",
+        "knocked": false,
+        "last": null,
+        "number": 52,
+        "poster": false,
+        "vacant": true
+      },
+      {
+        "door": 52,
+        "family": "Ever",
+        "knocked": false,
+        "last": null,
+        "number": 53,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 53,
+        "family": "Wester",
+        "knocked": false,
+        "last": null,
+        "number": 54,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 54,
+        "family": "Ardenwood",
+        "knocked": false,
+        "last": null,
+        "number": 55,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 55,
+        "family": "Wade",
+        "knocked": false,
+        "last": null,
+        "number": 56,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 56,
+        "family": "Kader",
+        "knocked": false,
+        "last": null,
+        "number": 57,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 57,
+        "family": "Quintwood",
+        "knocked": false,
+        "last": null,
+        "number": 58,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 58,
+        "family": "Barrow",
+        "knocked": false,
+        "last": null,
+        "number": 59,
+        "poster": false,
+        "vacant": false
+      },
+      {
+        "door": 59,
+        "family": "Blackson",
+        "knocked": false,
+        "last": null,
+        "number": 60,
+        "poster": false,
+        "vacant": false
+      }
+    ],
+    "neighborhood": 90,
+    "slots": 2,
+    "street_doors": 4,
+    "suggested": [
+      50,
+      51,
+      52,
+      53
+    ],
+    "worries": [
+      {
+        "fit": null,
+        "fit_band": null,
+        "id": "concern.recovery",
+        "name_key": "concern-recovery",
+        "source": "town",
+        "top": false
+      },
+      {
+        "fit": null,
+        "fit_band": null,
+        "id": "concern.taxes",
+        "name_key": "concern-taxes",
+        "source": "town",
+        "top": false
+      },
+      {
+        "fit": null,
+        "fit_band": null,
+        "id": "concern.housing",
+        "name_key": "concern-housing",
+        "source": "town",
+        "top": false
+      }
+    ]
+  },
   "faults": [
     {
       "args": {

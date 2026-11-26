@@ -156,7 +156,7 @@ function TownScreen({ town }: { town: TownPlacesView }) {
         </h1>
         {layout.status === "ready" ? (
           <Suspense fallback={<Pending label={tr.t("ui-town-street-loading")} />}>
-            <TownStreet town={town} map={layout.map} walkTo={walk} />
+            <TownStreet town={town} map={layout.map} plan={layout.plan} walkTo={walk} />
           </Suspense>
         ) : layout.status === "loading" ? (
           <Pending label={tr.t("ui-town-planning")} />

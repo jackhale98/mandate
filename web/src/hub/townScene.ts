@@ -47,6 +47,35 @@ const STEER_NUDGE = 1.05;
 
 export type SceneTarget = { kind: "building"; building: number; cell: number } | { kind: "ground"; cell: number };
 
+/** A house's door on the street (DEC-114 §2): its neighbourhood (engine id) and door slot. */
+export interface DoorSpot {
+  hood: number;
+  door: number;
+}
+
+/** The plot kinds people live in (as the dress pass reads them). */
+const HOUSES = new Set(["house", "terrace", "farmhouse", "cottage"]);
+
+/**
+ * The street's doors on its houses (DEC-114 §2): a neighbourhood's door slot k is its k-th standing house
+ * (built, boarded or derelict: a boarded house is a door with nobody home) by the plan's fill rank, the order
+ * the dress pass builds houses in, so door 7 is the same house every year. `fillRanks` is the plan's, by plot
+ * (= building) index; `slots` the engine's door slots by neighbourhood id. The player's own house has no door
+ * slot; slots past a neighbourhood's houses are only rows (quick mode).
+ */
+export function doorPlots(map: TownMap, fillRanks: readonly number[], slots: ReadonlyMap<number, number>): Map<number, DoorSpot> {
+  const out = new Map<number, DoorSpot>();
+  for (const d of map.districts) {
+    const n = slots.get(d.id) ?? 0;
+    if (n <= 0) continue;
+    const houses = map.buildings
+      .filter((b) => b.district === d.index && b.place === null && !b.landmark && !b.home && HOUSES.has(b.kind) && b.state !== "reserved" && b.state !== "construction")
+      .sort((a, b) => (fillRanks[a.index] ?? 0) - (fillRanks[b.index] ?? 0) || a.index - b.index);
+    houses.slice(0, n).forEach((b, k) => out.set(b.index, { hood: d.id, door: k }));
+  }
+  return out;
+}
+
 /** Someone standing in the street to walk up to and talk to (DEC-093): a key the owner knows them by, and a look. */
 export interface StandingPerson {
   key: string;
@@ -103,6 +132,8 @@ export class TownScene {
   }
   /** Dialogue mode (DEC-093): the townsfolk stand where they are until the conversation ends. */
   folkPaused = false;
+  /** The houses with a door to knock at, by building index (`doorPlots`). */
+  doors: ReadonlyMap<number, DoorSpot> = new Map();
   private reach: Uint8Array;
   private rng: Rng;
   private spots: number[] = [];
@@ -153,11 +184,11 @@ export class TownScene {
     return b ? b.index : null;
   }
 
-  /** The place (or home) whose door the player stands at, not walking a route: what Enter visits. */
+  /** The place (or home, or a house's door: `doors`) whose door the player stands at, not walking a route: what Enter visits. */
   get doorHere(): number | null {
     if (this.player.walk) return null;
     const c = this.playerCell;
-    const b = this.map.buildings.find((x) => x.front === c && (x.place !== null || x.home) && x.state !== "reserved");
+    const b = this.map.buildings.find((x) => x.front === c && (x.place !== null || x.home || this.doors.has(x.index)) && x.state !== "reserved");
     return b ? b.index : null;
   }
 

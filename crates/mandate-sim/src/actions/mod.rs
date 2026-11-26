@@ -69,6 +69,17 @@ pub enum Action {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         issue: Option<String>,
     },
+    /// A door on the street (DEC-114 §2, `BEING_THERE.md` §3.3): knock at a
+    /// door slot of the neighbourhood the player stands in and say one of
+    /// three things. The first knock starts a canvass and spends its time
+    /// (`action_costs.canvass`); a street is up to `households.street_doors`
+    /// doors, and the last finishes it (as `Canvass` on that neighbourhood
+    /// does sooner, or anything else the player does).
+    Doorstep {
+        neighborhood: u32,
+        door: u16,
+        choice: DoorChoice,
+    },
     Fundraise,
     Rest,
     /// Buy local advertising for the campaign (costs campaign funds).
@@ -102,7 +113,7 @@ impl Action {
             Action::TradeFavor { .. } => "trade_favor",
             Action::TownHall { .. } => "town_hall",
             Action::Press { .. } => "press",
-            Action::Canvass { .. } => "canvass",
+            Action::Canvass { .. } | Action::Doorstep { .. } => "canvass",
             Action::Fundraise => "fundraise",
             Action::Rest => "rest",
             Action::Advertise => "advertise",
@@ -246,6 +257,11 @@ pub fn apply(
     content: &ContentBundle,
     cmd: &PlayerCommand,
 ) -> Result<ActionResult, EngineError> {
+    // A canvass under way ends when the player does anything but go on
+    // with that street (DEC-114 §3.3): its formula applies then.
+    if !ground::goes_on_with_street(state, cmd) {
+        close_street(state, content);
+    }
     let res = apply_command(state, content, cmd)?;
     // What the command taught about open proposals (DEC-091 hooks).
     crate::policy::drafting::learn_from(state, content, cmd);

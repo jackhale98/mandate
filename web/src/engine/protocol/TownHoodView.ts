@@ -29,6 +29,12 @@ spots: Array<SpotView>,
  */
 top_concern_key: string | null, concern_knowledge: KnowledgeView, 
 /**
+ * Its door slots (DEC-114 §2): the street maps slot *k* to its *k*-th
+ * house by the plan's fill rank (`PlacePanelView.doors` lists them).
+ * (Always sent; optional in the generated type, as `faults`.)
+ */
+doors?: number, 
+/**
  * Knowledge in words (DEC-113): one sentence, only where not knowing
  * its worries, or knowing them from an old reading, bears on
  * something in hand (`crate::notebook`).

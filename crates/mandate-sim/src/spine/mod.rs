@@ -93,7 +93,7 @@ impl PlayerAct {
             Action::TradeFavor { .. } => PlayerAct::TradeFavor,
             Action::TownHall { .. } => PlayerAct::TownHall,
             Action::Press { .. } => PlayerAct::Press,
-            Action::Canvass { .. } => PlayerAct::Canvass,
+            Action::Canvass { .. } | Action::Doorstep { .. } => PlayerAct::Canvass,
             Action::Fundraise => PlayerAct::Fundraise,
             Action::Rest => PlayerAct::Rest,
             Action::Advertise => PlayerAct::Advertise,
