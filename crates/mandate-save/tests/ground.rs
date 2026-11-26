@@ -97,6 +97,8 @@ fn v20_saves_migrate_to_the_ground_game() {
         .as_object_mut()
         .unwrap()
         .remove("ground");
+    // Nor arcs (v27): a world that has raised one by now holds them.
+    v["state"].as_object_mut().unwrap().remove("arcs");
     let migrated = mandate_save::migrate(20, v.clone()).unwrap();
     assert_eq!(migrated, mandate_save::migrate(20, v).unwrap());
     let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();

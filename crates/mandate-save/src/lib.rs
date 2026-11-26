@@ -42,7 +42,9 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// and faults (B2, DEC-114): the upkeep domain, a fault an ask is about,
 /// fault events on the spine. (The arcs' infrastructure added a root a
 /// cause can name, `Pressure::Worry`, with no change to the state's shape.)
-pub const SAVE_FORMAT_VERSION: u16 = 33;
+/// v34: the short-time review (DEC-110, amended 2026-11-26): the
+/// `plant_reviewed` event.
+pub const SAVE_FORMAT_VERSION: u16 = 34;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -274,6 +276,10 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Renumber only this key if another bump merges first (the step
         // names no version).
         (32, upkeep_faults),
+        // The short-time review (DEC-110 amended): the previous format to
+        // the next. Renumber only this key if another bump merges first (the
+        // step names no version).
+        (33, plant_review),
     ];
     let mut value = value;
     let mut v = from;
@@ -1093,6 +1099,14 @@ fn calendar_familiarity(value: serde_json::Value) -> Result<serde_json::Value, S
 /// keeps the focus's condition from the next month on; no ask in it is
 /// about a fault.
 fn upkeep_faults(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    Ok(value)
+}
+
+/// The short-time review (DEC-110, amended 2026-11-26). Nothing to
+/// rewrite: an older save has no review event, and a plant on short time
+/// there is reviewed when its spell has run `review_months` from its
+/// `since` (a long spell at its next month).
+fn plant_review(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
     Ok(value)
 }
 
