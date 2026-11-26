@@ -18,6 +18,8 @@ interface PlanProbe {
   loads: { source: PlanSource; ms: number; planMs: number | null; key: string }[];
   /** The last dress pass, ms. */
   dress: { ms: number };
+  /** The town state the street is dressed for: its turn key and the faults it reports (B4: the cues come from these). */
+  state?: { key: string; faults: TownStateView["faults"] };
 }
 declare global {
   interface Window {
@@ -62,7 +64,11 @@ export function useTownLayout(town: TownPlacesView): TownLayout {
     if (stateFor === null || municipality === null) return;
     let live = true;
     townState(municipality)
-      .then((view) => live && setState({ key: stateFor, view }))
+      .then((view) => {
+        if (!live) return;
+        probe().state = { key: stateFor, faults: view.faults };
+        setState({ key: stateFor, view });
+      })
       .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       live = false;

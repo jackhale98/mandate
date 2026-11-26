@@ -92,13 +92,16 @@ interface SpotRule {
 /** The plan as the spot rules read it, worked out once per plan. */
 interface SpotPlan {
   plan: TownPlan;
-  /** Cells no cue may take: plot footprints and their doorsteps, blocked cells, street ends, connectors, other props. */
+  /** Cells no cue may take: plot footprints, the rows their roofs hide, their doorsteps, blocked cells, street ends, connectors, other props. */
   taken: Uint8Array;
   /** The plan's lamps by cell (prop index). */
   lamps: Map<number, number>;
   /** Pavement cells beside a road. */
   kerbside: Uint8Array;
 }
+
+/** Rows above a plot that its building can cover (the art draws up to three roof rows: `PixelkitArt.maxRoofRows`). */
+const ROOF_HIDES = 3;
 
 const CHEQUER = (c: number, W: number) => ((c % W) + Math.floor(c / W)) % 2;
 
@@ -111,7 +114,8 @@ function spotPlan(plan: TownPlan): SpotPlan {
     for (let yy = Math.max(0, y); yy < Math.min(H, y + h); yy++) for (let xx = Math.max(0, x); xx < Math.min(W, x + w); xx++) taken[yy * W + xx] = 1;
   };
   for (const p of plan.plots) {
-    mark(p.x, p.y, p.w, p.h + p.setback);
+    // The plot, its front garden, and the rows its roof can hide behind it (built or not: a plot may be built later).
+    mark(p.x, p.y - ROOF_HIDES, p.w, p.h + p.setback + ROOF_HIDES);
     if (p.front >= 0 && p.front < N) taken[p.front] = 1;
   }
   for (const e of plan.streetEnds) mark(e.x, e.y, e.w, e.h);
