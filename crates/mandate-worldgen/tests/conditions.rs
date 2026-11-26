@@ -1036,6 +1036,34 @@ fn every_variant_evaluates_in_a_synthetic_state() {
         assert!(!on(r#"{ "type": "arc_heat", "min": 0.6 }"#).0);
         assert!(on(r#"{ "type": "arc_days", "min": 10, "max": 10 }"#).0);
         assert!(!on(r#"{ "type": "arc_days", "min": 11 }"#).0);
+        // `arc_scene`: the scene the run played, by outcome and result
+        // (never, before one ends).
+        assert!(!on(r#"{ "type": "arc_scene" }"#).0);
+        let mut played = run.clone();
+        played
+            .played
+            .push(mandate_sim::arcs::exchange::ExchangePlayed {
+                beat: mandate_sim::arcs::BeatRef::new("meeting", "room"),
+                on: today,
+                outcome: mandate_content::exchange::Outcome::Split,
+                result: 0.042,
+                groups: Vec::new(),
+                rounds: Vec::new(),
+                event: mandate_sim::events::EventId(0),
+            });
+        let scene = |s: &str| held(&w3.e, s, Some(&played), None).0;
+        assert!(scene(r#"{ "type": "arc_scene" }"#));
+        assert!(scene(
+            r#"{ "type": "arc_scene", "beat": "meeting.room", "outcomes": ["won", "split"] }"#
+        ));
+        assert!(!scene(
+            r#"{ "type": "arc_scene", "outcomes": ["lost", "absent"] }"#
+        ));
+        assert!(!scene(r#"{ "type": "arc_scene", "beat": "other.room" }"#));
+        assert!(scene(
+            r#"{ "type": "arc_scene", "min_pm": 42, "max_pm": 42 }"#
+        ));
+        assert!(!scene(r#"{ "type": "arc_scene", "min_pm": 43 }"#));
         // Nobody is away and nothing is damaged now: all of what was
         // damaged as the run was raised is repaired.
         let (ok, a) = on(r#"{ "type": "displaced", "slot": "hood", "max": 0.0 }"#);
@@ -1050,6 +1078,7 @@ fn every_variant_evaluates_in_a_synthetic_state() {
         assert!(!on(r#"{ "type": "displaced", "slot": "nowhere" }"#).0);
         for s in [
             r#"{ "type": "arc_mark", "mark": "seen" }"#,
+            r#"{ "type": "arc_scene" }"#,
             r#"{ "type": "arc_heat", "min": 0.0 }"#,
             r#"{ "type": "arc_days", "min": 0 }"#,
             r#"{ "type": "displaced", "slot": "hood" }"#,
@@ -1104,6 +1133,7 @@ fn every_variant_evaluates_in_a_synthetic_state() {
         for k in [
             "arc",
             "arc_mark",
+            "arc_scene",
             "arc_heat",
             "arc_days",
             "displaced",
