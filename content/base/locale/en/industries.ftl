@@ -183,6 +183,11 @@ plant-why-home = People at home are buying less, and { $plant } sold most of its
 # The event log and the news of the town.
 event-plant-short-time = Short time at { $plant } in { $town }: { $jobs } jobs on reduced hours.
 event-plant-threatened = Closure notice at { $plant } in { $town }: { $jobs } jobs to go in { $month } { $year }.
+# The short-time review ($months on short time; $demand and $line in percent
+# of normal; $cut jobs shed when it goes back to full hours).
+event-plant-reviewed-notice = The review at { $plant } in { $town }: short time had run { $months } months, and demand was still under { $line }% of normal, at { $demand }%.
+event-plant-reviewed-full = The review at { $plant } in { $town }: short time had run { $months } months, and demand was back to { $demand }% of normal. Full hours again for its { $jobs } jobs.
+event-plant-reviewed-cut = The review at { $plant } in { $town }: short time had run { $months } months, and demand was still short at { $demand }% of normal. Full hours again, with { $cut } jobs fewer: { $jobs } stay.
 event-plant-reprieved = Closure notice lifted at { $plant } in { $town }. { $jobs } jobs stay.
 event-plant-closed = The gates shut at { $plant } in { $town }: { $jobs } jobs lost.
 event-plant-opened = A new { $works } opened in { $town } with { $jobs } jobs.
@@ -192,6 +197,9 @@ event-industry-surge = Orders rose across { $industry }: up { $change }%.
 
 headline-plant-short-time = Short time at { $plant }: { $jobs } on reduced hours
 headline-plant-threatened = { $town } to lose { $plant }: { $jobs } jobs to go by { $month }
+headline-plant-reviewed-notice = { $months } months of short time at { $plant }, and orders still short
+headline-plant-reviewed-full = Full hours again at { $plant } after { $months } months
+headline-plant-reviewed-cut = Full hours again at { $plant }, but { $cut } jobs go
 headline-plant-reprieved = Reprieve for { $plant }: { $jobs } jobs stay in { $town }
 headline-plant-closed = Gates shut at { $plant }: { $jobs } jobs gone in { $town }
 headline-plant-opened = New { $works } for { $town }: { $jobs } jobs

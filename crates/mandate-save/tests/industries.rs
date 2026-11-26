@@ -177,3 +177,70 @@ fn the_step_adds_empty_fields_and_leaves_what_is_there() {
     let kept = migrate(27, held).unwrap();
     assert_eq!(kept["state"]["economy"]["plant_ids"]["next"], 7);
 }
+
+/// The short-time review (DEC-110, amended 2026-11-26) survives a save: a
+/// plant a month short of its review, demand still under the review line,
+/// saved and loaded, then played on beside the game that was not: the same
+/// review, the same notice, the same state, month by month.
+#[test]
+fn a_review_in_progress_survives_a_save() {
+    use mandate_sim::economy::industries::add_months;
+    use mandate_sim::economy::plants::{self, PlantStatus};
+    use mandate_sim::events::EventKind;
+    let c = mandate_testkit::no_arcs();
+    let p = c.economy.industries.clone();
+    let mut e = mandate_testkit::world(&c, 1);
+    let st = e.state();
+    let plant = st
+        .economy
+        .plants
+        .iter()
+        .filter(|x| x.status == PlantStatus::Running)
+        .filter(|x| c.industry(&x.industry).is_some_and(|d| d.plants.closes))
+        .find(|x| {
+            st.economy.munis[x.municipality.index()]
+                .last_notice
+                .is_none()
+        })
+        .expect("a plant that can close, in a town with no notice")
+        .id;
+    let facts = plants::facts(&st.economy, &st.world, &c, plant).unwrap();
+    let date = st.calendar.date;
+    let cal = date.calendar();
+    let back = cal.year * 12 + (cal.month - 1) - (p.review_months as u32 - 1);
+    let since = mandate_core::SimDate::from_ymd(back / 12, back % 12 + 1, 1);
+    let level = (p.notice_line + p.review_line) / 2.0;
+    e.setup(|st| {
+        let pl = &mut st.economy.plants[plant.index()];
+        let base = facts.demand / (1.0 + pl.margin as f64 + pl.relief as f64);
+        pl.status = PlantStatus::ShortTime { since };
+        pl.relief = (level / base - 1.0 - pl.margin as f64) as f32;
+        pl.relief_months = 24;
+    });
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    let (loaded, _) = decode(&bytes).unwrap();
+    assert_eq!(loaded.hash(), e.state().hash());
+    let mut b = Engine::from_state(loaded, c.clone()).unwrap();
+    for _ in 0..6 {
+        for g in [&mut e, &mut b] {
+            let next = add_months(g.state().calendar.date, 1);
+            let days = g.state().calendar.date.days_until(next).max(1);
+            g.apply(Command::AdvanceDays { days }).unwrap();
+        }
+        assert_eq!(e.state_hash(), b.state_hash());
+    }
+    let reviewed = |g: &Engine| {
+        g.state()
+            .events
+            .iter()
+            .filter(
+                |ev| matches!(ev.kind, EventKind::PlantReviewed { plant: x, .. } if x == plant.0),
+            )
+            .count()
+    };
+    assert_eq!(reviewed(&e), 1, "the review came, once");
+    assert_eq!(reviewed(&b), 1);
+    // And a save taken after the review reads back whole.
+    let (bytes, _) = encode(b.state(), &req()).unwrap();
+    assert_eq!(decode(&bytes).unwrap().0.hash(), b.state().hash());
+}

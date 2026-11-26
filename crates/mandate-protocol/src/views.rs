@@ -2,6 +2,7 @@
 //! (OVERVIEW §4.5). Text is never prose: events carry Fluent keys and args.
 
 use mandate_sim::Engine;
+use mandate_sim::economy::plants::ReviewOutcome;
 use mandate_sim::events::{DomainEvent, EventKind};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -490,6 +491,34 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
                 put(k, v);
             }
             "event-plant-threatened"
+        }
+        EventKind::PlantReviewed {
+            municipality,
+            plant,
+            jobs,
+            months,
+            demand_pct,
+            line_pct,
+            outcome,
+            jobs_cut,
+            factor,
+            ..
+        } => {
+            put("town", muni_name(engine, *municipality));
+            put("jobs", jobs.to_string());
+            put("months", months.to_string());
+            put("demand", demand_pct.to_string());
+            put("line", line_pct.to_string());
+            put("cut", jobs_cut.to_string());
+            put("factor", factor.key().to_string());
+            for (k, v) in plant_args(engine, *plant) {
+                put(k, v);
+            }
+            match (outcome, *jobs_cut > 0) {
+                (ReviewOutcome::Notice, _) => "event-plant-reviewed-notice",
+                (ReviewOutcome::FullTime, true) => "event-plant-reviewed-cut",
+                (ReviewOutcome::FullTime, false) => "event-plant-reviewed-full",
+            }
         }
         EventKind::PlantReprieved {
             municipality,

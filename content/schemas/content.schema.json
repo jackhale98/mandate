@@ -8161,6 +8161,9 @@
             "pool_share": 0.5,
             "reprieve_line": 0.84,
             "reprieve_months": 2,
+            "review_cut": 0.1,
+            "review_line": 0.88,
+            "review_months": 12,
             "short_line": 0.9,
             "short_months": 2,
             "small_decay": 0.015,
@@ -12449,6 +12452,22 @@
           "minimum": 0,
           "type": "integer"
         },
+        "review_cut": {
+          "description": "The share of its capacity a plant sheds when a review puts it back\non full time while its demand is still under `full_line`: the jobs\nthat do not come back when orders do.",
+          "format": "double",
+          "type": "number"
+        },
+        "review_line": {
+          "format": "double",
+          "type": "number"
+        },
+        "review_months": {
+          "description": "Short time ends in a review after this many months (DEC-110,\namended 2026-11-26): demand still under `review_line` gives a\nnotice where the industry can close; else full time again.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
         "short_line": {
           "description": "A plant goes on short time when its margin-adjusted demand is under\nthis for `short_months` months running.",
           "format": "double",
@@ -12500,6 +12519,9 @@
         "notice_line",
         "notice_after_months",
         "notice_months",
+        "review_months",
+        "review_line",
+        "review_cut",
         "reprieve_line",
         "reprieve_months",
         "notice_gap_months",

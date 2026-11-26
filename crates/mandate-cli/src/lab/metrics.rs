@@ -439,6 +439,23 @@ fn town_of_event(k: &EventKind) -> Option<(String, Option<u32>, String)> {
             Some(*municipality),
             format!("{industry}:{jobs}:{}", factor.key()),
         ),
+        EventKind::PlantReviewed {
+            municipality,
+            industry,
+            jobs,
+            factor,
+            outcome,
+            jobs_cut,
+            ..
+        } => (
+            "plant_reviewed".into(),
+            Some(*municipality),
+            format!(
+                "{industry}:{jobs}:{}:{}:{jobs_cut}",
+                factor.key(),
+                outcome.key()
+            ),
+        ),
         EventKind::PlantReprieved {
             municipality,
             industry,

@@ -280,11 +280,22 @@ pub(super) fn validate_industries(b: &ContentBundle, issues: &mut Vec<Issue>) {
     if p.notice_months[0] == 0 || p.notice_months[0] > p.notice_months[1] {
         bad("notice_months must be [least, most], at least one month");
     }
+    if !(p.notice_line < p.review_line && p.review_line <= p.full_line) {
+        bad("review_line must satisfy notice_line < review_line <= full_line");
+    }
+    if p.review_months <= p.short_months as u16 {
+        bad("review_months must be more than short_months");
+    }
     if p.reprieve_months > p.notice_months[0] {
         bad("reprieve_months must fit inside the shortest notice");
     }
-    if !(unit(p.small_decay) && unit(p.max_town_share) && unit(p.min_share) && unit(p.boom_size)) {
-        bad("small_decay, max_town_share, min_share and boom_size must be in [0, 1]");
+    if !(unit(p.small_decay)
+        && unit(p.max_town_share)
+        && unit(p.min_share)
+        && unit(p.boom_size)
+        && unit(p.review_cut))
+    {
+        bad("small_decay, max_town_share, min_share, boom_size and review_cut must be in [0, 1]");
     }
     if !(p.factor_months >= 1.0 && p.trend_months >= 1.0) {
         bad("factor_months and trend_months must be at least 1");

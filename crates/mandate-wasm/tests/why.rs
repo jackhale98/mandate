@@ -535,6 +535,76 @@ fn why_through_the_protocol() {
     );
 }
 
+/// The short-time review (DEC-110, amended 2026-11-26) in the Why of the
+/// notice it gave: "short time had run 12 months, and demand was still
+/// under 88% of normal", and under it the weakest factor.
+#[test]
+fn a_notice_from_a_review_says_why_in_its_chain() {
+    use mandate_sim::economy::industries::add_months;
+    use mandate_sim::economy::plants::{self, PlantStatus};
+    let mut e = world(2026);
+    let c = content();
+    let p = c.economy.industries.clone();
+    let st = e.state();
+    let plant = st
+        .economy
+        .plants
+        .iter()
+        .filter(|x| x.status == PlantStatus::Running)
+        .filter(|x| c.industry(&x.industry).is_some_and(|d| d.plants.closes))
+        .find(|x| {
+            let m = x.municipality;
+            st.economy.munis[m.index()].last_notice.is_none()
+                && plants::of_town(&st.economy, m).all(|y| y.status == PlantStatus::Running)
+        })
+        .expect("a plant that can close")
+        .id;
+    let facts = plants::facts(&st.economy, &st.world, &c, plant).unwrap();
+    let cal = st.calendar.date.calendar();
+    let back = cal.year * 12 + (cal.month - 1) - (p.review_months as u32 - 1);
+    let since = mandate_core::SimDate::from_ymd(back / 12, back % 12 + 1, 1);
+    let level = (p.notice_line + p.review_line) / 2.0;
+    e.setup(|st| {
+        let pl = &mut st.economy.plants[plant.index()];
+        let base = facts.demand / (1.0 + pl.margin as f64 + pl.relief as f64);
+        pl.status = PlantStatus::ShortTime { since };
+        pl.relief = (level / base - 1.0 - pl.margin as f64) as f32;
+        pl.relief_months = 24;
+    });
+    for _ in 0..3 {
+        let next = add_months(e.state().calendar.date, 1);
+        let days = e.state().calendar.date.days_until(next).max(1);
+        e.apply(Command::AdvanceDays { days }).unwrap();
+    }
+    let notice = e
+        .state()
+        .events
+        .iter()
+        .find(|ev| matches!(ev.kind, EventKind::PlantThreatened { plant: x, .. } if x == plant.0))
+        .expect("the review served a notice")
+        .id;
+    let v = why_view(&e, notice.0, None).unwrap();
+    assert_eq!(v.chain[0].text_key, "event-plant-threatened");
+    let review = &v.chain[1];
+    assert_eq!(review.text_key, "event-plant-reviewed-notice");
+    assert_eq!(review.kind, "plant_reviewed");
+    assert_eq!(review.args.get("months").map(String::as_str), Some("12"));
+    assert_eq!(review.args.get("line").map(String::as_str), Some("88"));
+    assert!(review.args.contains_key("plant_key") && review.args.contains_key("demand"));
+    assert_eq!(
+        review.led_to.as_ref().map(|l| l.link),
+        Some(LinkDto::Caused)
+    );
+    assert!(
+        review
+            .causes
+            .iter()
+            .any(|c| matches!(c, CauseView::Pressure { .. })),
+        "the review names the weakest factor: {:?}",
+        review.causes
+    );
+}
+
 // --- A public result is public (DEC-108 §8) ------------------------------
 
 /// The public kinds, as a list: a kind joins it on purpose, with a test
