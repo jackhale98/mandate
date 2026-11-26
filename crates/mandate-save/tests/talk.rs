@@ -169,7 +169,11 @@ fn standard_template(c: &ContentBundle) -> String {
 #[test]
 fn every_topic_works() {
     let c = content();
-    let mut e = game(31, &c);
+    // A world where, by the lobbying below, the player owes the colleague
+    // fewer favours than `MAX_FAVOR_DEBT` (so "owe" is offered). 31 until
+    // the DEC-106 worries moved the world (it owed two by then); 32 to 41
+    // hold but for 33 and 37.
+    let mut e = game(32, &c);
     // A bill to talk about.
     let template = standard_template(&c);
     let r = e

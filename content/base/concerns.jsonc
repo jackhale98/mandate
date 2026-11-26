@@ -1,7 +1,7 @@
-// Voter concerns (DEC-078 decision 3): what worries a town, read from an
-// engine indicator each month, and which issues it makes voters weigh.
+// Voter concerns (DEC-078 decision 3): what worries a town, read from engine
+// indicators each month, and which issues it makes voters weigh.
 //
-//   level = clamp(baseline + slope × indicator, min, max)
+//   level = clamp(baseline + slope × indicator + Σ also's slope × indicator, min, max)
 //   salience of an attitude = politics.vote.salience_base + Σ level × |weight|,
 //   then scaled so the town's mean salience is 1 (the vote model's issue term
 //   weighs each attitude by it).
@@ -12,9 +12,17 @@
 // The sign of a weight is the side worried voters lean toward; it ranks
 // concerns by neighbourhood for display. Indicators: unemployment,
 // unemployment_rise, rent_burden, pollution, tax_burden, budget_stress,
-// service_shortfall, recent_disaster. The simulation has no crime yet, so there is no safety
+// service_shortfall, recent_disaster, job_loss, and the first batch of
+// DEC-106: cost_of_living, arrivals, young_leaving, old_age_share,
+// care_shortfall, upkeep_shortfall, street_wear, scandals, construction,
+// works_disruption (`mandate-content` `Indicator` says what each measures).
+// How neighbourhoods feel them: `opinion.local_concerns` (its `signals` for
+// the DEC-106 batch). The simulation has no crime yet, so there is no safety
 // concern. Registry order is load order. Levels are scaled so a typical town
-// sits around 0.2–0.5 and the worst few percent reach 0.7–1.
+// sits around 0.2–0.5 and the worst few percent reach 0.7–1. The DEC-106
+// numbers are first guesses (TUNING_QUEUE, rule 11); `mandate-cli audit
+// worries` gives each worry's share of the strongest and its signals'
+// spread.
 {
   "kind": "concerns",
   "items": [
@@ -41,7 +49,9 @@
     // Services delivered against need (audit fix 3): 0 at the start, about
     // ±0.05 as budgets follow revenue; a cut or crowded-out baseline raises
     // it, a services law lowers it. Debt is felt here too: its interest
-    // crowds out services (there is no separate debt worry).
+    // crowds out services (there is no separate debt worry). Since DEC-106
+    // it reads the lines other than Education and Infrastructure: schools
+    // and health care and the streets are worries of their own.
     { "id": "concern.services", "name_key": "concern-services", "talk_key": "talk-concern-services",
       "indicator": "service_shortfall",
       "attitudes": { "tax_tolerance": 0.5, "redistribution": 0.3, "law_and_order": 0.2 },
@@ -51,5 +61,54 @@
       "indicator": "recent_disaster",
       "attitudes": { "environment": 0.4, "tax_tolerance": 0.3, "law_and_order": 0.3 },
       "level": { "baseline": 0.0, "slope": 0.8, "min": 0.0, "max": 1.0 } },
+
+    // --- DEC-106, first batch: each driven by a simulated signal (DEC-095) ---------
+    // Prices against real wages: the share of its real value each class's
+    // income (wages, benefits, transfers) lost in a year, weighted by who
+    // feels prices most (an energy shock, wages lagging prices, or lost
+    // jobs raise it; a wage floor or a hardship fund lowers it for a year).
+    { "id": "concern.cost_of_living", "name_key": "concern-cost-of-living", "talk_key": "talk-concern-cost-of-living",
+      "indicator": "cost_of_living",
+      "attitudes": { "redistribution": 0.6, "tax_tolerance": -0.3, "reform_appetite": 0.2 },
+      "level": { "baseline": 0.33, "slope": 10.0, "min": 0.0, "max": 1.0 } },
+    // Newcomers and change: adults who moved in from other towns in a year,
+    // as a share of the town's adults.
+    { "id": "concern.newcomers", "name_key": "concern-newcomers", "talk_key": "talk-concern-newcomers",
+      "indicator": "arrivals",
+      "attitudes": { "tradition": 0.6, "localism": 0.5, "social_liberalism": -0.3 },
+      "level": { "baseline": -0.53, "slope": 30.0, "min": 0.0, "max": 1.0 } },
+    // Young people leaving and an ageing town: the net loss of 18–29s in a
+    // year, and the share of adults aged 65+ beyond the nation's.
+    { "id": "concern.young_leaving", "name_key": "concern-young-leaving", "talk_key": "talk-concern-young-leaving",
+      "indicator": "young_leaving",
+      "also": [ { "indicator": "old_age_share", "slope": 8.0 } ],
+      "attitudes": { "localism": 0.5, "reform_appetite": 0.3, "tradition": 0.2 },
+      "level": { "baseline": 0.35, "slope": 12.0, "min": 0.0, "max": 1.0 } },
+    // Schools and health care, split from services: the Education line and
+    // the region's Health line against need, felt by families and the old.
+    { "id": "concern.schools_health", "name_key": "concern-schools-health", "talk_key": "talk-concern-schools-health",
+      "indicator": "care_shortfall",
+      "attitudes": { "tax_tolerance": 0.5, "redistribution": 0.4 },
+      "level": { "baseline": 0.1, "slope": 10.0, "min": 0.0, "max": 1.0 } },
+    // Roads and upkeep: the Infrastructure line against need, and where
+    // upkeep keeps a condition, the streets' wear; open faults add to it
+    // (`faults.jsonc`, `worry_per_fault`).
+    { "id": "concern.upkeep", "name_key": "concern-upkeep", "talk_key": "talk-concern-upkeep",
+      "indicator": "upkeep_shortfall",
+      "also": [ { "indicator": "street_wear", "slope": 2.0 } ],
+      "attitudes": { "tax_tolerance": 0.4, "localism": 0.4, "law_and_order": 0.2 },
+      "level": { "baseline": 0.29, "slope": 4.0, "min": 0.0, "max": 1.0 } },
+    // Trust and corruption: the town's politicians' scandals and cases.
+    { "id": "concern.trust", "name_key": "concern-trust", "talk_key": "talk-concern-trust",
+      "indicator": "scandals",
+      "attitudes": { "reform_appetite": 0.8, "law_and_order": 0.3 },
+      "level": { "baseline": 0.0, "slope": 0.6, "min": 0.0, "max": 1.0 } },
+    // Development and character: homes going up against the stock (about
+    // 1.3% at the normal pace), and the works being built.
+    { "id": "concern.development", "name_key": "concern-development", "talk_key": "talk-concern-development",
+      "indicator": "construction",
+      "also": [ { "indicator": "works_disruption", "slope": 5.0 } ],
+      "attitudes": { "tradition": 0.5, "localism": 0.4, "environment": 0.3 },
+      "level": { "baseline": -0.17, "slope": 25.0, "min": 0.0, "max": 1.0 } },
   ],
 }

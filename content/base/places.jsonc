@@ -111,13 +111,13 @@
     {
       "id": "place.school", "key": "school", "name_key": "place-school",
       "verbs": ["verb.visit_service", "verb.talk_to_head"],
-      "sector": "sector.public", "addresses": ["concern.services"],
+      "sector": "sector.public", "addresses": ["concern.schools_health"],
       "layout": { "slot": "community", "footprint": [[6, 4], [7, 4]], "place": ["largest_residential", "quiet"], "landmark": false, "art": { "kit": "kit.school", "family": "civic" } },
     },
     {
       "id": "place.clinic", "key": "clinic", "name_key": "place-clinic",
       "verbs": ["verb.visit_service", "verb.talk_to_head"],
-      "sector": "sector.public", "addresses": ["concern.services"],
+      "sector": "sector.public", "addresses": ["concern.schools_health"],
       "layout": { "slot": "community", "footprint": [[4, 3], [5, 4]], "place": ["largest_residential", "arterial"], "landmark": false, "art": { "kit": "kit.clinic", "family": "civic" } },
     },
     {

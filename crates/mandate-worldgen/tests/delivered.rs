@@ -82,8 +82,20 @@ fn the_services_worry_reads_service_levels() {
     let r = Reads::of_state(st, &c);
     let mods =
         mandate_sim::policy::mods_for(&st.policy, &c, m as u32, &|i| st.finance.funded_share(i));
-    let gains: f64 = mods.services.iter().sum();
-    let budget = mandate_sim::concerns::budget_index(&r, Some(&st.population), m);
+    // Schools and health care read their own lines and laws (DEC-106).
+    let care = [
+        mandate_content::BudgetCategory::Education,
+        mandate_content::BudgetCategory::Health,
+    ]
+    .map(mandate_sim::policy::category_index);
+    let gains: f64 = mods
+        .services
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !care.contains(i))
+        .map(|(_, g)| g)
+        .sum();
+    let budget = mandate_sim::concerns::services_index(&r, Some(&st.population), m);
     assert!(gains > 0.05, "gains {gains}");
     assert!((shortfall(&e) - (1.0 - budget - gains)).abs() < 1e-9);
 }

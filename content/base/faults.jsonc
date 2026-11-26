@@ -5,7 +5,7 @@
 // Each month, in each neighbourhood of the player's focus:
 //   condition += maintain × min(the Infrastructure line / its need, maintain_cap) − decay
 // (the line's need is its share of the starting budget, indexed as the
-// services worry reads the budget); then each kind opens with the chance
+// worries read the budget); then each kind opens with the chance
 //   raise.chance × (raise.below − condition) / raise.below   (× raise.winter in Dec–Feb)
 // while the neighbourhood has fewer than `max_open` faults. A repair adds
 // `restore` to the condition. Each month `repair_share` of a line's month pays
@@ -37,35 +37,35 @@
         "spot": { "kind": "pavement", "slots": 6 },
         "raise": { "below": 0.7, "chance": 0.5, "winter": 1.5 },
         "pays": "infrastructure", "repair": { "cost": 800, "days": 5 }, "restore": 0.02,
-        "feeds": "concern.services",
+        "feeds": "concern.upkeep",
         "cue": { "open": "lamp_dark", "repairing": "lamp_van", "new": "lamp_new" },
         "text": "fault-streetlight-" },
       { "id": "fault.drain", "asset": "drain",
         "spot": { "kind": "kerb", "slots": 4 },
         "raise": { "below": 0.65, "chance": 0.35, "winter": 1.3 },
         "pays": "infrastructure", "repair": { "cost": 1200, "days": 7 }, "restore": 0.025,
-        "feeds": "concern.services",
+        "feeds": "concern.upkeep",
         "cue": { "open": "drain_flooded", "repairing": "drain_cones", "new": "drain_new" },
         "text": "fault-drain-" },
       { "id": "fault.pothole", "asset": "road",
         "spot": { "kind": "road", "slots": 5 },
         "raise": { "below": 0.6, "chance": 0.4, "winter": 1.4 },
         "pays": "infrastructure", "repair": { "cost": 1500, "days": 4 }, "restore": 0.03,
-        "feeds": "concern.services",
+        "feeds": "concern.upkeep",
         "cue": { "open": "pothole", "repairing": "road_cones", "new": "tarmac_new" },
         "text": "fault-pothole-" },
       { "id": "fault.shelter", "asset": "bus_shelter",
         "spot": { "kind": "stop", "slots": 2 },
         "raise": { "below": 0.5, "chance": 0.15 },
         "pays": "infrastructure", "repair": { "cost": 2500, "days": 10 }, "restore": 0.03,
-        "feeds": "concern.services",
+        "feeds": "concern.upkeep",
         "cue": { "open": "shelter_taped", "repairing": "shelter_van", "new": "shelter_new" },
         "text": "fault-shelter-" },
       { "id": "fault.swing", "asset": "play_area",
         "spot": { "kind": "green", "slots": 3 },
         "raise": { "below": 0.55, "chance": 0.2, "winter": 0.6 },
         "pays": "infrastructure", "repair": { "cost": 600, "days": 6 }, "restore": 0.015,
-        "feeds": "concern.services",
+        "feeds": "concern.upkeep",
         "cue": { "open": "swing_taped", "repairing": "swing_van", "new": "swing_new" },
         "text": "fault-swing-" },
     ],

@@ -9,7 +9,7 @@
   },
   "councillor_and_regular_at_a_place": {
     "seed": 16,
-    "needs": "a non-player councillor, and a regular whose own place is one in the town"
+    "needs": "a non-player councillor, and a regular whose own place is one in the town, there at the start"
   },
   "executive_post_open_to_file_for": {
     "seed": 1,
@@ -29,7 +29,7 @@
   },
   "fresh_colleague_and_bill_before_council": {
     "seed": 50,
-    "needs": "a council colleague with no edge to the player, and a bill before the council"
+    "needs": "a council colleague with no edge to the player, and a bill before the council they have not settled their vote on"
   },
   "introduction_ask_offered_early": {
     "seed": 61,
@@ -40,7 +40,7 @@
     "needs": "a small idle world where, within six turns, the overview lists a law passed or voted down and the town's paper a story, each with what led to it"
   },
   "law_lapses_in_first_skip": {
-    "seed": 30,
+    "seed": 33,
     "needs": "the first NextSession skip lists a lapsed law, with its policy named"
   },
   "notebook_talk_reply_has_an_outcome": {

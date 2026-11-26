@@ -63,17 +63,17 @@ fn engine(c: &Arc<ContentBundle>) -> mandate_sim::Engine {
 #[test]
 fn every_town_has_concern_levels_and_mean_one_salience() {
     let c = base();
-    assert_eq!(c.concerns.len(), 6);
+    assert_eq!(c.concerns.len(), 13);
     assert_eq!(c.concern_index("concern.jobs"), Some(0));
     let e = engine(&c);
     let pop = &e.state().population;
-    assert_eq!(pop.concern_keys.len(), 6);
+    assert_eq!(pop.concern_keys.len(), 13);
     assert_eq!(
         pop.town_concerns.len(),
         e.state().world.municipalities.len()
     );
     for t in &pop.town_concerns {
-        assert_eq!(t.levels.len(), 6);
+        assert_eq!(t.levels.len(), 13);
         assert_eq!(t.salience.len(), c.attitudes.len());
         let mean = t.salience.iter().map(|s| *s as f64).sum::<f64>() / t.salience.len() as f64;
         assert!((mean - 1.0).abs() < 1e-5, "mean salience {mean}");
@@ -98,7 +98,7 @@ fn every_town_has_concern_levels_and_mean_one_salience() {
             mandate_sim::concerns::Scope::town(mandate_sim::world::MunicipalityId(0)),
             by,
         );
-        assert_eq!(top.len(), 6);
+        assert_eq!(top.len(), 13);
         assert!(top.windows(2).all(|w| w[0].1 >= w[1].1));
     }
 }
@@ -147,8 +147,8 @@ fn high_unemployment_towns_weigh_jobs_issues_more() {
 fn an_expansion_concern_shifts_salience_toward_its_attitudes_where_its_indicator_is_high() {
     let base = base();
     let ext = with_heritage();
-    assert_eq!(ext.concerns.len(), 7);
-    assert_eq!(ext.concern_index("concern.heritage"), Some(6));
+    assert_eq!(ext.concerns.len(), 14);
+    assert_eq!(ext.concern_index("concern.heritage"), Some(13));
     let (a, b) = (engine(&base), engine(&ext));
     let tradition = ext.attitude_index("tradition").unwrap();
     let r = Reads::of_state(b.state(), b.content());
@@ -175,7 +175,7 @@ fn an_expansion_concern_shifts_salience_toward_its_attitudes_where_its_indicator
     let mut b = b;
     b.apply(Command::AdvanceDays { days: 365 }).unwrap();
     let levels = &b.state().population.town_concerns[0].levels;
-    assert_eq!(levels.len(), 7);
+    assert_eq!(levels.len(), 14);
 }
 
 #[test]

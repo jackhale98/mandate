@@ -310,6 +310,37 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
     ] {
         r(&format!("opinion.local_concerns.{name}"), v, 0.0, hi);
     }
+    let sg = &lc.signals;
+    for (name, v, hi) in [
+        ("scandal_days", f64::from(sg.scandal_days), 3650.0),
+        ("case_open", sg.case_open, 10.0),
+        ("case_convicted", sg.case_convicted, 10.0),
+        ("care_children", sg.care_children, 10.0),
+        ("care_seniors", sg.care_seniors, 10.0),
+    ] {
+        r(
+            &format!("opinion.local_concerns.signals.{name}"),
+            v,
+            0.0,
+            hi,
+        );
+    }
+    for (k, v) in sg.scandal_gravity.iter().enumerate() {
+        r(
+            &format!("opinion.local_concerns.signals.scandal_gravity.{k}"),
+            *v,
+            0.0,
+            10.0,
+        );
+    }
+    for (k, v) in sg.cost_of_living_class.iter().enumerate() {
+        r(
+            &format!("opinion.local_concerns.signals.cost_of_living_class.{k}"),
+            *v,
+            0.0,
+            10.0,
+        );
+    }
     for s in &lc.sector_kinds {
         for (k, v) in kinds(&s.kinds) {
             r(

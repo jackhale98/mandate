@@ -292,7 +292,28 @@ pub struct PopulationState {
     /// return (DEC-090 D8), by (from, to, cohort), ascending. They are
     /// counted where they stay.
     pub displaced: Vec<Displaced>,
+    /// Per municipality (world order): who moved in and out over about the
+    /// last year (DEC-106: the newcomers and young-people-leaving worries).
+    /// Empty until the first month's migration.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub flows: Vec<TownFlows>,
 }
+
+/// One town's moves over about the last year (DEC-106), internal
+/// migration only: each total loses a twelfth each month before the
+/// month's moves are added, so it settles at twelve months' worth.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct TownFlows {
+    /// Adults who moved in from other towns.
+    pub arrived: f32,
+    /// 18–29s who moved away to other towns.
+    pub young_left: f32,
+    /// 18–29s who moved in from other towns.
+    pub young_arrived: f32,
+}
+
+/// What a flow total keeps of itself each month (`TownFlows`).
+const FLOW_KEEP: f32 = 11.0 / 12.0;
 
 /// Adults of one cohort staying in another neighbourhood (or the next town)
 /// after a disaster damaged their homes.
@@ -686,6 +707,7 @@ pub fn init(
         hood_concerns: Vec::new(),
         hood_impact: Vec::new(),
         displaced: Vec::new(),
+        flows: Vec::new(),
     }
 }
 
@@ -1218,6 +1240,11 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let mut arr_pid = vec![vec![vec![0.0f64; np]; ncoh]; nm];
     let mut weights = vec![0.0f64; nm];
     let mut shares = vec![0u64; nm];
+    // This month's moves between towns (DEC-106): adults in, 18–29s out
+    // and in, by town.
+    let mut moved_in = vec![0u64; nm];
+    let mut young_out = vec![0u64; nm];
+    let mut young_in = vec![0u64; nm];
     for origin in 0..nm {
         if movers[origin].iter().all(|n| *n == 0) {
             continue;
@@ -1246,10 +1273,18 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 shares[origin] = total;
             }
             pop.moves_ytd += total;
+            let young = age_of(k) == 0;
             for m in 0..nm {
                 let share = shares[m];
                 if share == 0 {
                     continue;
+                }
+                if m != origin {
+                    moved_in[m] += share;
+                    if young {
+                        young_out[origin] += share;
+                        young_in[m] += share;
+                    }
                 }
                 let f = share as f64 / total as f64;
                 arr_n[m][k] += share;
@@ -1278,6 +1313,14 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 .collect();
             settle(pop, world, m, k, n, &att, &pid);
         }
+    }
+    if pop.flows.len() != nm {
+        pop.flows.resize(nm, TownFlows::default());
+    }
+    for (m, f) in pop.flows.iter_mut().enumerate() {
+        f.arrived = f.arrived * FLOW_KEEP + moved_in[m] as f32;
+        f.young_left = f.young_left * FLOW_KEEP + young_out[m] as f32;
+        f.young_arrived = f.young_arrived * FLOW_KEEP + young_in[m] as f32;
     }
     // Then those who lost their homes for a while find somewhere to stay.
     shelter(pop, world, &struck);

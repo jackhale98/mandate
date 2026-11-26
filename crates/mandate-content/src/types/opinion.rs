@@ -72,6 +72,46 @@ pub struct LocalConcernParams {
     /// the town's average, that adds to its unemployment rate (0: by income
     /// class alone).
     pub jobs_sector_tilt: f64,
+    /// How the first batch of new worries (DEC-106) read their signals.
+    #[serde(default)]
+    pub signals: WorrySignalParams,
+}
+
+/// How the signals of the first batch of new worries (DEC-106) are read:
+/// scandals and cases (trust), who feels prices (cost of living) and who
+/// uses schools and clinics (schools and health care).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WorrySignalParams {
+    /// Days a scandal or a conviction counts after it (fading to 0).
+    pub scandal_days: u32,
+    /// A scandal's weight by gravity: ethics, misconduct, crime.
+    pub scandal_gravity: [f64; 3],
+    /// Each open case (investigation, charges, a trial waiting).
+    pub case_open: f64,
+    /// Each conviction within `scandal_days` (fading).
+    pub case_convicted: f64,
+    /// How strongly each income class (low, middle, high) feels prices
+    /// against wages (the share of income that goes on essentials).
+    pub cost_of_living_class: [f64; 3],
+    /// Weight of a child and of a resident aged 65 and over, beside 1 for
+    /// every resident, in who relies on schools and clinics.
+    pub care_children: f64,
+    pub care_seniors: f64,
+}
+
+impl Default for WorrySignalParams {
+    fn default() -> Self {
+        WorrySignalParams {
+            scandal_days: 365,
+            scandal_gravity: [0.5, 1.0, 1.5],
+            case_open: 0.5,
+            case_convicted: 1.0,
+            cost_of_living_class: [1.0, 1.0, 1.0],
+            care_children: 0.0,
+            care_seniors: 0.0,
+        }
+    }
 }
 
 /// Extra share of one sector driver's workers by neighbourhood kind.

@@ -25,7 +25,7 @@
 //!
 //! The domain owns [`UpkeepState`] and writes nothing else. Moving a fault up
 //! is asked for by the asks' casework command as an effect request
-//! ([`crate::scheduler::Effect::Expedite`]). The services worry and the asks
+//! ([`crate::scheduler::Effect::Expedite`]). The roads-and-upkeep worry (DEC-106) and the asks
 //! read faults; the protocol shows them. Focus towns only (as the calendar):
 //! with no fault kinds in the content, or no player, the domain stays empty
 //! and the state hashes as it did before upkeep existed.

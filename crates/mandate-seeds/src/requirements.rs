@@ -42,7 +42,7 @@ pub const ALL: &[Requirement] = &[
     },
     Requirement {
         name: "councillor_and_regular_at_a_place",
-        needs: "a non-player councillor, and a regular whose own place is one in the town",
+        needs: "a non-player councillor, and a regular whose own place is one in the town, there at the start",
         holds: councillor_and_regular_at_a_place,
     },
     Requirement {
@@ -52,7 +52,7 @@ pub const ALL: &[Requirement] = &[
     },
     Requirement {
         name: "fresh_colleague_and_bill_before_council",
-        needs: "a council colleague with no edge to the player, and a bill before the council",
+        needs: "a council colleague with no edge to the player, and a bill before the council they have not settled their vote on",
         holds: fresh_colleague_and_bill_before_council,
     },
     Requirement {
@@ -260,11 +260,14 @@ fn councillor_and_regular_at_a_place(seed: u64) -> bool {
             .iter()
             .filter(|p| p.municipality == town(&e))
             .any(|p| {
-                characters::ambient::regulars_at(&st.politics, st, Location::Place { place: p.id })
+                let loc = Location::Place { place: p.id };
+                let here = characters::ambient::stored_at(st, e.content(), loc);
+                characters::ambient::regulars_at(&st.politics, st, loc)
                     .into_iter()
                     .any(|c| {
                         characters::profile(&st.politics, &st.world, c)
                             .is_some_and(|x| x.place == Some(p.id))
+                            && here.contains(&c)
                     })
             })
 }
@@ -311,20 +314,24 @@ fn fresh_colleague_and_bill_before_council(seed: u64) -> bool {
         return false;
     };
     let at = Jurisdiction::town(pl.municipality);
-    let colleague = mandate_sim::politics::body_members_at(&st.politics, at)
-        .into_iter()
-        .any(|id| {
-            id != pl.politician
-                && st
-                    .politics
-                    .characters
-                    .edge(st.politics.get(id).unwrap().character, me)
-                    .is_none()
-        });
-    colleague
-        && st.policy.instances.iter().any(|p| {
+    let members = mandate_sim::politics::body_members_at(&st.politics, at);
+    st.policy
+        .instances
+        .iter()
+        .filter(|p| {
             p.jurisdiction == pl.municipality.0
                 && p.status == mandate_sim::policy::PolicyStatus::UnderConsideration
+        })
+        .any(|p| {
+            members.iter().any(|id| {
+                *id != pl.politician
+                    && st
+                        .politics
+                        .characters
+                        .edge(st.politics.get(*id).unwrap().character, me)
+                        .is_none()
+                    && !mandate_sim::actions::lobbying::settled(st, *id, p.id.0)
+            })
         })
 }
 

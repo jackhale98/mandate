@@ -249,10 +249,7 @@ fn a_towns_levels_are_its_districts_weighted_by_residents() {
             let measured: Vec<f64> = c
                 .concerns
                 .iter()
-                .map(|d| {
-                    d.level
-                        .of(mandate_sim::concerns::indicator(&r, m, d.indicator))
-                })
+                .map(|d| d.level_from(|i| mandate_sim::concerns::indicator(&r, m, i)))
                 .collect();
             for (a, b) in measured.iter().zip(&t.measured) {
                 assert!((a - *b as f64).abs() < 1e-6);

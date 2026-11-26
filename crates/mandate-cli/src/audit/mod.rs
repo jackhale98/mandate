@@ -19,6 +19,7 @@ mod readability;
 mod sensitivity;
 mod stuck;
 mod twins;
+mod worries;
 
 use mandate_content::ContentBundle;
 use serde_json::{Value, json};
@@ -28,7 +29,8 @@ use std::sync::Arc;
 pub struct AuditArgs {
     /// policy | believe | sensitivity | diverge | leverage | stuck |
     /// readability | ledgers | twins | claims | estimate (the impact
-    /// estimate against twins) | gate (the nightly gate's cheap checks)
+    /// estimate against twins) | gate (the nightly gate's cheap checks) |
+    /// worries (each worry's share of the strongest)
     pub topic: String,
     /// Seeds per scenario (or per run set).
     #[arg(long, default_value_t = 8)]
@@ -117,6 +119,8 @@ pub fn run(content: Arc<ContentBundle>, args: AuditArgs) -> Result<Value, String
         // Estimate honesty (DEC-111): what a bill said against its twin.
         "estimate" => estimate::run(&cx)?,
         "gate" => gate(&cx)?,
+        // DEC-106: each worry's share of "strongest worry" (none dominates).
+        "worries" => worries::run(&cx)?,
         t => return Err(format!("unknown audit topic `{t}`")),
     };
     v["topic"] = json!(topic);

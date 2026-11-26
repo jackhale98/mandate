@@ -100,27 +100,35 @@ fn opinion_and_favours_live_on_relationship_edges() {
     let c = base();
     // A world with a fresh acquaintance (a council colleague who shares no
     // history with the player: no edge yet) and a bill before the council to
-    // trade a favour on. Burn-in bonds (a mentor, a rival, an election lost
+    // trade a favour on (one they have not settled their vote on). Burn-in bonds (a mentor, a rival, an election lost
     // to them) give some colleagues an edge, and which ones depends on the
     // history's elections, so the world is found by search
     // (tests/seeds.json, found again when the world changes).
     let fresh = |st: &mandate_sim::State, me: CharacterId| {
         let pl = st.player.as_ref().unwrap();
-        let colleague = council_members(st, pl.municipality.index())
-            .into_iter()
-            .find(|id| {
-                *id != pl.politician
-                    && st
-                        .politics
-                        .characters
-                        .edge(st.politics.get(*id).unwrap().character, me)
-                        .is_none()
-            })?;
-        let bill = st.policy.instances.iter().find(|p| {
-            p.jurisdiction == pl.municipality.0
-                && p.status == mandate_sim::policy::PolicyStatus::UnderConsideration
-        })?;
-        Some((colleague, bill.id.0))
+        let members = council_members(st, pl.municipality.index());
+        st.policy
+            .instances
+            .iter()
+            .filter(|p| {
+                p.jurisdiction == pl.municipality.0
+                    && p.status == mandate_sim::policy::PolicyStatus::UnderConsideration
+            })
+            .find_map(|p| {
+                members
+                    .iter()
+                    .copied()
+                    .find(|id| {
+                        *id != pl.politician
+                            && st
+                                .politics
+                                .characters
+                                .edge(st.politics.get(*id).unwrap().character, me)
+                                .is_none()
+                            && !mandate_sim::actions::lobbying::settled(st, *id, p.id.0)
+                    })
+                    .map(|c| (c, p.id.0))
+            })
     };
     let e = engine(
         &c,

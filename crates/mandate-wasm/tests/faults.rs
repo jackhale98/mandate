@@ -1,6 +1,7 @@
 //! Upkeep with faults, and casework on faults (task B2, DEC-114, "being
-//! there"): a budget cut shows as more open faults and a louder services
-//! worry (a twin run); "Sort it out" moves a fault up the repair queue, the
+//! there"): a budget cut shows as more open faults and a louder
+//! roads-and-upkeep worry (a twin run; DEC-106 moved faults from the
+//! services worry); "Sort it out" moves a fault up the repair queue, the
 //! fault it goes ahead of is put back, and "Why?" names it; a resident's
 //! ask is cast on a fault near their door and kept when it is fixed,
 //! whoever fixes it; the views say what is wrong and where; and with no
@@ -62,15 +63,15 @@ fn unrepaired(e: &Engine) -> usize {
         .count()
 }
 
-/// The services worry as the home town's residents feel it (mean over its
-/// neighbourhoods).
-fn services_felt(e: &Engine) -> f64 {
+/// The roads-and-upkeep worry as the home town's residents feel it (mean
+/// over its neighbourhoods).
+fn upkeep_felt(e: &Engine) -> f64 {
     let st = e.state();
     let i = st
         .population
         .concern_keys
         .iter()
-        .position(|k| k == "concern.services")
+        .position(|k| k == "concern.upkeep")
         .unwrap();
     let hs = hoods(e);
     hs.iter()
@@ -90,10 +91,10 @@ fn idle(e: &mut Engine, days: u32, each: &mut dyn FnMut(&Engine)) {
 
 /// The twin run (B2's first acceptance): the same world, once as it is and
 /// once with the town's Infrastructure line halved. Over two years the cut
-/// town has more faults waiting and its residents feel the services worry
-/// more; the world as it is keeps its streets in repair.
+/// town has more faults waiting and its residents feel the roads-and-upkeep
+/// worry more; the world as it is keeps its streets in repair.
 #[test]
-fn a_budget_cut_raises_open_faults_and_the_services_worry() {
+fn a_budget_cut_raises_open_faults_and_the_upkeep_worry() {
     let c = base();
     let (mut open, mut worry) = ([0usize; 2], [0.0f64; 2]);
     for seed in [2026u64, 7, 31] {
@@ -108,12 +109,12 @@ fn a_budget_cut_raises_open_faults_and_the_services_worry() {
         for (k, e) in [a, b].iter_mut().enumerate() {
             idle(e, 2 * 365, &mut |e| {
                 row[k].0 += unrepaired(e);
-                row[k].1 += services_felt(e);
+                row[k].1 += upkeep_felt(e);
                 row[k].2 += 1;
             });
         }
         println!(
-            "seed {seed}: faults waiting per turn {:.2} -> {:.2}; services worry {:.3} -> {:.3}",
+            "seed {seed}: faults waiting per turn {:.2} -> {:.2}; upkeep worry {:.3} -> {:.3}",
             row[0].0 as f64 / f64::from(row[0].2),
             row[1].0 as f64 / f64::from(row[1].2),
             row[0].1 / f64::from(row[0].2),
@@ -130,7 +131,7 @@ fn a_budget_cut_raises_open_faults_and_the_services_worry() {
     );
     assert!(
         worry[1] > worry[0],
-        "a cut makes the services worry louder: {worry:?}"
+        "a cut makes the upkeep worry louder: {worry:?}"
     );
 }
 
@@ -615,7 +616,7 @@ fn report() {
     }
 }
 
-/// The baseline queue over five years, and the services worry with and
+/// The baseline queue over five years, and the upkeep worry with and
 /// without faults (`--ignored --nocapture`).
 #[test]
 #[ignore]
@@ -644,8 +645,8 @@ fn report_trajectory() {
                 half * 6,
                 unrepaired(&e),
                 conds,
-                services_felt(&e),
-                services_felt(&n)
+                upkeep_felt(&e),
+                upkeep_felt(&n)
             ));
         }
         println!("seed {seed}:\n  {}", line.join("\n  "));

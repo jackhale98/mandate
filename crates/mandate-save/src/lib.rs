@@ -46,7 +46,9 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// fields only: the day the player stepped away, two Legacy entry kinds.)
 /// v35: the short-time review (DEC-110, amended 2026-11-26): the
 /// `plant_reviewed` event.
-pub const SAVE_FORMAT_VERSION: u16 = 35;
+/// v36: the first batch of new worries (DEC-106): each town's moves over
+/// the last year and each class's real income.
+pub const SAVE_FORMAT_VERSION: u16 = 36;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -286,6 +288,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // the next. Renumber only this key if another bump merges first (the
         // step names no version).
         (34, plant_review),
+        // The first batch of new worries (DEC-106): the previous format to
+        // the next (the step names no version).
+        (35, worry_signals),
     ];
     let mut value = value;
     let mut v = from;
@@ -1112,8 +1117,24 @@ fn upkeep_faults(value: serde_json::Value) -> Result<serde_json::Value, SaveErro
 /// state, an older save has no doorstep records and no canvass under way
 /// (the field's default), so every household starts as not yet met.
 fn doorsteps(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
-/// v35: the short-time review (DEC-110, amended 2026-11-26): the
-/// `plant_reviewed` event.
+    Ok(value)
+}
+
+/// The short-time review (DEC-110, amended 2026-11-26). Nothing to
+/// rewrite: an older save has no review event, and a plant on short time
+/// there is reviewed when its spell has run `review_months` from its
+/// `since` (a long spell at its next month).
+fn plant_review(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    Ok(value)
+}
+
+/// The first batch of new worries (DEC-106). Nothing to rewrite: the
+/// towns' moves (`population.flows`) start empty and fill from the next
+/// month, and the economy's real incomes (`MuniSnapshot::real_income`) read
+/// 0 in older snapshots, so the cost-of-living worry reads no change until
+/// a year of them is kept; the worries themselves are derived and
+/// recomputed on load for the new registry.
+fn worry_signals(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
     Ok(value)
 }
 

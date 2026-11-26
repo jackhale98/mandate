@@ -178,7 +178,9 @@ fn state_shape_matches_format_version() {
     // nobody), an action `doorstep`. Migration: `doorsteps` (no change).
     // (v34) -> v35: the short-time review (DEC-110 amended 2026-11-26): the
     // log gained the event `plant_reviewed`. Migration: `plant_review`.
-    const EXPECTED: (u16, &str) = (35, "ae811331e9aea01d");
+    // v35 -> v36: the first new worries (DEC-106): population flows and
+    // class real incomes. Migration: `worry_signals`.
+    const EXPECTED: (u16, &str) = (36, "ae811331e9aea01d");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -626,7 +628,7 @@ fn save_loads_into_content_that_adds_or_removes_a_concern() {
     }
     let (bytes, _) = encode(e.state(), &req()).unwrap();
     let (state, _) = decode(&bytes).unwrap();
-    assert_eq!(state.population.concern_keys.len(), 6);
+    assert_eq!(state.population.concern_keys.len(), 13);
     let base_src =
         read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
 
@@ -644,8 +646,8 @@ fn save_loads_into_content_that_adds_or_removes_a_concern() {
     let mut e2 = mandate_sim::Engine::from_state(state.clone(), more.clone()).unwrap();
     let pop = &e2.state().population;
     assert_eq!(pop.concern_keys[0], "concern.heritage");
-    assert_eq!(pop.concern_keys.len(), 7);
-    assert!(pop.town_concerns.iter().all(|t| t.levels.len() == 7));
+    assert_eq!(pop.concern_keys.len(), 14);
+    assert!(pop.town_concerns.iter().all(|t| t.levels.len() == 14));
     // The other domains are untouched.
     assert_eq!(e2.state().population.hoods, state.population.hoods);
     e2.apply(Command::EndTurn).unwrap();
