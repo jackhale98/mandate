@@ -130,13 +130,15 @@ pub fn present(state: &State, content: &ContentBundle) -> Vec<CharacterId> {
         .collect()
 }
 
-/// Whether the player can talk to this person now (they are here).
+/// Whether the player can talk to this person now (they are here, or they
+/// see the player where a verb had with them is done: DEC-114, B5).
 pub fn can_talk(state: &State, content: &ContentBundle, person: CharacterId) -> bool {
     let Some(pl) = state.player.as_ref() else {
         return false;
     };
     Some(person) != characters::player_character(state)
-        && characters::routines::whereabouts(state, content, person) == Some(pl.location)
+        && (characters::routines::whereabouts(state, content, person) == Some(pl.location)
+            || crate::actions::verbs::sees_player(state, content, person))
 }
 
 /// Whether talking late at night is possible here (where lobbying late is).

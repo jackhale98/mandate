@@ -291,6 +291,8 @@ fn the_risk_lines_are_shown() {
             .into_iter()
             .find(|x| x.id == id)
             .unwrap_or_else(|| panic!("{id} offered"));
+        // They see the player where it is done, whatever their day says.
+        assert!(mandate_sim::talk::can_talk(&st, &c, speaker), "{id}");
         let shown: Vec<&str> = choice.costs.iter().map(|(k, _)| k.as_str()).collect();
         for k in keys {
             assert!(shown.contains(k), "{id}: {k} in {shown:?}");

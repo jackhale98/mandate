@@ -180,33 +180,58 @@ pub fn action_of(id: &str) -> Option<(Action, bool)> {
 /// bribe), else the Named people of `actions.talks.<verb>.with` whose own
 /// place is in the player's home town.
 pub fn partners(state: &State, content: &ContentBundle, verb: Verb) -> Vec<CharacterId> {
-    let Some(pl) = state.player.as_ref() else {
-        return Vec::new();
-    };
-    let me = characters::player_character(state);
     if verb == Verb::Bribe {
         return briber(state).into_iter().collect();
     }
-    let Some(talk) = content.actions.talks.of(verb.key()) else {
-        return Vec::new();
-    };
-    let home = pl.home();
     state
         .politics
         .characters
         .people
         .iter()
-        .filter(|c| Some(c.id) != me && c.politician.is_none())
-        .filter(|c| {
-            c.named.as_deref().is_some_and(|n| {
+        .map(|c| c.id)
+        .filter(|c| is_partner(state, content, verb, *c))
+        .collect()
+}
+
+/// Whether the verb can be had with this person (see [`partners`]).
+pub fn is_partner(state: &State, content: &ContentBundle, verb: Verb, person: CharacterId) -> bool {
+    let Some(pl) = state.player.as_ref() else {
+        return false;
+    };
+    if Some(person) == characters::player_character(state) {
+        return false;
+    }
+    if verb == Verb::Bribe {
+        return briber(state) == Some(person);
+    }
+    let Some(talk) = content.actions.talks.of(verb.key()) else {
+        return false;
+    };
+    let home = pl.home();
+    state.politics.characters.get(person).is_some_and(|c| {
+        c.politician.is_none()
+            && c.named.as_deref().is_some_and(|n| {
                 talk.with.contains(&n.occupation)
                     && n.place
                         .and_then(|p| state.world.places.get(p.index()))
                         .is_some_and(|p| p.municipality == home)
             })
-        })
-        .map(|c| c.id)
-        .collect()
+    })
+}
+
+/// They see the player where the player is (DEC-114, B5): someone a verb
+/// is had with, where that verb is done (the editor at the news office, the
+/// one offering in the diner's back booth), whatever their day says.
+pub fn sees_player(state: &State, content: &ContentBundle, person: CharacterId) -> bool {
+    let Some(here) = state.player.as_ref().map(|p| p.location) else {
+        return false;
+    };
+    Verb::ALL.into_iter().any(|v| {
+        [false, true]
+            .into_iter()
+            .any(|late| places_for(state, content, v.key(), late).contains(&here))
+            && is_partner(state, content, v, person)
+    })
 }
 
 /// The one the verb is had with at a location: a partner whose day has
