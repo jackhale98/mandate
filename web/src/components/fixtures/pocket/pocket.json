@@ -1451,5 +1451,162 @@
     "viability": 60.30721664428711
   },
   "turn": 3,
-  "turn_days": 14
+  "turn_days": 14,
+  "verb_talks": [
+    {
+      "action": "press",
+      "here": false,
+      "late_night": false,
+      "person": {
+        "ambient_slot": null,
+        "can_talk": false,
+        "has_news": true,
+        "id": 1411,
+        "level": "known",
+        "name": "Mara Uedawood",
+        "role_key": "occupation-editor",
+        "rumoured": false,
+        "tier": "principal"
+      },
+      "to": {
+        "kind_key": "news_office",
+        "location": {
+          "place": 129,
+          "type": "place"
+        },
+        "name": "The Belenwick Post",
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
+      },
+      "topic": "choice.press.general"
+    },
+    {
+      "action": "fundraise",
+      "here": false,
+      "late_night": false,
+      "person": {
+        "ambient_slot": null,
+        "can_talk": false,
+        "has_news": true,
+        "id": 1404,
+        "level": "heard",
+        "name": "Liv Mercer",
+        "role_key": "occupation-party_chair",
+        "rumoured": false,
+        "tier": "principal"
+      },
+      "to": {
+        "kind_key": "party_office",
+        "location": {
+          "place": 122,
+          "type": "place"
+        },
+        "name": "",
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
+      },
+      "topic": "choice.fundraise.day"
+    },
+    {
+      "action": "fundraise",
+      "here": false,
+      "late_night": true,
+      "person": {
+        "ambient_slot": null,
+        "can_talk": false,
+        "has_news": true,
+        "id": 1404,
+        "level": "heard",
+        "name": "Liv Mercer",
+        "role_key": "occupation-party_chair",
+        "rumoured": false,
+        "tier": "principal"
+      },
+      "to": {
+        "kind_key": "party_office",
+        "location": {
+          "place": 122,
+          "type": "place"
+        },
+        "name": "",
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
+      },
+      "topic": "choice.fundraise.late"
+    },
+    {
+      "action": "take_bribe",
+      "here": false,
+      "late_night": true,
+      "person": {
+        "ambient_slot": null,
+        "can_talk": false,
+        "has_news": true,
+        "id": 1412,
+        "level": "detailed",
+        "name": "Dorian Nasher",
+        "role_key": "occupation-business_leader",
+        "rumoured": false,
+        "tier": "principal"
+      },
+      "to": {
+        "kind_key": "diner",
+        "location": {
+          "place": 123,
+          "type": "place"
+        },
+        "name": "Cora's",
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
+      },
+      "topic": "choice.bribe.take"
+    },
+    {
+      "action": "leak_file",
+      "here": false,
+      "late_night": false,
+      "person": {
+        "ambient_slot": null,
+        "can_talk": false,
+        "has_news": true,
+        "id": 1411,
+        "level": "known",
+        "name": "Mara Uedawood",
+        "role_key": "occupation-editor",
+        "rumoured": false,
+        "tier": "principal"
+      },
+      "to": {
+        "kind_key": "news_office",
+        "location": {
+          "place": 129,
+          "type": "place"
+        },
+        "name": "The Belenwick Post",
+        "neighborhood": 90,
+        "neighborhood_args": {
+          "centre_town": "Belenwick"
+        },
+        "neighborhood_key": "ui-hood-centre",
+        "neighborhood_name": "Belenwick"
+      },
+      "topic": "choice.leak.file"
+    }
+  ]
 }
