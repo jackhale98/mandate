@@ -94,6 +94,13 @@ pub fn weekly(n: &mut NarrativeState, r: &Reads<'_>, out: &mut Outs<'_>) {
     discovery(n, &v, out, profile.as_ref(), world < target);
     if !n.spotlight {
         n.tension = world as f32;
+        // The chapter's lead is chosen as with the spotlight on: it decides
+        // which run holds the chapter's one scene (DEC-112), an outcome.
+        // Its inputs (the runs, the chapter, the arcs' uses) are none of
+        // the spotlight's, so only what is shown differs.
+        if r.player.is_some_and(|p| p.status.active()) {
+            lead(n, &v, out, b);
+        }
         return;
     }
     // In prison, or the run is over (DEC-006): nothing is put to the player;
