@@ -15,7 +15,7 @@ DEC-114 decision 1 and the owner's answer 6; BEING_THERE §2 and §10.2's B5 row
 | The leak | a journalist or the editor | the news office | "Slip them <rival>'s file" | one slot, legal risk, the exposure line (misconduct) |
 
 - The agenda card, a place's action card and the diner's booth now name whom the verb is had with and where ("With Mara Yatesson, an editor, at The Mireenwick Chronicle") and offer **Talk to them**: the player goes there (free) and the talk panel opens at the verb's choice. No toast: the result is the exchange, its outcome line, and **Why?** under it (`ExchangeView.why_key`, the outcome's arguments).
-- They see the player where the verb is done (the choice is `remote`): someone whose day has them there is chosen first, else the first of them in town by id. In all 24 small worlds probed (seeds 1 to 24) every verb has someone and somewhere.
+- They see the player where the verb is done (`verbs::sees_player`; `talk::can_talk` holds for them there, so it is a whole conversation, greeting and other topics too, whatever their day says): someone whose day has them there is chosen first, else the first of them in town by id. In all 24 small worlds probed (seeds 1 to 24) every verb has someone and somewhere.
 - Replies are content (`actions.talks.<verb>.replies`, the first whose conditions hold): by role (an editor, the party chair) and by how the speaker sees the player.
 
 ## One effect
