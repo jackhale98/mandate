@@ -56,6 +56,8 @@
       "facts": [ { "type": "bill_costs", "slot": "creditor" } ],
       "sides": { "ally": "colleague", "opponent": "creditor" },
       "heat": { "start": 0.1 },
+      // The draft: the seat the player arrives in, and its line (A8).
+      "frame": { "pitch_key": "pitch-favour" },
       "stages": [
         // A favour is owed.
         { "id": "debt", "key": "arc-favour-debt",

@@ -474,6 +474,7 @@ fn why_through_the_protocol() {
             scenario: None,
             storyteller: None,
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     ) else {
         panic!("no game");

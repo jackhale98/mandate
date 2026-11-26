@@ -4,7 +4,9 @@
 use mandate_content::ContentBundle;
 use mandate_protocol::*;
 use mandate_save::runlog::{ReplayOutcome, replay};
-use mandate_save::{NewGameSetup, RunLog, RunMode, SaveRequest};
+use mandate_save::{DraftLog, NewGameSetup, RunLog, RunMode, SaveRequest};
+use mandate_sim::arcs::audition::{Audition, Draft};
+use mandate_sim::arcs::opening::{self, OpeningChoice};
 use mandate_sim::{Command, Engine};
 use mandate_worldgen::{WorldConfig, WorldSize, generate_with_progress, rebuild_terrain};
 use serde::{Deserialize, Serialize};
@@ -23,6 +25,15 @@ pub struct Session {
     /// The running game's run log (bug reports), without its commands:
     /// those are the engine's own log.
     log: Option<RunLog>,
+    /// The new game's opening draft (DEC-101 §3): under way one fork a
+    /// message, or made (once a game: a second query reads it).
+    draft: Option<DraftWork>,
+}
+
+/// The audition of a new game.
+enum DraftWork {
+    Running(Box<Audition>),
+    Done(Box<Draft>),
 }
 
 /// What the engine contributes to a bug report (`reportCore`): the versions,
@@ -113,6 +124,7 @@ impl Session {
             progress: None,
             layout: None,
             log: None,
+            draft: None,
         })
     }
 
@@ -184,6 +196,15 @@ impl Session {
                     scenario: p.scenario,
                     storyteller: p.storyteller,
                     local_knowledge: p.local_knowledge,
+                    recent_openings: p
+                        .recent_openings
+                        .iter()
+                        .rev()
+                        .take(3)
+                        .rev()
+                        .map(OpeningTagDto::opening)
+                        .collect(),
+                    opening: None,
                 };
                 let mut noop = |_: &str, _: f64| {};
                 let progress: &mut dyn FnMut(&str, f64) = match self.progress.as_mut() {
@@ -194,8 +215,10 @@ impl Session {
                 let view = overview(&engine);
                 self.log = Some(RunLog::start(setup, &engine));
                 self.engine = Some(engine);
+                self.draft = None;
                 Ok(ResponseBody::GameStarted(view))
             }
+            RequestBody::ChooseOpening { index } => self.choose_opening(index as usize),
             RequestBody::Command(c) => {
                 let command = match c {
                     CommandDto::EndTurn => Command::EndTurn,
@@ -363,9 +386,24 @@ impl Session {
                 QueryDto::People => people_view(self.engine_mut()?)
                     .map(ResponseBody::People)
                     .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
-                QueryDto::Draft { recent } => draft_view(self.engine_mut()?, &recent)
-                    .map(ResponseBody::Draft)
-                    .map_err(|e| err(ErrorCode::BadRequest, e)),
+                QueryDto::Draft => {
+                    while !self.draft_step()? {}
+                    self.draft_view().map(ResponseBody::Draft)
+                }
+                QueryDto::DraftStep => {
+                    if self.draft_step()? {
+                        self.draft_view().map(ResponseBody::Draft)
+                    } else {
+                        let (done, total) = match &self.draft {
+                            Some(DraftWork::Running(a)) => a.progress(),
+                            _ => (0, 0),
+                        };
+                        Ok(ResponseBody::DraftProgress(DraftProgressView {
+                            done: done as u32,
+                            total: total as u32,
+                        }))
+                    }
+                }
                 QueryDto::Arc { id } => arc_view(self.engine_mut()?, id)
                     .map(ResponseBody::Arc)
                     .ok_or_else(|| err(ErrorCode::BadRequest, format!("no arc {id}"))),
@@ -403,6 +441,108 @@ impl Session {
                     .map_err(|e| err(ErrorCode::BadRequest, e)),
             },
         }
+    }
+
+    /// The new game's setup, while its run can still begin on an opening:
+    /// no command applied, no opening taken.
+    fn fresh_setup(&self) -> Result<NewGameSetup, ProtocolError> {
+        let engine = self
+            .engine
+            .as_ref()
+            .ok_or_else(|| err(ErrorCode::NoGame, "no game is running"))?;
+        let setup = self
+            .log
+            .as_ref()
+            .and_then(|l| l.new_game.clone())
+            .ok_or_else(|| err(ErrorCode::BadRequest, "this game was not started here"))?;
+        if setup.opening.is_some()
+            || !engine.command_log().is_empty()
+            || engine.state().calendar.turn > 0
+        {
+            return Err(err(
+                ErrorCode::BadRequest,
+                "the opening is chosen before play begins",
+            ));
+        }
+        Ok(setup)
+    }
+
+    /// Move the draft on by one worker message: the scan (the first), then
+    /// one fork each. Returns whether the draft is made.
+    fn draft_step(&mut self) -> Result<bool, ProtocolError> {
+        match self.draft.take() {
+            Some(DraftWork::Done(d)) => {
+                self.draft = Some(DraftWork::Done(d));
+                Ok(true)
+            }
+            Some(DraftWork::Running(mut a)) => {
+                let more = a.step();
+                if let Some(f) = self.progress.as_mut() {
+                    let (done, total) = a.progress();
+                    f("progress-draft", done as f64 / total.max(1) as f64);
+                }
+                self.draft = Some(if more {
+                    DraftWork::Running(a)
+                } else {
+                    DraftWork::Done(Box::new(a.finish()))
+                });
+                Ok(!more)
+            }
+            None => {
+                let setup = self.fresh_setup()?;
+                let engine = self.engine_mut()?;
+                let params = draft_params(engine, &setup.recent_openings);
+                let content = engine.content_arc();
+                let a = Audition::begin(engine.state(), &content, params)
+                    .map_err(|e| err(ErrorCode::Internal, e))?;
+                self.draft = Some(DraftWork::Running(Box::new(a)));
+                Ok(false)
+            }
+        }
+    }
+
+    fn draft_view(&mut self) -> Result<DraftView, ProtocolError> {
+        let engine = self
+            .engine
+            .as_ref()
+            .ok_or_else(|| err(ErrorCode::NoGame, "no game is running"))?;
+        match &self.draft {
+            Some(DraftWork::Done(d)) => Ok(draft_view_of(engine, d)),
+            _ => Err(err(ErrorCode::Internal, "the draft is not made")),
+        }
+    }
+
+    /// Begin play on the draft's opening `index` (`RequestBody::ChooseOpening`).
+    fn choose_opening(&mut self, index: usize) -> Result<ResponseBody, ProtocolError> {
+        let mut setup = self.fresh_setup()?;
+        let (choice, scores) = match &self.draft {
+            Some(DraftWork::Done(d)) => {
+                let a = d.offered().nth(index).ok_or_else(|| {
+                    err(
+                        ErrorCode::BadRequest,
+                        format!("no opening {index} in the draft"),
+                    )
+                })?;
+                (
+                    OpeningChoice {
+                        months_ahead: d.months_ahead,
+                        town: a.candidate.town.0,
+                        template: a.candidate.template.clone(),
+                    },
+                    DraftLog::of(d, Some(index)),
+                )
+            }
+            _ => return Err(err(ErrorCode::BadRequest, "no draft has been made")),
+        };
+        let engine = self.engine_mut()?;
+        opening::open(engine, &choice).map_err(|e| err(ErrorCode::Internal, e))?;
+        setup.opening = Some(choice);
+        let mut log = RunLog::start(setup, engine);
+        log.draft = Some(scores);
+        let view = overview(engine);
+        self.log = Some(log);
+        self.draft = None;
+        Ok(ResponseBody::GameStarted(view))
     }
 
     /// Encode the running game as a save file.

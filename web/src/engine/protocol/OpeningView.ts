@@ -15,7 +15,9 @@ town_class: string,
  */
 template: string, title_key: string, 
 /**
- * The facts its `raise` gave in the town, for the line's arguments.
+ * The line's arguments: the facts its `raise` gave in the town, and
+ * the run's text arguments as play would begin (its cast by role,
+ * `place`, `town`, the dates, its facts).
  */
 args: { [key in string]: string }, 
 /**
@@ -28,6 +30,6 @@ live: boolean,
  */
 post: PostDto | null, 
 /**
- * The frame's pitch line (task A8); `None` until frames exist.
+ * The frame's line (`pitch-*`).
  */
 pitch_key: string | null, tag: OpeningTagDto, };

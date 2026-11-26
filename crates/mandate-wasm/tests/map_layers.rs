@@ -25,6 +25,7 @@ fn session(seed: u64, size: WorldSizeDto) -> Session {
             scenario: None,
             storyteller: None,
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     ));
     s

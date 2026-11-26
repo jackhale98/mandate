@@ -21,7 +21,7 @@ test("after a saved game the title screen lists it first, with the player's name
   await page.addInitScript(noShare);
   await page.goto("./");
   await expect(page.getByRole("heading", { name: "New career" })).toBeVisible();
-  // No saves: the new-career form is all there is (Begin is the primary action).
+  // No saves: the new-career form is all there is (the draft is its primary action; Begin starts at once).
   await expect(page.getByRole("heading", { name: "Your runs" })).toBeVisible();
   await expect(page.getByTestId("run-row")).toHaveCount(0);
   await page.getByPlaceholder("e.g. 20260").fill("5151");

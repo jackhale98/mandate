@@ -38,6 +38,8 @@
       "facts": [ { "type": "displaced", "slot": "hood" }, { "type": "recovered", "slot": "hood" } ],
       "sides": { "ally": "organiser", "opponent": "official" },
       "heat": { "start": 0.3, "floor": { "indicator": "recent_disaster", "scale": 0.4 } },
+      // The draft: the seat the player arrives in, and its line (A8).
+      "frame": { "post": { "seat_for": "hood" }, "pitch_key": "pitch-flood" },
       "answers": ["policy.rebuild_fund", "policy.flood_defenses", "policy.hardship_fund"],
       "stages": [
         // The first weeks: the hall, a second roof, and who pays.

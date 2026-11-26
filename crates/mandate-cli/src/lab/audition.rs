@@ -72,6 +72,7 @@ fn candidate(i: usize, a: &Auditioned, offered: Option<usize>) -> Value {
             audition::Situation::Holds => json!("holds"),
         },
         "args": c.args,
+        "arrival": { "run": a.arrival.run.map(|r| r.0), "first_beat": a.arrival.first_beat, "post": a.arrival.post.map(|p| format!("{p:?}")), "pitch_args": a.arrival.args },
         "opening": { "matter": c.opening.matter, "post": c.opening.post, "town_class": c.opening.town_class },
         "material": c.material,
         "second_pass": a.second_pass(),

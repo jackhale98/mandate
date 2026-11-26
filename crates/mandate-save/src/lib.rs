@@ -15,7 +15,7 @@ use mandate_core::hash::StableHash;
 use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
-pub use runlog::{NewGameSetup, RunLog};
+pub use runlog::{DraftEntry, DraftLog, NewGameSetup, RunLog};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
 /// v18: neighbourhood concerns (N1). v19: the run log beside the state (bug

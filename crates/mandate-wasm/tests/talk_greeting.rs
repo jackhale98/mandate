@@ -38,6 +38,7 @@ fn beside_a_member(s: &mut Session, seed: u64) -> u32 {
             scenario: None,
             storyteller: None,
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     );
     let e = s.engine().unwrap();

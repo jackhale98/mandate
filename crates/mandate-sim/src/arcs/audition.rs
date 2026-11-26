@@ -15,12 +15,17 @@
 //!    [`SCAN_STEP_DAYS`] with nobody playing and scanned again, up to
 //!    [`Params::scan_months`] times ([`Draft::months_ahead`] says how far:
 //!    the game the player then starts is that world).
+//!    A candidate is kept only if its frame, applied to the world as it
+//!    stands, gives a beat on offer on turn 1 (the first-beat guarantee,
+//!    `opening::first_beat`): its [`Auditioned::arrival`] is what the
+//!    player would find, read before any fork is played.
 //! 2. **Forks** ([`play`]). Each candidate is played on a copy of the
-//!    state under its own luck ([`luck`]: keyed on the world seed, the
-//!    town and the template, through `standin::reluck`, so a fork draws
-//!    from streams the real game never uses), with a [`Frame`] applied
-//!    first (A8's seam; today [`Seated`]: the player holds a seat in the
-//!    candidate's town from turn 1), for [`Params::horizon_weeks`].
+//!    state with its [`Frame`] applied first (the arc's frame,
+//!    [`Framed`]: the player arrives in the town's seat and the run is
+//!    raised on the first day, exactly as the real game will start), then
+//!    under its own luck ([`luck`]: keyed on the world seed, the town and
+//!    the template, through `standin::reluck`, so the fork draws from
+//!    streams the real game never uses), for [`Params::horizon_weeks`].
 //! 3. **Stand-ins** (`crate::standin`): passive, engaged, contrarian.
 //! 4. **Two passes.** Passive for all K; engaged and contrarian for the
 //!    best [`Params::second_pass`] by the first-pass product E × V × P.
@@ -31,7 +36,8 @@
 //!    ([`Params::enforce_floors`], off: report-only until the tuning pass,
 //!    `TUNING_QUEUE.md`).
 //! 6. **The draft** ([`Draft::openings`]): the best three by score among
-//!    the candidates that escalate in their passive fork ([`escalates`]),
+//!    the candidates that give a beat on turn 1 and escalate in their
+//!    passive fork ([`escalates`]),
 //!    no two of one template while enough templates qualify, one
 //!    non-material (a standing arc) if any qualifies and none is among the
 //!    three.
@@ -49,10 +55,12 @@
 //! Tier-generic (DEC-098): the entry post is the constitution's (the
 //! legislature of the first career act's tier), and a seat is a `Post`.
 
+use super::opening::{self, Arrival};
 use super::score::{
     self, Agency, Escalation, Opening, Pacing, Trace, Vector, Visibility, Watch, evp,
 };
 use crate::condition::{Args, Ctx};
+use crate::player::start::{Start, choose_seat};
 use crate::politics::{PoliticianId, Post, members_of};
 use crate::standin::{self, Career, Kind, Seat, Stepped};
 use crate::state::State;
@@ -223,40 +231,17 @@ fn entry_body(state: &State, content: &ContentBundle) -> Option<(String, TierKey
     Some((body.id.clone(), tier))
 }
 
-/// The seat a new player would take in a town, as today's start chooses
-/// one (worldgen's `seat_player`): the entry body's member of a major
-/// party who won by the thinnest margin, else the middle member.
+/// The seat a new player would take in a town by the start rule
+/// (`player::start`): the entry post's most marginal seat of a major
+/// party, else the middle one. A frame may name the district instead
+/// (`frame.post.seat_for`); the arrival says which it took.
 pub fn entry_seat(
     state: &State,
     content: &ContentBundle,
     town: MunicipalityId,
 ) -> Option<PoliticianId> {
-    let (body, _) = entry_body(state, content)?;
-    let pol = &state.politics;
-    let members = members_of(pol, &body, Jurisdiction::town(town));
-    let margin_of = |id: PoliticianId| -> f32 {
-        pol.elections
-            .results
-            .iter()
-            .rev()
-            .find(|r| r.winner == id)
-            .map(|r| {
-                let mut s: Vec<f32> = r.candidates.iter().map(|c| c.share).collect();
-                s.sort_by(|a, b| b.total_cmp(a));
-                s[0] - s.get(1).copied().unwrap_or(0.0)
-            })
-            .unwrap_or(0.5)
-    };
-    let major = |id: &PoliticianId| {
-        pol.get(*id)
-            .is_some_and(|p| p.party.is_some_and(|x| x.0 < 2))
-    };
-    members
-        .iter()
-        .copied()
-        .filter(major)
-        .min_by(|a, b| margin_of(*a).total_cmp(&margin_of(*b)))
-        .or_else(|| members.get(members.len() / 2).copied())
+    let start = Start::entry(state, content)?;
+    choose_seat(&state.world, &state.politics, &start, town, None)
 }
 
 /// The towns an opening may be in: those whose entry body has members,
@@ -285,7 +270,12 @@ pub fn scan(state: &State, content: &ContentBundle, recent: &[Opening]) -> Vec<C
             .and_then(|id| state.politics.get(id))
             .and_then(|p| p.role.post());
         for (index, def) in content.arcs.iter().enumerate() {
-            if !def.tiers.contains(&at.tier()) || !super::not_yet(def).is_empty() {
+            // An arc is an opening only with a frame (how the player
+            // arrives into it).
+            if def.frame.is_none()
+                || !def.tiers.contains(&at.tier())
+                || !super::not_yet(def).is_empty()
+            {
                 continue;
             }
             let live = state
@@ -375,116 +365,72 @@ fn by_prior(a: &Candidate, b: &Candidate) -> std::cmp::Ordering {
 
 /// The first `k` by the prior: no two in one town, at most two of one
 /// template.
-pub fn keep(mut all: Vec<Candidate>, k: usize) -> Vec<Candidate> {
+pub fn keep(all: Vec<Candidate>, k: usize) -> Vec<Candidate> {
+    keep_with(all, k, |_| Some(()))
+        .into_iter()
+        .map(|(c, _)| c)
+        .collect()
+}
+
+/// [`keep`], taking only the candidates `accept` gives something for (the
+/// arrival, when the frame gives a beat on turn 1), in the prior's order:
+/// it is asked of a candidate only when that one would be kept.
+pub fn keep_with<T>(
+    mut all: Vec<Candidate>,
+    k: usize,
+    mut accept: impl FnMut(&Candidate) -> Option<T>,
+) -> Vec<(Candidate, T)> {
     all.sort_by(by_prior);
-    let mut kept: Vec<Candidate> = Vec::new();
+    let mut kept: Vec<(Candidate, T)> = Vec::new();
     for c in all {
         if kept.len() >= k {
             break;
         }
-        let same_town = kept.iter().any(|x| x.town == c.town);
-        let same_template = kept.iter().filter(|x| x.template == c.template).count();
-        if !same_town && same_template < 2 {
-            kept.push(c);
+        let same_town = kept.iter().any(|x| x.0.town == c.town);
+        let same_template = kept.iter().filter(|x| x.0.template == c.template).count();
+        if !same_town
+            && same_template < 2
+            && let Some(t) = accept(&c)
+        {
+            kept.push((c, t));
         }
     }
     kept
 }
 
-/// What a candidate's opening does to a fork before play: A8's seam for
-/// the opening frames (the post, the clock, the ally and opponent, the
-/// hidden fact, the first beat). It writes only the fork.
+/// How the player arrives into a candidate's opening (DEC-101 §2): applied
+/// to a copy of the world before a fork is played, and by the real game
+/// to itself when the opening is chosen (`opening::open`), so a fork plays
+/// the game the player would start.
 pub trait Frame {
-    fn apply(
-        &self,
-        state: &mut State,
-        content: &ContentBundle,
-        c: &Candidate,
-    ) -> Result<(), String>;
+    fn apply(&self, engine: &mut Engine, c: &Candidate) -> Result<Arrival, String>;
 }
 
-/// Today's frame: the player holds the entry seat in the candidate's town
-/// from turn 1, as today's start seats them in theirs, and nothing else.
-pub struct Seated;
+/// The arc's own frame (`ArcDef::frame`): the player seated afresh in the
+/// town (for the district its `seat_for` role is in), the run raised the
+/// next day ([`opening::arrive`]).
+pub struct Framed;
 
-impl Frame for Seated {
-    fn apply(
-        &self,
-        state: &mut State,
-        content: &ContentBundle,
-        c: &Candidate,
-    ) -> Result<(), String> {
-        seat_in(state, content, c.town)
+impl Frame for Framed {
+    fn apply(&self, engine: &mut Engine, c: &Candidate) -> Result<Arrival, String> {
+        opening::arrive(engine, c.town, &c.template)
     }
 }
 
-/// Seat the player in the entry seat of `town`, as a new game would have
-/// (the start's stats, awareness in the district, the ledger seeded for
-/// the town, the decks and the day): for a fork, or for a start the draft
-/// chose. A player already at home there is left as they are.
-pub fn seat_in(
-    state: &mut State,
-    content: &ContentBundle,
-    town: MunicipalityId,
-) -> Result<(), String> {
-    if crate::player::home(state) == Some(town) {
-        return Ok(());
-    }
-    let year = state.calendar.date.calendar().year;
-    let seat = entry_seat(state, content, town).ok_or("no seat to take in the town")?;
-    let old = state.player.as_ref().ok_or("no player")?.politician;
-    if let Some(p) = state.politics.get_mut(old) {
-        p.is_player = false;
-    }
-    let world = &state.world;
-    let me = state.politics.get_mut(seat).ok_or("no such politician")?;
-    me.is_player = true;
-    me.oratory = 0.6;
-    me.negotiation = 0.6;
-    me.birth_year = year - 38;
-    me.years_in_office = 3;
-    me.terms_in_office = 1;
-    me.scandal = 0.0;
-    me.record = 0.3;
-    let home_hood = crate::world::NeighborhoodId(me.home);
-    let at = Jurisdiction::town(town);
-    let ward = me
-        .role
-        .constituency()
-        .or_else(|| {
-            at.constituencies(world)
-                .find(|c| c.neighborhoods.contains(&home_hood))
-                .map(|c| c.id)
-        })
-        .ok_or("the seat has no district")?;
-    let known: Vec<usize> = match me.role.post() {
-        Some(p) if p.is_office() => world.hoods_of(town).collect(),
-        _ => world
-            .constituencies
-            .get(ward.index())
-            .map(|c| c.neighborhoods.iter().map(|h| h.index()).collect())
-            .unwrap_or_default(),
-    };
-    for h in known {
-        if let Some(hood) = state.population.hoods.get_mut(h) {
-            for c in hood.cohorts.iter_mut() {
-                c.player_awareness = 0.3;
-                c.player_approval = 0.1;
-            }
-        }
-    }
-    let pl = state.player.as_mut().ok_or("no player")?;
-    pl.politician = seat;
-    pl.municipality = town;
-    pl.ward = ward;
-    pl.location = crate::places::Location::Home;
-    pl.knowledge = Default::default();
-    pl.talk = Default::default();
-    pl.ground = Default::default();
-    crate::player::knowledge::seed(state, content, None, false)?;
-    crate::policy::families::on_load(state, content);
-    state.calendar.day = crate::characters::calendar::choose_day(state, content);
-    Ok(())
+/// What the player would find on turn 1 of a candidate's opening, from
+/// `base` (a copy; `base` is only read). `None` when the frame fails or
+/// gives no beat on turn 1.
+pub fn arrival(
+    base: &State,
+    content: &Arc<ContentBundle>,
+    c: &Candidate,
+    frame: &dyn Frame,
+) -> Option<Arrival> {
+    let mut e = Engine::from_state(base.clone(), content.clone()).ok()?;
+    frame
+        .apply(&mut e, c)
+        .ok()
+        .filter(|a| a.run.is_some() && a.first_beat)
 }
 
 /// One stand-in's play of a candidate's fork.
@@ -500,9 +446,9 @@ pub struct Fork {
     pub state_hash: String,
 }
 
-/// Play one fork of `base` for a candidate: a copy under the candidate's
-/// luck, the frame applied, the stand-in playing for the seat to the
-/// horizon. The copy is dropped; `base` is only read.
+/// Play one fork of `base` for a candidate: a copy with the frame applied,
+/// then under the candidate's luck, the stand-in playing for the seat to
+/// the horizon. The copy is dropped; `base` is only read.
 pub fn play(
     base: &State,
     content: &Arc<ContentBundle>,
@@ -511,10 +457,9 @@ pub fn play(
     frame: &dyn Frame,
     horizon_weeks: u32,
 ) -> Result<Fork, String> {
-    let mut st = base.clone();
-    standin::reluck(&mut st, c.luck);
-    frame.apply(&mut st, content, c)?;
-    let mut e = Engine::from_state(st, content.clone()).map_err(|x| x.to_string())?;
+    let mut e = Engine::from_state(base.clone(), content.clone()).map_err(|x| x.to_string())?;
+    frame.apply(&mut e, c)?;
+    e.setup(|s| standin::reluck(s, c.luck));
     let seat = Seat::of_player(e.state(), e.content()).ok_or("no seat")?;
     let mut career = Career::new(kind);
     career.seat = Some(Seat { at: c.at, ..seat });
@@ -653,6 +598,9 @@ pub const VISIBILITY_FLOOR: f64 = 0.4;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Auditioned {
     pub candidate: Candidate,
+    /// What the player would find on turn 1 (the frame on the unforked
+    /// world): the seat, the run, the pitch's facts.
+    pub arrival: Arrival,
     /// Passive, then engaged and contrarian if it reached the second pass.
     pub forks: Vec<Fork>,
     pub score: Option<Score>,
@@ -705,6 +653,8 @@ pub struct Audition {
     /// Forks still to play: (candidate, stand-in).
     queue: std::collections::VecDeque<(usize, Kind)>,
     second_planned: bool,
+    /// Forks planned so far (played and to play).
+    planned: usize,
 }
 
 impl Audition {
@@ -721,7 +671,16 @@ impl Audition {
             let st = base.as_ref().map_or(state, |e| e.state());
             let found = scan(st, content, &params.recent);
             let n = found.len();
-            let kept = keep(found, params.candidates);
+            // The frames are tried only once enough candidates are found
+            // to fill a draft (a frame costs a copy of the world and a day).
+            let enough = keep(found.clone(), params.candidates).len() >= params.draft;
+            let kept = if enough || months_ahead >= params.scan_months {
+                keep_with(found, params.candidates, |c| {
+                    arrival(st, content, c, &Framed)
+                })
+            } else {
+                Vec::new()
+            };
             if kept.len() >= params.draft || months_ahead >= params.scan_months {
                 break (n, kept);
             }
@@ -739,6 +698,7 @@ impl Audition {
             months_ahead += 1;
         };
         let queue = (0..kept.len()).map(|i| (i, Kind::Passive)).collect();
+        let kept_n = kept.len();
         Ok(Audition {
             content: content.clone(),
             base: base.map_or_else(|| state.clone(), |e| e.state().clone()),
@@ -747,8 +707,9 @@ impl Audition {
             found,
             auditioned: kept
                 .into_iter()
-                .map(|candidate| Auditioned {
+                .map(|(candidate, arrival)| Auditioned {
                     candidate,
+                    arrival,
                     forks: Vec::new(),
                     score: None,
                     error: None,
@@ -756,6 +717,7 @@ impl Audition {
                 .collect(),
             queue,
             second_planned: false,
+            planned: kept_n,
         })
     }
 
@@ -773,6 +735,19 @@ impl Audition {
         self.months_ahead
     }
 
+    /// Forks played, and forks played plus those still to play (the
+    /// second pass counted as planned before it is: two for each of the
+    /// best `second_pass` candidates).
+    pub fn progress(&self) -> (usize, usize) {
+        let done = self.planned - self.queue.len();
+        let later = if self.second_planned {
+            0
+        } else {
+            2 * self.params.second_pass.min(self.auditioned.len())
+        };
+        (done, self.planned + later)
+    }
+
     /// Play one fork. Returns whether any remain.
     pub fn step(&mut self) -> bool {
         if self.queue.is_empty() && !self.second_planned {
@@ -788,7 +763,7 @@ impl Audition {
                 &self.content,
                 &a.candidate,
                 kind,
-                &Seated,
+                &Framed,
                 self.params.horizon_weeks,
             ) {
                 Ok(f) => a.forks.push(f),
@@ -819,6 +794,7 @@ impl Audition {
         for (i, _) in order.into_iter().take(self.params.second_pass) {
             self.queue.push_back((i, Kind::Engaged));
             self.queue.push_back((i, Kind::Contrarian));
+            self.planned += 2;
         }
     }
 
@@ -919,9 +895,10 @@ pub fn digest(d: &Draft) -> String {
         parts.insert(
             format!("{i:02}"),
             format!(
-                "{}@{}:{:?}:{}",
+                "{}@{}:{:?}:{:?}:{}",
                 a.candidate.template,
                 a.candidate.town.0,
+                a.arrival.post,
                 forks,
                 a.score.as_ref().map_or(0.0, |s| s.total)
             ),
@@ -1005,6 +982,12 @@ mod tests {
         s.escalates = escalates;
         Auditioned {
             candidate: c,
+            arrival: Arrival {
+                run: Some(super::super::ArcId(1)),
+                post: None,
+                first_beat: true,
+                args: Args::new(),
+            },
             forks,
             score: Some(s),
             error: None,

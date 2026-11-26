@@ -84,6 +84,7 @@ fn new_game(s: &mut Session, seed: u64, storyteller: Option<&str>) -> OverviewVi
             scenario: None,
             storyteller: storyteller.map(String::from),
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     )
     .unwrap()
@@ -316,6 +317,7 @@ fn the_storyteller_is_chosen_at_new_game_and_saved() {
             scenario: None,
             storyteller: Some("storyteller.nope".into()),
             local_knowledge: false,
+            recent_openings: Vec::new(),
         }),
     );
     assert!(bad.is_err());

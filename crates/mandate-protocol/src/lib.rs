@@ -111,6 +111,11 @@ pub struct NewGameParams {
     /// would know them. Engine state, chosen only at new game.
     #[serde(default)]
     pub local_knowledge: bool,
+    /// The device's last openings (up to three, oldest first; DEC-101 §3,
+    /// STAGED_ARCS §6.7): the draft's variety is measured against them. A
+    /// shared seed passes none. Kept in the run file.
+    #[serde(default)]
+    pub recent_openings: Vec<OpeningTagDto>,
 }
 
 /// A starting world the title screen offers (DEC-078 decision 4).
@@ -472,14 +477,17 @@ pub enum QueryDto {
         arc: u32,
         beat: String,
     },
-    /// The opening draft (DEC-101 §3, task A7): the world auditioned as
-    /// it stands, and the best openings, as day-0 facts. Seconds of work;
-    /// the state is only read. `recent`: the device's last openings (up to
-    /// three, oldest first), for variety.
-    Draft {
-        #[serde(default)]
-        recent: Vec<OpeningTagDto>,
-    },
+    /// The opening draft (DEC-101 §3; tasks A7, A8): the new game's world
+    /// auditioned before play, against the game's `recent_openings`, and
+    /// the best openings as day-0 facts. The whole audition at once
+    /// (seconds of work), or the draft already made: it is made once a
+    /// game. The state is only read.
+    Draft,
+    /// One step of the draft: plays one fork of the audition and answers
+    /// `DraftProgress`, or, once every fork is played, `Draft` (as the
+    /// `Draft` query, which it then answers from the draft made). One
+    /// worker message a fork, so the client can show progress.
+    DraftStep,
     /// The promises the player could make now (campaigning only).
     PromiseMenu,
     /// Why an event happened (S1, the causal spine): the chain of what led
@@ -514,6 +522,13 @@ pub enum QueryDto {
 #[serde(tag = "kind", content = "payload", rename_all = "snake_case")]
 pub enum RequestBody {
     NewGame(NewGameParams),
+    /// Start play on an opening of the draft (DEC-101 §3), by its place in
+    /// `DraftView.openings`: the world advanced `months_ahead` steps and
+    /// the frame applied (`arcs::opening`). Only before any command;
+    /// answers `GameStarted`.
+    ChooseOpening {
+        index: u32,
+    },
     Command(CommandDto),
     Query(QueryDto),
 }
@@ -582,6 +597,7 @@ pub enum ResponseBody {
     Arc(ArcView),
     ArcExchange(ArcSceneView),
     Draft(DraftView),
+    DraftProgress(DraftProgressView),
     #[cfg(feature = "dev-tools")]
     #[ts(skip)]
     DevCatalog(dev::DevCatalogView),
@@ -687,12 +703,13 @@ mod tests {
                 scenario: None,
                 storyteller: None,
                 local_knowledge: false,
+                recent_openings: Vec::new(),
             }),
         };
         let j = serde_json::to_string(&r).unwrap_or_default();
         assert_eq!(
             j,
-            r#"{"protocol_version":1,"request_id":7,"body":{"kind":"new_game","payload":{"seed":"18446744073709551615","size":"small","scenario":null,"storyteller":null,"local_knowledge":false}}}"#
+            r#"{"protocol_version":1,"request_id":7,"body":{"kind":"new_game","payload":{"seed":"18446744073709551615","size":"small","scenario":null,"storyteller":null,"local_knowledge":false,"recent_openings":[]}}}"#
         );
         let back: Request = serde_json::from_str(&j).unwrap_or(r.clone());
         assert_eq!(back, r);

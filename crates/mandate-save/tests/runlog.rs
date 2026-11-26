@@ -39,6 +39,8 @@ fn setup() -> NewGameSetup {
         scenario: None,
         storyteller: None,
         local_knowledge: true,
+        recent_openings: Vec::new(),
+        opening: None,
     }
 }
 

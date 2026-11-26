@@ -113,6 +113,39 @@ export function writeFolds(folds: Record<string, boolean>) {
   }
 }
 
+const OPENINGS_KEY = "mandate.recentOpenings";
+
+/** What an opening is compared by for variety (the engine's `OpeningTagDto`). */
+export interface OpeningTag {
+  template: string;
+  matter: string;
+  post: string;
+  town_class: string;
+}
+
+/**
+ * The last three openings begun on this device, oldest first (STAGED_ARCS §6.7):
+ * the next draft's variety is measured against them (`NewGameParams.recent_openings`,
+ * kept in the run file). History of this device's careers, not a game's state.
+ */
+export function readRecentOpenings(): OpeningTag[] {
+  try {
+    const v = read(OPENINGS_KEY);
+    const parsed: unknown = v ? JSON.parse(v) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t): t is OpeningTag => !!t && typeof t === "object" && ["template", "matter", "post", "town_class"].every((k) => typeof (t as Record<string, unknown>)[k] === "string"))
+      .slice(-3);
+  } catch {
+    return [];
+  }
+}
+
+/** Remember an opening begun here (the last three are kept). */
+export function rememberOpening(tag: OpeningTag) {
+  write(OPENINGS_KEY, JSON.stringify([...readRecentOpenings(), tag].slice(-3)));
+}
+
 /** Wide screens dock sheets beside the town (matches the 900px breakpoint in styles.css). */
 export function isWide(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(min-width: 900px)").matches === true;

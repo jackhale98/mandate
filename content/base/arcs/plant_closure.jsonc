@@ -52,6 +52,8 @@
       "facts": [ { "type": "plant", "slot": "site" } ],
       "sides": { "ally": "steward", "opponent": "owner" },
       "heat": { "start": 0.15, "floor": { "indicator": "job_loss", "scale": 4.0 } },
+      // The draft: the seat the player arrives in, and its line (A8).
+      "frame": { "post": { "seat_for": "hood" }, "pitch_key": "pitch-plant" },
       "answers": ["policy.closure_response", "policy.hardship_fund", "policy.small_business_grants"],
       "stages": [
         // Signs: the hours are cut, and nobody has said why. Asking now is

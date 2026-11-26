@@ -2,7 +2,7 @@
 
 /**
  * What an opening is compared by for variety (§6.5, §6.7): kept by the
- * device's Legacy record and passed back as `recent`.
+ * device and passed back as `NewGameParams.recent_openings`.
  */
 export type OpeningTagDto = { template: string, 
 /**

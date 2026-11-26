@@ -47,6 +47,7 @@ pub mod beats;
 pub mod cast;
 pub mod effects;
 pub mod exchange;
+pub mod opening;
 pub mod score;
 pub mod step;
 

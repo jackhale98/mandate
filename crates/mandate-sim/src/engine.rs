@@ -363,6 +363,12 @@ impl Engine {
         f(&mut self.state);
     }
 
+    /// Request an effect for the next day stepped (new-game setup: the
+    /// opening's run, `arcs::opening`). Never logged.
+    pub(crate) fn seed_request(&mut self, r: crate::scheduler::Request) {
+        self.pending_effects.push(r);
+    }
+
     pub fn command_log(&self) -> &[LoggedCommand] {
         &self.command_log
     }

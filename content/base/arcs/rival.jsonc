@@ -61,6 +61,8 @@
         { "id": "ward", "optional": true, "cast": { "type": "area", "pick": "least_pleased" } },
       ],
       "heat": { "start": 0.3 },
+      // The draft: the seat the player arrives in, and its line (A8).
+      "frame": { "pitch_key": "pitch-rival" },
       "stages": [
         // The campaign opens, and the rival turns up wherever the player goes.
         { "id": "shadow", "key": "arc-rival-shadow", "rise": 0.03,

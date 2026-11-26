@@ -4,7 +4,7 @@ import type { OpeningView } from "./OpeningView";
 
 /**
  * The draft: best first. It may hold fewer than three (fewer situations
- * built in their forks), or none.
+ * built in their forks, or gave a beat on turn 1), or none.
  */
 export type DraftView = { openings: Array<OpeningView>, 
 /**
@@ -13,6 +13,7 @@ export type DraftView = { openings: Array<OpeningView>,
  */
 months_ahead: number, scan_step_days: number, 
 /**
- * The day play would begin.
+ * The day play begins (the day after the world the draft was found
+ * in: the frame steps one, on which the opening's run is raised).
  */
 opens: DateView, };

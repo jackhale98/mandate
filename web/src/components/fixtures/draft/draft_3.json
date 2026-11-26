@@ -1,12 +1,123 @@
 {
   "openings": [
     {
+      "town": 20,
+      "town_name": "Thornridge",
+      "town_class": "town",
+      "template": "arc.zoning",
+      "title_key": "arc-zoning",
+      "args": {
+        "clock_day": "12",
+        "clock_month_key": "month-6",
+        "concern_key": "concern-housing",
+        "concern_talk_key": "talk-concern-housing",
+        "day": "2",
+        "developer": "Benno Thorne",
+        "hall": "Castle Quarter",
+        "hood": "Castle Green",
+        "member": "Imre Hale",
+        "month_key": "month-5",
+        "neighbour": "Arlo Dace",
+        "organiser": "Kai Rasku",
+        "place": "Thornridge",
+        "town": "Thornridge",
+        "weeks": "0",
+        "year": "2020"
+      },
+      "live": false,
+      "post": {
+        "kind": "seat",
+        "id": "council",
+        "at": {
+          "kind": "municipality",
+          "tier": "local",
+          "id": 20,
+          "name": "Thornridge",
+          "name_key": "jurisdiction-municipality"
+        },
+        "constituency_number": 1,
+        "label_key": "body-council",
+        "role_key": "role-councillor"
+      },
+      "pitch_key": "pitch-zoning",
+      "tag": {
+        "template": "arc.zoning",
+        "matter": "sector.retail",
+        "post": "councillor",
+        "town_class": "town"
+      }
+    },
+    {
+      "town": 2,
+      "town_name": "Fenimoor",
+      "town_class": "city",
+      "template": "arc.budget_round",
+      "title_key": "arc-budget",
+      "args": {
+        "backers": "7",
+        "books": "over",
+        "clock_day": "17",
+        "clock_month_key": "month-8",
+        "day": "2",
+        "gap": "3",
+        "hall": "Fenimoor",
+        "hood": "Bridgeheath",
+        "member": "Leif Wade",
+        "members": "10",
+        "month_key": "month-5",
+        "place": "Fenimoor",
+        "proposer": "Zeno Dorne",
+        "town": "Fenimoor",
+        "weeks": "0",
+        "year": "2020"
+      },
+      "live": false,
+      "post": {
+        "kind": "seat",
+        "id": "council",
+        "at": {
+          "kind": "municipality",
+          "tier": "local",
+          "id": 2,
+          "name": "Fenimoor",
+          "name_key": "jurisdiction-municipality"
+        },
+        "constituency_number": 10,
+        "label_key": "body-council",
+        "role_key": "role-councillor"
+      },
+      "pitch_key": "pitch-budget",
+      "tag": {
+        "template": "arc.budget_round",
+        "matter": "sector.knowledge",
+        "post": "councillor",
+        "town_class": "city"
+      }
+    },
+    {
       "town": 1,
       "town_name": "Pellenwick",
       "town_class": "city",
       "template": "arc.budget_round",
       "title_key": "arc-budget",
-      "args": {},
+      "args": {
+        "backers": "10",
+        "books": "over",
+        "clock_day": "17",
+        "clock_month_key": "month-8",
+        "day": "2",
+        "gap": "3",
+        "hall": "Pellenwick",
+        "hood": "Pellenwick",
+        "member": "Lena Ironer",
+        "members": "10",
+        "month_key": "month-5",
+        "place": "Pellenwick",
+        "proposer": "Aurel Ever",
+        "town": "Pellenwick",
+        "weeks": "0",
+        "year": "2020"
+      },
       "live": false,
       "post": {
         "kind": "seat",
@@ -22,51 +133,21 @@
         "label_key": "body-council",
         "role_key": "role-councillor"
       },
-      "pitch_key": null,
+      "pitch_key": "pitch-budget",
       "tag": {
         "template": "arc.budget_round",
         "matter": "sector.manufacturing",
         "post": "councillor",
         "town_class": "city"
       }
-    },
-    {
-      "town": 8,
-      "town_name": "Belenmouth",
-      "town_class": "town",
-      "template": "arc.budget_round",
-      "title_key": "arc-budget",
-      "args": {},
-      "live": true,
-      "post": {
-        "kind": "seat",
-        "id": "council",
-        "at": {
-          "kind": "municipality",
-          "tier": "local",
-          "id": 8,
-          "name": "Belenmouth",
-          "name_key": "jurisdiction-municipality"
-        },
-        "constituency_number": 1,
-        "label_key": "body-council",
-        "role_key": "role-councillor"
-      },
-      "pitch_key": null,
-      "tag": {
-        "template": "arc.budget_round",
-        "matter": "sector.retail",
-        "post": "councillor",
-        "town_class": "town"
-      }
     }
   ],
   "months_ahead": 4,
   "scan_step_days": 30,
   "opens": {
-    "day_number": 737420,
+    "day_number": 737421,
     "year": 2020,
     "month": 5,
-    "day": 1
+    "day": 2
   }
 }

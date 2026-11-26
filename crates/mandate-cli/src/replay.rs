@@ -517,6 +517,8 @@ mod tests {
             scenario: None,
             storyteller: None,
             local_knowledge: true,
+            recent_openings: Vec::new(),
+            opening: None,
         };
         let mut e = start(content.clone(), &setup).unwrap();
         let mut log = RunLog::start(setup.clone(), &e);

@@ -43,6 +43,20 @@ ui-mode-story = Story
 ui-mode-story-help = Lets you return to chapter checkpoints.
 ui-seed = Seed (optional)
 ui-start = Begin
+ui-start-help = Begin starts at once, in the largest town.
+## The draft of openings (DEC-101 §3): three real towns, each with something under way.
+ui-draft-start = Choose an opening
+ui-draft-heading = Where to begin
+ui-draft-intro = Three towns, each with something under way. You hold a seat in the one you choose.
+ui-draft-opens = Play begins on { $date }.
+ui-draft-choose = Begin in { $town }
+ui-draft-surprise = Surprise me
+ui-draft-reroll = Other openings
+ui-draft-none = Nothing in this world is ready to begin on. Try other openings.
+ui-draft-seat = { $role }
+ui-draft-seat-district = { $role } for district { $n }
+ui-draft-tags = What it is
+ui-back = Back
 ui-loading-engine = Starting the engine…
 ui-loading = Loading…
 loader-local = Local
@@ -245,6 +259,7 @@ event-disaster = { $hazard } strikes { $town } (severity { $severity }%).
 event-budget-surplus = The { $year } national budget closed in surplus. Debt is { $debt }% of output.
 event-budget-deficit = The { $year } national budget closed in deficit. Debt is { $debt }% of output.
 progress-history = Living through twenty years of history…
+progress-draft = Looking for a place to begin…
 
 ## Constitution (M3)
 constitution-federal_presidential = Federal Presidential Republic

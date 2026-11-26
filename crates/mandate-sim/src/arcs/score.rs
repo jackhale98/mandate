@@ -475,7 +475,7 @@ impl Pacing {
 
 /// What an opening is compared by (§6.5: template, industry or hazard,
 /// post, town class). Keys and ids, never names.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Opening {
     pub template: String,
     /// The hazard the arc is about, else the town's defining industry.
