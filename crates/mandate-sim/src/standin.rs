@@ -781,6 +781,10 @@ fn work(st: &State, content: &ContentBundle, a: &Ask) -> Option<(PlayerCommand, 
             ));
         }
         Need::Casework => route(act(Action::Casework { ask: a.id.0 })),
+        // A fault: moved up the repair queue, once (DEC-114).
+        Need::Fixed { .. } if crate::asks::can_casework(st, a.id.0) => {
+            route(act(Action::Casework { ask: a.id.0 }))
+        }
         _ => return None,
     };
     Some((cmd, Sent::Lever))

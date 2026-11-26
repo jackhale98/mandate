@@ -307,6 +307,7 @@ fn cast_one(
     preset: &[CastEntry],
 ) -> Option<Candidate> {
     let me = v.me();
+    let taken = a.faults_asked();
     let asker_role = RoleDef {
         id: ROLE_ASKER.into(),
         cast: t.asker.clone(),
@@ -329,13 +330,13 @@ fn cast_one(
         }
         let full = with_hood(v, c);
         t.triggers.iter().all(|x| cast::holds(v, x, &full))
-            && needs(r, v, &t.needs, &full, None).is_some()
+            && needs_for(r, v, &t.needs, &full, None, &taken).is_some()
             && !done_lately(a, r, t, &full)
     };
     let cast = cast::cast_search(v, &roles, preset, holder, 4, &ok)?;
     let full = with_hood(v, &cast);
     let person = person_of(&full, ROLE_ASKER)?;
-    let needs = needs(r, v, &t.needs, &full, None)?;
+    let needs = needs_for(r, v, &t.needs, &full, None, &taken)?;
     let due = due_of(r, t, &needs)?;
     let asker = asker_of(r, t, person);
     let history = a.history_of(asker);
@@ -468,6 +469,18 @@ pub(crate) fn needs(
     cast: &[CastEntry],
     promise: Option<(&[u32], Option<&str>)>,
 ) -> Option<Vec<Need>> {
+    needs_for(r, v, defs, cast, promise, &[])
+}
+
+/// [`needs`], with the faults open asks are about already (`taken`).
+fn needs_for(
+    r: &Reads<'_>,
+    v: &View<'_>,
+    defs: &[NeedDef],
+    cast: &[CastEntry],
+    promise: Option<(&[u32], Option<&str>)>,
+    taken: &[crate::upkeep::FaultId],
+) -> Option<Vec<Need>> {
     let person = |role: &str| person_of(cast, role);
     // A neighbourhood role, or a person's (where they live).
     let hood = |role: &str| match actor_of(cast, role) {
@@ -569,6 +582,9 @@ pub(crate) fn needs(
                 sponsor_player: *sponsor_player,
             },
             NeedDef::Casework => Need::Casework,
+            NeedDef::Fixed { role } => Need::Fixed {
+                fault: fault_near(r, hood(role)?, taken)?,
+            },
             NeedDef::NoSurfacedHiddenFact => Need::NoSurfacedHiddenFact,
             NeedDef::Quiet { role } => Need::Quiet {
                 person: person(role)?,
@@ -576,6 +592,21 @@ pub(crate) fn needs(
         });
     }
     Some(out)
+}
+
+/// The fault an ask is cast on near someone's door (DEC-114): the oldest
+/// fault waiting in the queue on the neighbourhood's streets that no open
+/// ask is about already (`taken`).
+fn fault_near(
+    r: &Reads<'_>,
+    hood: NeighborhoodId,
+    taken: &[crate::upkeep::FaultId],
+) -> Option<crate::upkeep::FaultId> {
+    r.upkeep()?
+        .in_hood(hood)
+        .filter(|f| f.open() && !taken.contains(&f.id))
+        .min_by_key(|f| (f.opened, f.id))
+        .map(|f| f.id)
 }
 
 /// Asks domain, Director phase, daily: asks other domains asked for. An

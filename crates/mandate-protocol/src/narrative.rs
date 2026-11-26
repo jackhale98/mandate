@@ -278,6 +278,24 @@ pub fn ask_args(engine: &Engine, a: &mandate_sim::asks::Ask) -> BTreeMap<String,
                     put(&mut args, "concern_key", c.name_key.clone());
                 }
             }
+            // The fault it is about (DEC-114): its name, what is wrong,
+            // where, and since when.
+            Need::Fixed { fault } => {
+                if let Some(f) = st.upkeep.get(*fault) {
+                    let v = crate::upkeep::fault_view(engine, f);
+                    put(&mut args, "fault_key", v.name_key.clone());
+                    put(&mut args, "fault_what_key", v.what_key.clone());
+                    let hood = v.args.get("hood").cloned().unwrap_or_default();
+                    put(&mut args, "fault_hood", hood.clone());
+                    // What is wrong names its neighbourhood as `$hood`.
+                    args.entry("hood".into()).or_insert(hood);
+                    put(
+                        &mut args,
+                        "fault_month_key",
+                        format!("month-{}", f.opened.calendar().month),
+                    );
+                }
+            }
             _ => {}
         }
     }

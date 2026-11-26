@@ -581,6 +581,12 @@ pub struct PlacePanelView {
     /// Pending decisions whose scene happens here (DEC-079: going there adds
     /// the conversation; they can always be answered from the pocket).
     pub decisions_here: Vec<crate::narrative::DecisionView>,
+    /// On a neighbourhood's streets: its faults, open, being repaired and
+    /// lately repaired (DEC-114). (Always sent; optional in the generated
+    /// type, as `SpotView.now`.)
+    #[serde(default)]
+    #[ts(as = "Option<Vec<crate::upkeep::FaultView>>", optional)]
+    pub faults: Vec<crate::upkeep::FaultView>,
 }
 
 pub fn location_view(st: &State, loc: Location) -> LocationView {
@@ -1367,6 +1373,10 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
             })
             .and_then(|r| serde_json::to_value(r).ok()),
         people,
+        faults: match loc {
+            Location::Street { neighborhood } => crate::upkeep::faults_in(engine, neighborhood),
+            _ => Vec::new(),
+        },
         decisions_here: crate::narrative::pending_decisions(engine)
             .into_iter()
             .filter(|d| {

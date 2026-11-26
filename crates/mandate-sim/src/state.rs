@@ -101,6 +101,11 @@ pub struct State {
     /// touched hashes as it did before arcs existed.
     #[serde(default, skip_serializing_if = "crate::arcs::ArcsState::is_empty")]
     pub arcs: crate::arcs::ArcsState,
+    /// Upkeep made visible (DEC-114): the focus's condition and its faults.
+    /// Not written while empty, so a game with no fault content hashes as
+    /// it did before upkeep existed.
+    #[serde(default, skip_serializing_if = "crate::upkeep::UpkeepState::is_empty")]
+    pub upkeep: crate::upkeep::UpkeepState,
 }
 
 /// A town as play began (TOWN_GENERATION §4.1, §15 E1): what the layout's

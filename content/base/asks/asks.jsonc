@@ -10,6 +10,29 @@
 {
   "kind": "asks",
   "items": [
+    // A fault on the asker's streets (DEC-114, faults.jsonc): cast on the
+    // oldest fault waiting in the repair queue near their door, first, so a
+    // doorstep or a talk brings it when there is one (else the casework
+    // below). Kept when the fault is fixed, whoever fixes it; "Sort it out"
+    // moves it up the queue. Never cast without a fault.
+    { "id": "ask.fault", "name_key": "ask-fault",
+      "asker": { "type": "occupation", "occupations": [
+        "occupation.resident", "occupation.retiree", "occupation.teacher", "occupation.nurse",
+        "occupation.shopkeeper", "occupation.farmer", "occupation.farmhand", "occupation.student",
+        "occupation.diner_owner", "occupation.software_engineer", "occupation.park_keeper", "occupation.shop_steward" ] },
+      "from": ["doorstep", "talk", "week"],
+      "needs": [ { "type": "fixed", "role": "asker" } ],
+      "deadline_days": [42, 63], "cooldown_days": 21,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 10, "memory": "kept_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "delta": 0.012 } ],
+      "break": [
+        { "type": "opinion", "role": "asker", "delta": -12, "memory": "broke_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "delta": -0.004 } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-fault-detail", "need_key": "ask-fault-need",
+      "kept_key": "ask-fault-kept", "broken_key": "ask-fault-broken" },
+
     // Help to individuals: a drain, a form, an objection, a school place.
     { "id": "ask.casework", "name_key": "ask-casework",
       "asker": { "type": "occupation", "occupations": [

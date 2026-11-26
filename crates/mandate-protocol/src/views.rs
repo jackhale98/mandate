@@ -813,6 +813,47 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             crate::asks::outcome_args(engine, *ask, &mut args);
             "event-ask-resolved"
         }
+        // A fault (DEC-114): its name, its neighbourhood, and the fault the
+        // queue set it against.
+        EventKind::Fault {
+            template,
+            hood,
+            stage,
+            other,
+            ..
+        } => {
+            let st = engine.state();
+            let content = engine.content();
+            let name = |kind: &str| {
+                content
+                    .fault(kind)
+                    .map(|d| format!("{}name", d.text))
+                    .unwrap_or_default()
+            };
+            let hood_name = |h: u32| {
+                st.world
+                    .neighborhoods
+                    .get(h as usize)
+                    .map(|n| n.name.clone())
+                    .unwrap_or_default()
+            };
+            put("fault_key", name(template));
+            put("hood", hood_name(*hood));
+            let o = other.and_then(|o| st.upkeep.get(mandate_sim::upkeep::FaultId(o)));
+            if let Some(o) = o {
+                put("other_key", name(&o.kind));
+                put("other_hood", hood_name(o.hood.0));
+            }
+            use mandate_sim::upkeep::FaultStage as S;
+            match stage {
+                S::Opened => "event-fault-opened",
+                S::Expedited => "event-fault-expedited",
+                S::Repairing if o.is_some() => "event-fault-repairing-ahead",
+                S::Repairing => "event-fault-repairing",
+                S::Delayed => "event-fault-delayed",
+                S::Fixed => "event-fault-fixed",
+            }
+        }
         EventKind::RulesUpdated { to_engine, .. } => {
             put("version", to_engine.clone());
             "event-rules-updated"

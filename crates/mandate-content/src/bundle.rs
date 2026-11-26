@@ -134,6 +134,9 @@ pub struct ContentBundle {
     /// The town calendar (DEC-114), in load order.
     #[serde(default)]
     pub calendar: Vec<crate::calendar::CalendarEventDef>,
+    /// Upkeep and its fault kinds (DEC-114); empty without a `faults` file.
+    #[serde(default)]
+    pub upkeep: crate::faults::UpkeepDef,
     /// Conversation topics (DEC-093), in load order.
     #[serde(default)]
     pub talk_topics: Vec<crate::conversation::TopicDef>,
@@ -476,6 +479,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut interiors: Vec<crate::interiors::InteriorRecipe> = Vec::new();
     let mut routines: Vec<crate::routines::RoutineDef> = Vec::new();
     let mut calendar: Vec<crate::calendar::CalendarEventDef> = Vec::new();
+    let mut upkeep: Option<(crate::faults::UpkeepDef, String)> = None;
     let mut talk_topics: Vec<crate::conversation::TopicDef> = Vec::new();
     let mut talk_lines: Vec<crate::conversation::TalkLineDef> = Vec::new();
     let mut talk_voices: Vec<crate::conversation::VoiceDef> = Vec::new();
@@ -831,6 +835,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::Faults { value } => {
+                once(&mut upkeep, *value, "faults", &src.path, &mut issues)
+            }
             ContentFile::Calendar { items } => {
                 for x in items {
                     if claim(&x.id, &mut issues) {
@@ -1140,6 +1147,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         interiors,
         routines,
         calendar,
+        upkeep: upkeep.map(|(v, _)| v).unwrap_or_default(),
         talk_topics,
         talk_lines,
         talk_voices,

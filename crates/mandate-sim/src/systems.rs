@@ -144,6 +144,21 @@ pub fn default_systems() -> Vec<SystemDef> {
             cadence: Yearly,
             run: SystemFn::Finance(finance::new_budget_year),
         },
+        // Upkeep (DEC-114): repairs finished and faults moved up, daily;
+        // the repair queues paid, the streets worn and new faults, monthly,
+        // after the month's budget and before the worries are read.
+        SystemDef {
+            name: "upkeep.daily",
+            phase: P::Population,
+            cadence: Daily,
+            run: SystemFn::Upkeep(crate::upkeep::daily),
+        },
+        SystemDef {
+            name: "upkeep.monthly",
+            phase: P::Population,
+            cadence: Monthly,
+            run: SystemFn::Upkeep(crate::upkeep::monthly),
+        },
         SystemDef {
             name: "population.migration",
             phase: P::Population,

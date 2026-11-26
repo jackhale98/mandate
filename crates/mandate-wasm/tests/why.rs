@@ -843,7 +843,7 @@ fn every_cause_and_link_has_a_line() {
     family(
         "why-process",
         every!(Process: Calendar, Markets, CentralBank, Budget, Lawmaking, Agenda, Elections,
-            Parties, Director, Press, Justice, Asks, Society, Knowledge, Arcs, Update),
+            Parties, Director, Press, Justice, Asks, Society, Knowledge, Arcs, Upkeep, Update),
     );
     // A pressure may carry values (external demand names its market and
     // its good, DEC-110), so its key is `Pressure::key`, not a serde string.

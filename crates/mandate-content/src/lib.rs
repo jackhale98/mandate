@@ -9,6 +9,7 @@ pub mod calendar;
 pub mod condition;
 pub mod conversation;
 pub mod exchange;
+pub mod faults;
 pub mod interiors;
 pub mod jsonc;
 pub mod knowledge;

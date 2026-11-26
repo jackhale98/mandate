@@ -26,6 +26,7 @@ pub mod post;
 pub mod talk;
 pub mod town;
 pub mod town_layers;
+pub mod upkeep;
 pub mod views;
 pub mod why;
 
@@ -53,6 +54,7 @@ pub use talk::*;
 pub use town::*;
 pub use town_layers::*;
 use ts_rs::TS;
+pub use upkeep::*;
 pub use views::*;
 pub use why::*;
 

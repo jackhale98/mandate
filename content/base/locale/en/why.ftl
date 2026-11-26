@@ -64,6 +64,7 @@ why-process-asks = What people ask of you, and the deadlines that come with it.
 why-process-society = Residents making up their own minds.
 why-process-knowledge = What being there, or holding a post, lets you learn.
 why-process-arcs = A matter in town running its own course.
+why-process-upkeep = Streets wearing out, and repairs as the money allows.
 why-process-update = The game itself was updated.
 
 ## A standing condition the engine's own formula names (`Pressure`). The

@@ -36,7 +36,7 @@ use mandate_core::{IdAllocator, SimDate};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub use commands::{PromiseOption, casework_odds, promise_menu};
+pub use commands::{PromiseOption, can_casework, casework_odds, promise_menu};
 
 mandate_core::define_id!(
     /// An ask (or promise); typed `u32`, never reused (DEC-041).
@@ -324,6 +324,11 @@ pub enum Need {
         sponsor_player: bool,
     },
     Casework,
+    /// This fault is repaired, whoever repairs it (DEC-114; the world does
+    /// not wait, DEC-091). "Sort it out" moves it up the repair queue.
+    Fixed {
+        fault: crate::upkeep::FaultId,
+    },
     /// "Clean politics": none of the player's hidden facts surfaces.
     NoSurfacedHiddenFact,
     /// No leak (or press tip, E9) about this person.
@@ -354,6 +359,7 @@ impl Need {
             Need::Introduce { .. } => "introduce",
             Need::Enacted { .. } => "enacted",
             Need::Casework => "casework",
+            Need::Fixed { .. } => "fixed",
             Need::NoSurfacedHiddenFact => "no_surfaced_hidden_fact",
             Need::Quiet { .. } => "quiet",
         }
@@ -480,6 +486,17 @@ impl AskState {
     /// Resolved asks and promises, oldest first.
     pub fn resolved(&self) -> impl Iterator<Item = &Ask> {
         self.asks.iter().filter(|a| !a.open())
+    }
+
+    /// Faults open asks are about (an ask is cast on a fault no other is).
+    pub fn faults_asked(&self) -> Vec<crate::upkeep::FaultId> {
+        self.open()
+            .flat_map(|x| x.needs.iter())
+            .filter_map(|n| match n {
+                Need::Fixed { fault } => Some(*fault),
+                _ => None,
+            })
+            .collect()
     }
 
     /// Open asks (and promises) that must be answered or kept within `days`

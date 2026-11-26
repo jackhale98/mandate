@@ -169,6 +169,9 @@ pub enum Process {
     /// Staged arcs: a run raised by its conditions, an edge that fired, a
     /// beat a stage offers.
     Arcs,
+    /// Upkeep: streets wear, faults open where they are worn, repairs are
+    /// finished (DEC-114).
+    Upkeep,
     /// The game's rules were updated under a running career.
     Update,
 }
@@ -446,6 +449,8 @@ pub enum Thread {
     /// A plant's review (DEC-110): short time, the notice, then the
     /// reprieve or the closure.
     Plant(u32),
+    /// A fault (DEC-114): opened, moved up, repaired, put back, fixed.
+    Fault(u32),
 }
 
 /// What an event does to its thread.
@@ -522,6 +527,14 @@ pub fn thread(kind: &EventKind, date: SimDate) -> Option<(Thread, Role)> {
             (Thread::Arc(*arc), Role::Notes)
         }
         K::ArcEnded { arc, .. } => (Thread::Arc(*arc), Role::Closes),
+        K::Fault { fault, stage, .. } => (
+            Thread::Fault(*fault),
+            match stage {
+                crate::upkeep::FaultStage::Opened => Role::Opens,
+                crate::upkeep::FaultStage::Fixed => Role::Closes,
+                _ => Role::Advances,
+            },
+        ),
         K::PlayerImprisoned { .. } => (Thread::Sentence, Role::Opens),
         K::PlayerReleased => (Thread::Sentence, Role::Closes),
         K::DirectorIntervention { lever, .. } => match lever.as_str() {
@@ -582,6 +595,7 @@ pub fn salience(kind: &EventKind) -> Salience {
         | K::TrackWarning { .. }
         | K::ArcBeat { .. }
         | K::ArcExchange { .. }
+        | K::Fault { .. }
         | K::CaseDeveloped { .. } => Salience::Routine,
         K::RaceDecided {
             player_ran: false, ..
@@ -687,6 +701,7 @@ pub fn kind_key(kind: &EventKind) -> &'static str {
         K::ArcEnded { .. } => "arc_ended",
         K::ArcExchange { .. } => "arc_exchange",
         K::ArcExchangeEnded { .. } => "arc_exchange_ended",
+        K::Fault { .. } => "fault",
     }
 }
 
