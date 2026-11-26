@@ -152,6 +152,10 @@
         "press": {
           "$ref": "#/$defs/PressEffects"
         },
+        "talks": {
+          "$ref": "#/$defs/VerbTalks",
+          "description": "Fundraising, the press, the bribe and the leak as conversations\n(DEC-114, B5): whom each is had with and what they say."
+        },
         "town_hall": {
           "$ref": "#/$defs/TownHallEffects"
         },
@@ -180,7 +184,8 @@
         "town_hall",
         "press",
         "canvass",
-        "fundraise"
+        "fundraise",
+        "talks"
       ],
       "type": "object"
     },
@@ -21271,6 +21276,57 @@
         "mobilisation_max",
         "habit_base",
         "habit_propensity"
+      ],
+      "type": "object"
+    },
+    "VerbTalk": {
+      "additionalProperties": false,
+      "description": "One verb's conversation.",
+      "properties": {
+        "replies": {
+          "description": "What they say: the first whose conditions hold (slots `speaker`,\n`player`); the last has none. `agrees` is not read.",
+          "items": {
+            "$ref": "#/$defs/ChoiceReplyDef"
+          },
+          "type": "array"
+        },
+        "with": {
+          "default": [],
+          "description": "Occupations of the Named people of the player's town it is had with\n(they see the player where the verb is done).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "replies"
+      ],
+      "type": "object"
+    },
+    "VerbTalks": {
+      "additionalProperties": false,
+      "description": "The four verbs' conversations.",
+      "properties": {
+        "fundraise": {
+          "$ref": "#/$defs/VerbTalk"
+        },
+        "leak_file": {
+          "$ref": "#/$defs/VerbTalk"
+        },
+        "press": {
+          "$ref": "#/$defs/VerbTalk"
+        },
+        "take_bribe": {
+          "$ref": "#/$defs/VerbTalk",
+          "description": "The bribe is offered by whoever is offering (the broker, else a\nbusiness leader or plant manager: `actions::briber`); `with` is not\nread."
+        }
+      },
+      "required": [
+        "press",
+        "fundraise",
+        "take_bribe",
+        "leak_file"
       ],
       "type": "object"
     },

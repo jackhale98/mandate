@@ -12,7 +12,9 @@ use mandate_core::Stream;
 use mandate_save::{RunMode, SaveRequest, decode, encode};
 use mandate_sim::actions::verbs::{self, Verb};
 use mandate_sim::actions::{self, Action, PlayerCommand};
+use mandate_sim::asks::Deed;
 use mandate_sim::characters::CharacterId;
+use mandate_sim::events::EventKind;
 use mandate_sim::player::knowledge::Subject;
 use mandate_sim::talk::{TalkTarget, hooks};
 use mandate_sim::{Command, Engine, State};
@@ -52,7 +54,6 @@ fn with_bill(seed: u64, c: &Arc<ContentBundle>) -> (Engine, u32) {
     e.apply(e.route(PlayerCommand::IntroducePolicy { policy: bill }))
         .unwrap();
     e.apply(Command::EndTurn).unwrap();
-    e.apply(Command::EndTurn).unwrap();
     (e, bill)
 }
 
@@ -69,15 +70,24 @@ fn plans(bill: u32) -> Vec<(Action, bool)> {
 }
 
 /// The state where the verb is done, and the conversation that does it.
-fn at_place(st: &State, c: &ContentBundle, action: &Action, late: bool) -> (State, PlayerCommand, CharacterId) {
+fn at_place(
+    st: &State,
+    c: &ContentBundle,
+    action: &Action,
+    late: bool,
+) -> (State, PlayerCommand, CharacterId) {
     let verb = Verb::of_action(action).unwrap();
     let at = verbs::places_for(st, c, verb.key(), late)[0];
     let mut s = st.clone();
     actions::apply(&mut s, c, &PlayerCommand::MoveTo { location: at }).unwrap();
-    let cmd = verbs::as_talk(&s, c, &PlayerCommand::Act {
-        action: action.clone(),
-        late_night: late,
-    })
+    let cmd = verbs::as_talk(
+        &s,
+        c,
+        &PlayerCommand::Act {
+            action: action.clone(),
+            late_night: late,
+        },
+    )
     .expect("a conversation for the verb");
     let PlayerCommand::Talk {
         to: TalkTarget::Person { person },
@@ -96,7 +106,7 @@ fn without_conversation(a: &State, b: &mut State, speaker: CharacterId) {
     let (pa, pb) = (a.player.as_ref().unwrap(), b.player.as_mut().unwrap());
     pb.talk = pa.talk.clone();
     pb.actions = pa.actions.clone();
-    pb.knowledge.sightings = pa.knowledge.sightings.clone();
+    pb.knowledge.seen = pa.knowledge.seen.clone();
     let person = Subject::Person { person: speaker };
     match pa.knowledge.entries.get(&person) {
         Some(e) => {
@@ -107,6 +117,16 @@ fn without_conversation(a: &State, b: &mut State, speaker: CharacterId) {
         }
     }
     b.politics.characters.edges = a.politics.characters.edges.clone();
+    // Talking to someone is a deed of its own (DEC-097 §2): the one more
+    // event, and its line in the asks' deed log.
+    let talk = |k: &EventKind| matches!(k, EventKind::PlayerDeed { deed: Deed::Talk { person, .. } } if *person == speaker);
+    assert_eq!(b.events.len(), a.events.len() + 1);
+    assert!(b.events.iter().last().is_some_and(|e| talk(&e.kind)));
+    b.events = a.events.clone();
+    b.asks
+        .deeds
+        .retain(|d| !matches!(&d.deed, Deed::Talk { person, .. } if *person == speaker));
+    b.asks.last_event = a.asks.last_event;
 }
 
 /// Each verb's effect equals the one action's: the same world, the one
@@ -159,6 +179,17 @@ fn each_verb_equals_the_one_action_in_a_twin() {
                     .filter(|(k, v)| vb.get(k.as_str()) != Some(*v))
                     .map(|(k, _)| k.clone())
                     .collect();
+                for k in &diff {
+                    let (x, y) = (va[k.as_str()].to_string(), vb[k.as_str()].to_string());
+                    let i = x.chars().zip(y.chars()).take_while(|(p, q)| p == q).count();
+                    let at = |s: &str| {
+                        s.chars()
+                            .skip(i.saturating_sub(300))
+                            .take(900)
+                            .collect::<String>()
+                    };
+                    eprintln!("{k}:\n A {}\n B {}", at(&x), at(&y));
+                }
                 panic!("seed {seed} {action:?}: the states differ in {diff:?}");
             }
         }
@@ -186,7 +217,10 @@ fn the_press_rolls_the_odds_it_shows() {
         assert!(choice.costs.iter().any(|(k, a)| k == "press-cost-gaffe"
             && a.contains(&("risk".into(), format!("{}", (risk * 100.0).round() as i64)))));
         let mut probe = st.clone();
-        let gaffe = probe.rng.get(Stream::Player).chance(1.0 - choice.odds.unwrap());
+        let gaffe = probe
+            .rng
+            .get(Stream::Player)
+            .chance(1.0 - choice.odds.unwrap());
         let mut s = st.clone();
         let r = actions::apply(&mut s, &c, &cmd).unwrap();
         assert_eq!(r.outcome_key == "outcome-press-gaffe", gaffe, "seed {seed}");
@@ -204,20 +238,51 @@ fn the_risk_lines_are_shown() {
     let c = content();
     let (e, bill) = with_bill(1, &c);
     let want: [(&Action, bool, &[&str]); 6] = [
-        (&Action::Press { policy: None }, false, &["verb-cost-slot", "press-cost-gaffe"]),
-        (&Action::Press { policy: Some(bill) }, false, &["verb-cost-slot", "press-cost-gaffe"]),
+        (
+            &Action::Press { policy: None },
+            false,
+            &["verb-cost-slot", "press-cost-gaffe"],
+        ),
+        (
+            &Action::Press { policy: Some(bill) },
+            false,
+            &["verb-cost-slot", "press-cost-gaffe"],
+        ),
         (
             &Action::Fundraise,
             false,
-            &["verb-cost-slot", "verb-cost-health", "fundraise-cost-raise", "fundraise-cost-ties"],
+            &[
+                "verb-cost-slot",
+                "verb-cost-health",
+                "fundraise-cost-raise",
+                "fundraise-cost-ties",
+            ],
         ),
         (
             &Action::Fundraise,
             true,
-            &["verb-cost-late", "fundraise-cost-raise", "verb-cost-legal", "verb-cost-exposure"],
+            &[
+                "verb-cost-late",
+                "fundraise-cost-raise",
+                "verb-cost-legal",
+                "verb-cost-exposure",
+            ],
         ),
-        (&Action::TakeBribe, true, &["verb-cost-late", "verb-cost-pays", "verb-cost-legal", "verb-cost-exposure"]),
-        (&Action::LeakFile, false, &["verb-cost-slot", "verb-cost-legal", "verb-cost-exposure"]),
+        (
+            &Action::TakeBribe,
+            true,
+            &[
+                "verb-cost-late",
+                "verb-cost-pays",
+                "verb-cost-legal",
+                "verb-cost-exposure",
+            ],
+        ),
+        (
+            &Action::LeakFile,
+            false,
+            &["verb-cost-slot", "verb-cost-legal", "verb-cost-exposure"],
+        ),
     ];
     for (action, late, keys) in want {
         let (st, _, speaker) = at_place(e.state(), &c, action, late);
@@ -230,7 +295,10 @@ fn the_risk_lines_are_shown() {
         for k in keys {
             assert!(shown.contains(k), "{id}: {k} in {shown:?}");
         }
-        assert!(mandate_sim::talk::check_choice(&st, &c, speaker, &id, late).is_ok(), "{id}");
+        assert!(
+            mandate_sim::talk::check_choice(&st, &c, speaker, &id, late).is_ok(),
+            "{id}"
+        );
     }
 }
 
@@ -252,12 +320,11 @@ fn every_key_named_exists() {
         let mut keys = vec![choice.label_key.clone(), choice.say_key.clone()];
         keys.extend(choice.replies.iter().map(|r| r.key.clone()));
         keys.extend(choice.costs.iter().map(|(k, _)| k.clone()));
-        keys.extend(
-            choice
-                .costs
-                .iter()
-                .flat_map(|(_, a)| a.iter().filter(|(k, _)| k.ends_with("_key")).map(|(_, v)| v.clone())),
-        );
+        keys.extend(choice.costs.iter().flat_map(|(_, a)| {
+            a.iter()
+                .filter(|(k, _)| k.ends_with("_key"))
+                .map(|(_, v)| v.clone())
+        }));
         let mut s = st.clone();
         let r = actions::apply(&mut s, &c, &cmd).unwrap();
         keys.push(r.outcome_key.clone());
@@ -284,7 +351,10 @@ fn routing_makes_the_act_a_conversation() {
             late_night: late,
         };
         let mut s = e.state().clone();
-        assert!(actions::apply(&mut s, &c, &act).is_err(), "{action:?} as one tap");
+        assert!(
+            actions::apply(&mut s, &c, &act).is_err(),
+            "{action:?} as one tap"
+        );
         let routed = e.route(act);
         let Command::Player(p) = &routed else {
             panic!()
@@ -293,7 +363,9 @@ fn routing_makes_the_act_a_conversation() {
             PlayerCommand::Go { then: Some(t), .. } => t.as_ref(),
             x => x,
         };
-        assert!(matches!(inner, PlayerCommand::Talk { topic, .. } if Verb::of_topic(topic).is_some()));
+        assert!(
+            matches!(inner, PlayerCommand::Talk { topic, .. } if Verb::of_topic(topic).is_some())
+        );
         if late && e.state().player.as_ref().unwrap().late_night_used {
             continue;
         }
@@ -304,7 +376,8 @@ fn routing_makes_the_act_a_conversation() {
             action: action.clone(),
             late_night: late,
         });
-        e.apply(routed).unwrap_or_else(|x| panic!("{action:?}: {x:?}"));
+        e.apply(routed)
+            .unwrap_or_else(|x| panic!("{action:?}: {x:?}"));
     }
 }
 

@@ -324,7 +324,11 @@ pub fn one_action(
 /// conversation with whoever the verb is had with where it is done, walked
 /// to first. `None`: not one of these, or nowhere or nobody to do it with
 /// (the `Act` then stays, and is refused).
-pub fn as_talk(state: &State, content: &ContentBundle, cmd: &PlayerCommand) -> Option<PlayerCommand> {
+pub fn as_talk(
+    state: &State,
+    content: &ContentBundle,
+    cmd: &PlayerCommand,
+) -> Option<PlayerCommand> {
     let PlayerCommand::Act { action, late_night } = cmd else {
         return None;
     };
@@ -446,7 +450,12 @@ fn costs(
             ));
         }
     }
-    let legal = |x: f64| ("verb-cost-legal".to_string(), vec![("legal".to_string(), format!("{x:.1}"))]);
+    let legal = |x: f64| {
+        (
+            "verb-cost-legal".to_string(),
+            vec![("legal".to_string(), format!("{x:.1}"))],
+        )
+    };
     match action {
         Action::Press { .. } => out.push((
             "press-cost-gaffe".into(),
