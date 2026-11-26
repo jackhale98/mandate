@@ -1,5 +1,5 @@
 {
-  "arc": 3,
+  "arc": 2,
   "beat": "showdown.debate",
   "phase": "open",
   "layout": "crowd",
@@ -12,7 +12,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "24",
+      "clock_day": "23",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -39,7 +39,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "24",
+      "clock_day": "23",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -66,7 +66,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "24",
+      "clock_day": "23",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -91,7 +91,7 @@
     "backer_role_key": "occupation-union_steward",
     "chair": "Hector Birchby",
     "chair_role_key": "occupation-editor",
-    "clock_day": "24",
+    "clock_day": "23",
     "clock_month_key": "month-10",
     "day": "13",
     "hall": "Foundryside",
@@ -138,12 +138,12 @@
   "available": true,
   "blocked_key": null,
   "last_day": {
-    "day_number": 737595,
+    "day_number": 737594,
     "year": 2020,
     "month": 10,
-    "day": 23
+    "day": 22
   },
-  "days_left": 15,
+  "days_left": 14,
   "other": {
     "id": 759,
     "ambient_slot": null,
@@ -156,7 +156,7 @@
     "has_news": true
   },
   "chair": {
-    "id": 1272,
+    "id": 1275,
     "ambient_slot": null,
     "name": "Hector Birchby",
     "role_key": "occupation-editor",
@@ -167,7 +167,7 @@
     "has_news": true
   },
   "second": {
-    "id": 1275,
+    "id": 1278,
     "ambient_slot": null,
     "name": "Flora Achter",
     "role_key": "occupation-union_steward",
@@ -195,7 +195,7 @@
       "size": 3,
       "lean": {
         "step": 0,
-        "points": 4,
+        "points": 3,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",
@@ -219,7 +219,7 @@
       "size": 3,
       "lean": {
         "step": 0,
-        "points": 4,
+        "points": 2,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",
@@ -243,7 +243,7 @@
       "size": 2,
       "lean": {
         "step": 0,
-        "points": 4,
+        "points": 2,
         "key": "exchange-lean-even"
       },
       "lean_key": "exchange-lean-even",

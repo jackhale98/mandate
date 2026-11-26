@@ -1,8 +1,8 @@
 {
   "at": {
-    "id": 7,
+    "id": 8,
     "kind": "municipality",
-    "name": "Belenwick",
+    "name": "Halobridge",
     "name_key": "jurisdiction-municipality",
     "tier": "local"
   },
@@ -12,28 +12,28 @@
       "available": true,
       "beat": "shelter",
       "blocked_key": null,
-      "days_left": 7,
+      "days_left": 9,
       "decision": null,
       "due": {
-        "day": 19,
-        "day_number": 737349,
+        "day": 21,
+        "day_number": 737351,
         "month": 2,
         "year": 2020
       },
       "kind": "ask",
       "label": {
         "args": {
-          "asker": "Neve Oak",
-          "asker_hood": "Orchardrow",
-          "asker_occupation": "organiser",
-          "asker_role_key": "occupation-organiser",
+          "asker": "Sana Vargawell",
+          "asker_hood": "Orchardfield",
+          "asker_occupation": "shopkeeper",
+          "asker_role_key": "occupation-shopkeeper",
           "crisis_key": "ask-crisis-disaster_recovery",
-          "days": "7",
+          "days": "9",
           "history": "none",
-          "official": "Osric Dell",
+          "official": "Bettina Zeller",
           "official_role_key": "role-mayor",
-          "player": "Fen Galloway",
-          "town": "Belenwick"
+          "player": "Osric Gold",
+          "town": "Halobridge"
         },
         "key": "ask-flood-shelter"
       },
@@ -43,9 +43,9 @@
           "ambient_slot": null,
           "can_talk": false,
           "has_news": true,
-          "id": 1044,
-          "level": "detailed",
-          "name": "Osric Dell",
+          "id": 1032,
+          "level": "known",
+          "name": "Bettina Zeller",
           "role_key": "role-mayor",
           "rumoured": false,
           "tier": "principal"
@@ -53,16 +53,16 @@
         "place": {
           "kind_key": "town_hall",
           "location": {
-            "place": 120,
+            "place": 132,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 90,
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         },
         "power": null
       },
@@ -70,20 +70,20 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 100,
         "to": {
           "kind_key": "town_hall",
           "location": {
-            "place": 120,
+            "place": 132,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 90,
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
       "stage": "struck",
@@ -107,13 +107,13 @@
       "label": {
         "args": {
           "crisis_key": "crisis-disaster_recovery",
-          "hood": "East Hill",
-          "official": "Osric Dell",
+          "hood": "Orchardfield",
+          "official": "Bettina Zeller",
           "official_role_key": "role-mayor",
-          "organiser": "Neve Oak",
-          "organiser_role_key": "occupation-organiser",
-          "player": "Fen Galloway",
-          "town": "Belenwick"
+          "organiser": "Sana Vargawell",
+          "organiser_role_key": "occupation-shopkeeper",
+          "player": "Osric Gold",
+          "town": "Halobridge"
         },
         "key": "dilemma-flood-money"
       },
@@ -123,12 +123,12 @@
         "place": {
           "kind_key": "streets",
           "location": {
-            "neighborhood": 91,
+            "neighborhood": 101,
             "type": "street"
           },
           "name": "",
-          "neighborhood": 91,
-          "neighborhood_name": "East Hill"
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
         },
         "power": "office"
       },
@@ -142,35 +142,35 @@
       "available": true,
       "beat": "box",
       "blocked_key": null,
-      "days_left": 21,
+      "days_left": 20,
       "decision": null,
       "due": {
-        "day": 5,
-        "day_number": 737363,
+        "day": 4,
+        "day_number": 737362,
         "month": 3,
         "year": 2020
       },
       "kind": "visit",
       "label": {
         "args": {
-          "above": "Ferreland",
-          "away": "316",
-          "clock_day": "5",
+          "above": "Loreshire",
+          "away": "376",
+          "clock_day": "4",
           "clock_month_key": "month-3",
           "crisis_key": "crisis-disaster_recovery",
           "day": "1",
-          "hall": "Queens Cross",
-          "homes": "247",
-          "hood": "East Hill",
+          "hall": "Bridgegate",
+          "homes": "267",
+          "hood": "Orchardfield",
           "month_key": "month-2",
-          "official": "Osric Dell",
+          "official": "Bettina Zeller",
           "official_role_key": "role-mayor",
-          "organiser": "Neve Oak",
-          "organiser_role_key": "occupation-organiser",
-          "place": "Belenwick",
-          "player": "Fen Galloway",
+          "organiser": "Sana Vargawell",
+          "organiser_role_key": "occupation-shopkeeper",
+          "place": "Halobridge",
+          "player": "Osric Gold",
           "repaired": "0",
-          "town": "Belenwick",
+          "town": "Halobridge",
           "weeks": "1",
           "year": "2020"
         },
@@ -182,12 +182,12 @@
         "place": {
           "kind_key": "community_centre",
           "location": {
-            "place": 127,
+            "place": 139,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
         },
         "power": null
       },
@@ -195,16 +195,16 @@
         "action": "visit",
         "here": true,
         "late_night": false,
-        "neighborhood": 94,
+        "neighborhood": 104,
         "to": {
           "kind_key": "community_centre",
           "location": {
-            "place": 127,
+            "place": 139,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
         }
       },
       "stage": "struck",
@@ -223,30 +223,30 @@
       "at": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 91,
+          "neighborhood": 101,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 91,
-        "neighborhood_name": "East Hill"
+        "neighborhood": 101,
+        "neighborhood_name": "Orchardfield"
       },
       "kind": "area",
-      "name": "East Hill",
+      "name": "Orchardfield",
       "person": null,
       "role": "hood"
     },
     {
       "at": null,
       "kind": "person",
-      "name": "Neve Oak",
+      "name": "Sana Vargawell",
       "person": {
         "ambient_slot": null,
-        "can_talk": true,
+        "can_talk": false,
         "has_news": true,
-        "id": 1409,
-        "level": "detailed",
-        "name": "Neve Oak",
-        "role_key": "occupation-organiser",
+        "id": 1407,
+        "level": "heard",
+        "name": "Sana Vargawell",
+        "role_key": "occupation-shopkeeper",
         "rumoured": false,
         "tier": "named"
       },
@@ -256,29 +256,29 @@
       "at": {
         "kind_key": "community_centre",
         "location": {
-          "place": 127,
+          "place": 139,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 94,
-        "neighborhood_name": "Queens Cross"
+        "neighborhood": 104,
+        "neighborhood_name": "Bridgegate"
       },
       "kind": "place",
-      "name": "Queens Cross",
+      "name": "Bridgegate",
       "person": null,
       "role": "hall"
     },
     {
       "at": null,
       "kind": "person",
-      "name": "Osric Dell",
+      "name": "Bettina Zeller",
       "person": {
         "ambient_slot": null,
         "can_talk": false,
         "has_news": true,
-        "id": 1044,
-        "level": "detailed",
-        "name": "Osric Dell",
+        "id": 1032,
+        "level": "known",
+        "name": "Bettina Zeller",
         "role_key": "role-mayor",
         "rumoured": false,
         "tier": "principal"
@@ -288,22 +288,22 @@
     {
       "at": null,
       "kind": "jurisdiction",
-      "name": "Ferreland",
+      "name": "Loreshire",
       "person": null,
       "role": "above"
     }
   ],
   "clock": {
-    "days_left": 21,
+    "days_left": 20,
     "due": {
-      "day": 5,
-      "day_number": 737363,
+      "day": 4,
+      "day_number": 737362,
       "month": 3,
       "year": 2020
     },
     "text": {
       "args": {
-        "days": "21"
+        "days": "20"
       },
       "key": "now-clock-days"
     }
@@ -312,25 +312,25 @@
   "ended": null,
   "headline": {
     "args": {
-      "above": "Ferreland",
-      "away": "316",
-      "clock_day": "5",
+      "above": "Loreshire",
+      "away": "376",
+      "clock_day": "4",
       "clock_month_key": "month-3",
       "crisis_key": "crisis-disaster_recovery",
       "day": "1",
-      "hall": "Queens Cross",
-      "homes": "247",
-      "hood": "East Hill",
+      "hall": "Bridgegate",
+      "homes": "267",
+      "hood": "Orchardfield",
       "month_key": "month-2",
-      "official": "Osric Dell",
+      "official": "Bettina Zeller",
       "official_role_key": "role-mayor",
       "ok": "yes",
-      "organiser": "Neve Oak",
-      "organiser_role_key": "occupation-organiser",
-      "place": "Belenwick",
-      "player": "Fen Galloway",
+      "organiser": "Sana Vargawell",
+      "organiser_role_key": "occupation-shopkeeper",
+      "place": "Halobridge",
+      "player": "Osric Gold",
       "repaired": "0",
-      "town": "Belenwick",
+      "town": "Halobridge",
       "weeks": "1",
       "year": "2020"
     },
@@ -340,31 +340,31 @@
       "month": 2,
       "year": 2020
     },
-    "id": 2063,
+    "id": 2138,
     "text_key": "headline-arc-flood-struck"
   },
   "history": [
     {
       "args": {
-        "above": "Ferreland",
-        "away": "316",
-        "clock_day": "5",
+        "above": "Loreshire",
+        "away": "376",
+        "clock_day": "4",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
-        "hall": "Queens Cross",
-        "homes": "247",
-        "hood": "East Hill",
+        "hall": "Bridgegate",
+        "homes": "267",
+        "hood": "Orchardfield",
         "month_key": "month-2",
-        "official": "Osric Dell",
+        "official": "Bettina Zeller",
         "official_role_key": "role-mayor",
         "ok": "yes",
-        "organiser": "Neve Oak",
-        "organiser_role_key": "occupation-organiser",
-        "place": "Belenwick",
-        "player": "Fen Galloway",
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "place": "Halobridge",
+        "player": "Osric Gold",
         "repaired": "0",
-        "town": "Belenwick",
+        "town": "Halobridge",
         "weeks": "1",
         "year": "2020"
       },
@@ -374,29 +374,29 @@
         "month": 2,
         "year": 2020
       },
-      "id": 2063,
+      "id": 2138,
       "text_key": "headline-arc-flood-struck"
     },
     {
       "args": {
-        "above": "Ferreland",
-        "away": "316",
-        "clock_day": "5",
+        "above": "Loreshire",
+        "away": "376",
+        "clock_day": "4",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
-        "hall": "Queens Cross",
-        "homes": "247",
-        "hood": "East Hill",
+        "hall": "Bridgegate",
+        "homes": "267",
+        "hood": "Orchardfield",
         "month_key": "month-2",
-        "official": "Osric Dell",
+        "official": "Bettina Zeller",
         "official_role_key": "role-mayor",
-        "organiser": "Neve Oak",
-        "organiser_role_key": "occupation-organiser",
-        "place": "Belenwick",
-        "player": "Fen Galloway",
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "place": "Halobridge",
+        "player": "Osric Gold",
         "repaired": "0",
-        "town": "Belenwick",
+        "town": "Halobridge",
         "weeks": "1",
         "year": "2020"
       },
@@ -406,7 +406,7 @@
         "month": 2,
         "year": 2020
       },
-      "id": 2062,
+      "id": 2137,
       "text_key": "arc-flood-struck"
     }
   ],
@@ -414,7 +414,7 @@
   "lead": null,
   "level": "known",
   "stage": {
-    "event": 2062,
+    "event": 2137,
     "id": "struck",
     "since": {
       "day": 8,
@@ -424,24 +424,24 @@
     },
     "text": {
       "args": {
-        "above": "Ferreland",
-        "away": "316",
-        "clock_day": "5",
+        "above": "Loreshire",
+        "away": "376",
+        "clock_day": "4",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
-        "hall": "Queens Cross",
-        "homes": "247",
-        "hood": "East Hill",
+        "hall": "Bridgegate",
+        "homes": "267",
+        "hood": "Orchardfield",
         "month_key": "month-2",
-        "official": "Osric Dell",
+        "official": "Bettina Zeller",
         "official_role_key": "role-mayor",
-        "organiser": "Neve Oak",
-        "organiser_role_key": "occupation-organiser",
-        "place": "Belenwick",
-        "player": "Fen Galloway",
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "place": "Halobridge",
+        "player": "Osric Gold",
         "repaired": "0",
-        "town": "Belenwick",
+        "town": "Halobridge",
         "weeks": "1",
         "year": "2020"
       },
@@ -450,24 +450,24 @@
   },
   "title": {
     "args": {
-      "above": "Ferreland",
-      "away": "316",
-      "clock_day": "5",
+      "above": "Loreshire",
+      "away": "376",
+      "clock_day": "4",
       "clock_month_key": "month-3",
       "crisis_key": "crisis-disaster_recovery",
       "day": "1",
-      "hall": "Queens Cross",
-      "homes": "247",
-      "hood": "East Hill",
+      "hall": "Bridgegate",
+      "homes": "267",
+      "hood": "Orchardfield",
       "month_key": "month-2",
-      "official": "Osric Dell",
+      "official": "Bettina Zeller",
       "official_role_key": "role-mayor",
-      "organiser": "Neve Oak",
-      "organiser_role_key": "occupation-organiser",
-      "place": "Belenwick",
-      "player": "Fen Galloway",
+      "organiser": "Sana Vargawell",
+      "organiser_role_key": "occupation-shopkeeper",
+      "place": "Halobridge",
+      "player": "Osric Gold",
       "repaired": "0",
-      "town": "Belenwick",
+      "town": "Halobridge",
       "weeks": "1",
       "year": "2020"
     },

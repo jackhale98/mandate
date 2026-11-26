@@ -12,7 +12,7 @@
       "action": "town_hall",
       "health": 1.0,
       "late_night": false,
-      "risk": 0.1400540182438143,
+      "risk": 0.11957567888751894,
       "shady": null,
       "slots": 1
     }
@@ -22,89 +22,81 @@
   "faults": [
     {
       "args": {
-        "hood": "Belenwick"
+        "hood": "Churchfield"
       },
-      "asset": "drain",
-      "cue": "drain_new",
-      "event": 2089,
+      "asset": "play_area",
+      "cue": "swing_new",
+      "event": 2235,
       "fixed_on": {
-        "day": 8,
-        "day_number": 737366,
-        "month": 3,
+        "day": 7,
+        "day_number": 737487,
+        "month": 7,
         "year": 2020
       },
       "here": false,
-      "id": 0,
-      "kind": "fault.drain",
+      "id": 2,
+      "kind": "fault.swing",
       "moved_up": false,
-      "name_key": "fault-drain-name",
-      "neighborhood": 90,
+      "name_key": "fault-swing-name",
+      "neighborhood": 105,
       "next_in_queue": false,
       "opened": {
         "day": 1,
-        "day_number": 737331,
-        "month": 2,
+        "day_number": 737451,
+        "month": 6,
         "year": 2020
       },
       "see": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 90,
+          "neighborhood": 105,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 90,
-        "neighborhood_args": {
-          "centre_town": "Belenwick"
-        },
-        "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood": 105,
+        "neighborhood_name": "Churchfield"
       },
       "spot": {
-        "kind": "kerb",
-        "slot": 2,
-        "slots": 4
+        "kind": "green",
+        "slot": 1,
+        "slots": 3
       },
       "status": "fixed",
-      "what_key": "fault-drain-what"
+      "what_key": "fault-swing-what"
     },
     {
       "args": {
-        "hood": "Belenwick"
+        "hood": "Churchfield"
       },
       "asset": "drain",
       "cue": "drain_flooded",
-      "event": 2085,
+      "event": 2245,
       "here": false,
-      "id": 2,
+      "id": 3,
       "kind": "fault.drain",
       "moved_up": false,
       "name_key": "fault-drain-name",
-      "neighborhood": 90,
+      "neighborhood": 105,
       "next_in_queue": true,
       "opened": {
         "day": 1,
-        "day_number": 737359,
-        "month": 3,
+        "day_number": 737512,
+        "month": 8,
         "year": 2020
       },
       "see": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 90,
+          "neighborhood": 105,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 90,
-        "neighborhood_args": {
-          "centre_town": "Belenwick"
-        },
-        "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood": 105,
+        "neighborhood_name": "Churchfield"
       },
       "spot": {
         "kind": "kerb",
-        "slot": 3,
+        "slot": 0,
         "slots": 4
       },
       "status": "open",
@@ -112,41 +104,37 @@
     },
     {
       "args": {
-        "hood": "Belenwick"
+        "hood": "Churchfield"
       },
       "asset": "road",
       "cue": "pothole",
-      "event": 2086,
+      "event": 2246,
       "here": false,
-      "id": 3,
+      "id": 4,
       "kind": "fault.pothole",
       "moved_up": false,
       "name_key": "fault-pothole-name",
-      "neighborhood": 90,
+      "neighborhood": 105,
       "next_in_queue": false,
       "opened": {
         "day": 1,
-        "day_number": 737359,
-        "month": 3,
+        "day_number": 737512,
+        "month": 8,
         "year": 2020
       },
       "see": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 90,
+          "neighborhood": 105,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 90,
-        "neighborhood_args": {
-          "centre_town": "Belenwick"
-        },
-        "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood": 105,
+        "neighborhood_name": "Churchfield"
       },
       "spot": {
         "kind": "road",
-        "slot": 4,
+        "slot": 0,
         "slots": 5
       },
       "status": "open",
@@ -165,16 +153,12 @@
   "location": {
     "kind_key": "streets",
     "location": {
-      "neighborhood": 90,
+      "neighborhood": 105,
       "type": "street"
     },
     "name": "",
-    "neighborhood": 90,
-    "neighborhood_args": {
-      "centre_town": "Belenwick"
-    },
-    "neighborhood_key": "ui-hood-centre",
-    "neighborhood_name": "Belenwick"
+    "neighborhood": 105,
+    "neighborhood_name": "Churchfield"
   },
   "newspaper": null,
   "overheard": null,
@@ -183,21 +167,10 @@
       "ambient_slot": null,
       "can_talk": false,
       "has_news": true,
-      "id": 91,
-      "level": "known",
-      "name": "Emeric Bircher",
-      "role_key": "occupation-retiree",
-      "rumoured": false,
-      "tier": "named"
-    },
-    {
-      "ambient_slot": null,
-      "can_talk": false,
-      "has_news": true,
-      "id": 352,
+      "id": 97,
       "level": "detailed",
-      "name": "Nadia Mercerwood",
-      "role_key": "occupation-shopkeeper",
+      "name": "Odile Lindqvist",
+      "role_key": "occupation-park_keeper",
       "rumoured": false,
       "tier": "named"
     },
@@ -205,15 +178,26 @@
       "ambient_slot": null,
       "can_talk": false,
       "has_news": true,
-      "id": 360,
-      "level": "known",
-      "name": "Bodil Sedge",
-      "role_key": "role-councillor",
+      "id": 368,
+      "level": "heard",
+      "name": "Linus Tallis",
+      "role_key": "occupation-teacher",
       "rumoured": false,
-      "tier": "principal"
+      "tier": "named"
     },
     {
       "ambient_slot": 0,
+      "can_talk": false,
+      "has_news": false,
+      "id": null,
+      "level": "unknown",
+      "name": "",
+      "role_key": "occupation-retiree",
+      "rumoured": false,
+      "tier": "ambient"
+    },
+    {
+      "ambient_slot": 1,
       "can_talk": false,
       "has_news": false,
       "id": null,

@@ -1,5 +1,5 @@
 {
-  "arc": 3,
+  "arc": 2,
   "beat": "showdown.debate",
   "phase": "done",
   "layout": "crowd",
@@ -12,7 +12,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "24",
+      "clock_day": "23",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -39,7 +39,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "24",
+      "clock_day": "23",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -66,7 +66,7 @@
       "backer_role_key": "occupation-union_steward",
       "chair": "Hector Birchby",
       "chair_role_key": "occupation-editor",
-      "clock_day": "24",
+      "clock_day": "23",
       "clock_month_key": "month-10",
       "day": "13",
       "hall": "Foundryside",
@@ -91,7 +91,7 @@
     "backer_role_key": "occupation-union_steward",
     "chair": "Hector Birchby",
     "chair_role_key": "occupation-editor",
-    "clock_day": "24",
+    "clock_day": "23",
     "clock_month_key": "month-10",
     "day": "13",
     "hall": "Foundryside",
@@ -138,12 +138,12 @@
   "available": false,
   "blocked_key": null,
   "last_day": {
-    "day_number": 737595,
+    "day_number": 737594,
     "year": 2020,
     "month": 10,
-    "day": 23
+    "day": 22
   },
-  "days_left": 15,
+  "days_left": 14,
   "other": {
     "id": 759,
     "ambient_slot": null,
@@ -156,7 +156,7 @@
     "has_news": true
   },
   "chair": {
-    "id": 1272,
+    "id": 1275,
     "ambient_slot": null,
     "name": "Hector Birchby",
     "role_key": "occupation-editor",
@@ -167,7 +167,7 @@
     "has_news": true
   },
   "second": {
-    "id": 1275,
+    "id": 1278,
     "ambient_slot": null,
     "name": "Flora Achter",
     "role_key": "occupation-union_steward",
@@ -195,7 +195,7 @@
       "size": 3,
       "lean": {
         "step": 1,
-        "points": 13,
+        "points": 12,
         "key": "exchange-lean-with-1"
       },
       "lean_key": "exchange-lean-with-1",
@@ -219,7 +219,7 @@
       "size": 3,
       "lean": {
         "step": 1,
-        "points": 13,
+        "points": 12,
         "key": "exchange-lean-with-1"
       },
       "lean_key": "exchange-lean-with-1",
@@ -243,7 +243,7 @@
       "size": 2,
       "lean": {
         "step": 1,
-        "points": 13,
+        "points": 12,
         "key": "exchange-lean-with-1"
       },
       "lean_key": "exchange-lean-with-1",
@@ -259,7 +259,7 @@
   "played": [
     {
       "round": 1,
-      "prompt_key": "exchange-debate-prompt-thin_record-2",
+      "prompt_key": "exchange-debate-prompt-thin_record-1",
       "said_key": "exchange-debate-say-promise-2",
       "option": "promise:promise.clean_politics",
       "kind": "promise",
@@ -283,12 +283,12 @@
           "points": -4
         }
       ],
-      "event": 2227
+      "event": 2407
     },
     {
       "round": 2,
       "prompt_key": "exchange-debate-prompt-top_worry-3",
-      "said_key": "exchange-debate-say-promise-2",
+      "said_key": "exchange-debate-say-promise-1",
       "option": "promise:promise.no_tax_rise",
       "kind": "promise",
       "reply_key": null,
@@ -311,12 +311,12 @@
           "points": 9
         }
       ],
-      "event": 2229
+      "event": 2409
     },
     {
       "round": 3,
       "prompt_key": "exchange-debate-prompt-top_worry-1",
-      "said_key": "exchange-debate-say-promise-2",
+      "said_key": "exchange-debate-say-promise-1",
       "option": "promise:promise.town_halls",
       "kind": "promise",
       "reply_key": null,
@@ -339,7 +339,7 @@
           "points": 4
         }
       ],
-      "event": 2231
+      "event": 2411
     }
   ],
   "result": {
@@ -354,7 +354,7 @@
         "backer_role_key": "occupation-union_steward",
         "chair": "Hector Birchby",
         "chair_role_key": "occupation-editor",
-        "clock_day": "24",
+        "clock_day": "23",
         "clock_month_key": "month-10",
         "day": "13",
         "hall": "Foundryside",
@@ -381,7 +381,7 @@
         "backer_role_key": "occupation-union_steward",
         "chair": "Hector Birchby",
         "chair_role_key": "occupation-editor",
-        "clock_day": "24",
+        "clock_day": "23",
         "clock_month_key": "month-10",
         "day": "13",
         "hall": "Foundryside",
@@ -404,12 +404,12 @@
         "group": "hood.100.c0",
         "before": {
           "step": 0,
-          "points": 4,
+          "points": 3,
           "key": "exchange-lean-even"
         },
         "after": {
           "step": 1,
-          "points": 13,
+          "points": 12,
           "key": "exchange-lean-with-1"
         },
         "steps": 1,
@@ -420,12 +420,12 @@
         "group": "hood.100.c1",
         "before": {
           "step": 0,
-          "points": 4,
+          "points": 2,
           "key": "exchange-lean-even"
         },
         "after": {
           "step": 1,
-          "points": 13,
+          "points": 12,
           "key": "exchange-lean-with-1"
         },
         "steps": 1,
@@ -436,12 +436,12 @@
         "group": "hood.100.c2",
         "before": {
           "step": 0,
-          "points": 4,
+          "points": 2,
           "key": "exchange-lean-even"
         },
         "after": {
           "step": 1,
-          "points": 13,
+          "points": 12,
           "key": "exchange-lean-with-1"
         },
         "steps": 1,
@@ -451,7 +451,7 @@
     ],
     "promises": [
       {
-        "ask": 12,
+        "ask": 11,
         "title": {
           "key": "promise-clean-politics",
           "args": {
@@ -471,7 +471,7 @@
         }
       },
       {
-        "ask": 13,
+        "ask": 12,
         "title": {
           "key": "promise-no-tax-rise",
           "args": {
@@ -491,7 +491,7 @@
         }
       },
       {
-        "ask": 14,
+        "ask": 13,
         "title": {
           "key": "promise-town-halls",
           "args": {
@@ -511,6 +511,6 @@
         }
       }
     ],
-    "event": 2232
+    "event": 2412
   }
 }

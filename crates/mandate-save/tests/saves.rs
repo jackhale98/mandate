@@ -172,7 +172,11 @@ fn state_shape_matches_format_version() {
     // its faults; absent while empty), an ask's need `fixed`, the log the
     // event `fault`, and the effect `expedite`. Migration: `upkeep_faults`
     // (no change: the domain starts empty).
-    const EXPECTED: (u16, &str) = (33, "0c4e6ceb189381f3");
+    // 0c4e6ceb189381f3 (v33) -> cba106bf9975aa18 (v34): the short-time
+    // review (DEC-110 amended 2026-11-26). The log gained the event
+    // `plant_reviewed` (its `outcome`, `jobs_cut` absent when none).
+    // Migration: `plant_review` (no change: an older save has no review).
+    const EXPECTED: (u16, &str) = (34, "cba106bf9975aa18");
     let c = content();
     let mut e = generate(
         &WorldConfig {

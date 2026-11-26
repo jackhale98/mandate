@@ -24,7 +24,7 @@
     "needs": "a planted flood raises the arc, still running at month 3, and the idle game lets it exit by month 12"
   },
   "fresh_colleague_and_bill_before_council": {
-    "seed": 48,
+    "seed": 49,
     "needs": "a council colleague with no edge to the player, and a bill before the council"
   },
   "introduction_ask_offered_early": {
@@ -32,7 +32,7 @@
     "needs": "an ask.introduce_me is offered within the first four turns (small world)"
   },
   "law_decided_early_with_its_chain": {
-    "seed": 1,
+    "seed": 2,
     "needs": "a small idle world where, within six turns, the overview lists a law passed or voted down and the town's paper a story, each with what led to it"
   },
   "law_lapses_in_first_skip": {
