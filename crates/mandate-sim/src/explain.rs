@@ -794,7 +794,7 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
                 }
             }
         }
-        C::LastRace { .. } | C::SponsorsBill { .. } => {}
+        C::LastRace { .. } | C::SponsorsBill { .. } | C::Proposal { .. } => {}
         // The plant as it stands (any state, no date asked).
         C::Plant { slot, .. } => {
             let mut a = condition::Args::new();

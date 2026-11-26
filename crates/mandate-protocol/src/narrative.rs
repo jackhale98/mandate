@@ -563,18 +563,43 @@ fn preview(engine: &Engine, d: &Decision, e: &EffectDef) -> EffectLineView {
                 "mixed",
             )
         }
-        EffectDef::Draft { template, .. } => line(
-            "effect-draft",
-            vec![(
-                "bill_key",
-                content
-                    .policies
-                    .get(template)
-                    .map(|t| t.name_key.clone())
-                    .unwrap_or_default(),
-            )],
-            "gain",
-        ),
+        EffectDef::Draft { template, .. } => match content.family(template) {
+            // A family: its open proposal in the player's focus, named with
+            // its slots' arguments (DEC-092 §2.19).
+            Some(f) => {
+                let focus = st.focus();
+                let inst = st
+                    .policy
+                    .families
+                    .instances
+                    .iter()
+                    .find(|i| i.is_open() && &i.family == template && focus.contains(&i.at));
+                let mut v = line(
+                    "effect-draft",
+                    vec![("bill_key", f.name_key.clone())],
+                    "gain",
+                );
+                // The slots' names as the player may see them.
+                if let Some((_, args)) = inst.and_then(|i| crate::proposals::title(engine, i)) {
+                    for (k, a) in args {
+                        v.args.entry(k).or_insert(a);
+                    }
+                }
+                v
+            }
+            None => line(
+                "effect-draft",
+                vec![(
+                    "bill_key",
+                    content
+                        .policies
+                        .get(template)
+                        .map(|t| t.name_key.clone())
+                        .unwrap_or_default(),
+                )],
+                "gain",
+            ),
+        },
         // DEC-073: the risk is shown before the player commits, as a coarse band.
         EffectDef::Hidden { severity, .. } => {
             let (Some(spec), Some(pl)) = (e.hidden_spec(), st.player.as_ref()) else {

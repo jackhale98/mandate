@@ -478,7 +478,7 @@ fn choices(engine: &Engine, kinds: &[AboutKind]) -> Vec<AboutChoiceView> {
                 for t in content
                     .policies
                     .values()
-                    .filter(|t| t.tier == TierKey::Local)
+                    .filter(|t| t.tier == TierKey::Local && !t.retired)
                 {
                     if t.unlock.is_some()
                         && gate.level(&Subject::Situational {

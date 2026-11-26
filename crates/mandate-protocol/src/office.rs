@@ -1193,10 +1193,11 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
     let residents = st.population.municipality_total(&st.world, m) as f64;
     let price = st.economy.national.price_level;
     let gate = Gate::of(engine);
+    // Retired templates (DEC-092 §2.19) are on no one's menu.
     let catalog = content
         .policies
         .values()
-        .filter(|t| t.tier == TierKey::Local)
+        .filter(|t| t.tier == TierKey::Local && !t.retired)
         .filter_map(|t| {
             // Situational policies are learned (DEC-091): omitted while
             // unknown, a stub once heard of, in full once known.

@@ -1,0 +1,412 @@
+// Policy families about the town's streets, services and air (DEC-092;
+// M6_ENGINE_CONTRACTS §2.18, §2.21): a market's licences, a community
+// centre or a park where a neighbourhood has none, night buses for an
+// outlying one, clinic hours, and clean air by a works. Numbers are first
+// guesses (TUNING_QUEUE). Fluent: locale/en/families.ftl.
+{
+  "kind": "policy_families",
+  "items": [
+    // --- Licences for the market (§2.18) ---------------------------------------------------
+    {
+      "id": "family.market_licences",
+      "name_key": "family-market-licences",
+      "desc_key": "family-market-licences-desc",
+      "tier": "local", "category": "economic_development", "requires": "propose_ordinance",
+      "draw": { "rarity": "uncommon", "weight": 1 },
+      "slots": [
+        { "id": "market", "bind": { "type": "place", "kinds": ["market"] } },
+        { "id": "hood", "bind": { "type": "neighborhood", "of_slot": "market" } },
+        { "id": "traders", "bind": { "type": "person", "occupations": ["occupation.shopkeeper", "occupation.diner_owner"], "at_slot": "market", "fallback": "broker" } },
+        { "id": "residents", "bind": { "type": "person", "occupations": ["occupation.organiser", "occupation.clergy"], "in_slot": "hood" }, "optional": true },
+      ],
+      "trigger": {
+        "any": [
+          { "type": "indicator", "indicator": "unemployment", "min": 0.05 },
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.jobs", "top": 2 },
+          { "type": "concern", "concern": "concern.taxes", "top": 2 },
+        ],
+        "reason_key": "reason-market-dispute",
+      },
+      "expiry": { "grace_months": 4, "max_months": 12, "cooldown_months": 18 },
+      // The quantity is the real choice here, so it stays a slider (DEC-092 §3).
+      "base": {
+        "params": [ { "id": "stalls", "name_key": "param-stalls", "min": -40, "max": 120, "default": 30, "step": 10, "unit_key": "unit-stalls" } ],
+        "cost": { "per_unit": 150, "param": "stalls" },
+        "mechanisms": [ { "type": "sector_capacity", "sector": "sector.retail", "param": "stalls", "per_unit": 1.5 } ],
+        "implementation_months": 2,
+        "signature": { "localism": 0.3, "tax_tolerance": -0.1, "tradition": 0.1 },
+        "secondary_keys": ["secondary-market-vans"],
+        "side_effects": [ { "type": "grievance", "min_age_band": 2, "per_unit": 0.0008, "param": "stalls" } ],
+        "works": { "kind": "market_stalls", "at": "market", "months": 3 },
+      },
+      "axes": [
+        { "id": "hours", "name_key": "axis-market-hours", "default": "daytime",
+          "options": [
+            { "id": "daytime", "name_key": "opt-market-daytime", "desc_key": "opt-market-daytime-desc" },
+            { "id": "evening", "name_key": "opt-market-evening", "desc_key": "opt-market-evening-desc",
+              "area": { "type": "slot", "slot": "hood" },
+              "fixed": { "evening": 20 },
+              "mechanisms": [ { "type": "sector_capacity", "sector": "sector.tourism", "param": "evening", "per_unit": 1.0 } ],
+              "side_effects": [ { "type": "grievance", "min_age_band": 2, "per_unit": 0.002, "param": "evening" } ],
+              "signature": { "social_liberalism": 0.2, "tradition": -0.2 } },
+          ] },
+        { "id": "fee", "name_key": "axis-market-fee", "default": "low",
+          "options": [
+            { "id": "low", "name_key": "opt-fee-low", "desc_key": "opt-fee-low-desc", "effect_factor": 1.2,
+              "cost": { "per_capita": 1 } },
+            { "id": "high", "name_key": "opt-fee-high", "desc_key": "opt-fee-high-desc", "effect_factor": 0.8,
+              "mechanisms": [ { "type": "revenue", "per_unit": 400, "param": "stalls" } ],
+              "side_effects": [ { "type": "grievance", "class": "middle", "per_unit": 0.0005, "param": "stalls" } ] },
+          ] },
+        { "id": "order", "name_key": "axis-market-order", "default": "inspectors",
+          "options": [
+            { "id": "inspectors", "name_key": "opt-order-inspectors", "desc_key": "opt-order-inspectors-desc",
+              "cost": { "per_capita": 1.5 } },
+            { "id": "traders", "name_key": "opt-order-traders", "desc_key": "opt-order-traders-desc",
+              "cost_factor": 0.5,
+              "side_effects": [ { "type": "grievance", "min_age_band": 2, "per_unit": 0.0006, "param": "stalls" } ],
+              "signature": { "law_and_order": -0.1 } },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "traders", "slot": "traders", "name_key": "sponsor-traders-version",
+          "preset": { "hours": "evening", "fee": "low", "order": "traders" }, "params": { "stalls": 80 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-market" } },
+        { "id": "residents", "slot": "residents", "name_key": "sponsor-neighbours-version",
+          "preset": { "hours": "daytime", "fee": "high", "order": "inspectors" }, "params": { "stalls": -20 },
+          "price": { "type": "endorsement", "area": { "type": "slot", "slot": "hood" }, "approval": 0.03, "backlash": 0.01 } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "market" }, { "type": "overheard", "at": ["diner"] } ],
+        "known": [ { "type": "meet", "slot": "traders" }, { "type": "meet", "slot": "residents" } ],
+        "detailed": [ { "type": "service", "service": "budget_papers" } ],
+        "lead": { "key": "lead-market-licences", "to": { "type": "slot", "slot": "traders" } },
+      },
+    },
+
+    // --- A community centre for a neighbourhood that has none ---------------------------
+    {
+      "id": "family.community_centre",
+      "name_key": "family-community-centre",
+      "desc_key": "family-community-centre-desc",
+      "tier": "local", "category": "social", "requires": "propose_ordinance",
+      "draw": { "rarity": "common", "weight": 1 },
+      "max_instances": 2,
+      "slots": [
+        { "id": "hood", "bind": { "type": "neighborhood", "lacks": ["community_centre"], "pick": "largest" } },
+        { "id": "organiser", "bind": { "type": "person", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.teacher"], "in_slot": "hood" }, "optional": true },
+      ],
+      "trigger": {
+        "any": [
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.services", "top": 3 },
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.jobs", "top": 2 },
+        ],
+        "reason_key": "reason-community-centre",
+      },
+      "expiry": { "grace_months": 6, "max_months": 12, "cooldown_months": 18 },
+      "base": {
+        "params": [ { "id": "size", "name_key": "param-centre-size", "min": 1, "max": 3, "default": 2, "step": 1, "unit_key": "unit-level" } ],
+        "cost": { "per_capita_per_unit": 3, "param": "size" },
+        "mechanisms": [ { "type": "service", "category": "social", "param": "size", "per_unit": 0.015 } ],
+        "implementation_months": 12,
+        "signature": { "redistribution": 0.3, "localism": 0.3, "social_liberalism": 0.1, "tax_tolerance": 0.1 },
+        "secondary_keys": ["secondary-centre-upkeep"],
+        "side_effects": [ { "type": "disruption", "per_unit": 0.01, "param": "size" } ],
+        "works": { "kind": "community_centre", "at": "hood", "contractor_risk": 0.02 },
+      },
+      "axes": [
+        { "id": "run_by", "name_key": "axis-run-by", "default": "council",
+          "options": [
+            { "id": "council", "name_key": "opt-run-council", "desc_key": "opt-run-council-desc" },
+            // A charity runs it on a grant: cheaper, and it does less.
+            { "id": "charity", "name_key": "opt-run-charity", "desc_key": "opt-run-charity-desc",
+              "cost_factor": 0.6, "effect_factor": 0.75,
+              "signature": { "tradition": 0.1, "redistribution": -0.1 } },
+          ] },
+        { "id": "pay", "name_key": "axis-paid-by", "default": "budget",
+          "options": [
+            { "id": "budget", "name_key": "opt-pay-budget", "desc_key": "opt-pay-budget-desc" },
+            { "id": "bond", "name_key": "opt-pay-bond", "desc_key": "opt-pay-bond-desc",
+              "mechanisms": [ { "type": "borrow", "share": 1.0 } ],
+              "signature": { "tax_tolerance": 0.1 } },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "organiser", "slot": "organiser", "name_key": "sponsor-residents-version",
+          "preset": { "run_by": "council", "pay": "bond" }, "params": { "size": 3 },
+          "price": { "type": "endorsement", "area": { "type": "slot", "slot": "hood" }, "approval": 0.04, "backlash": 0.01 } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "hood" }, { "type": "overheard", "at": ["diner", "market"] } ],
+        "known": [ { "type": "meet", "slot": "organiser" }, { "type": "action", "action": "town_hall", "slot": "hood" }, { "type": "action", "action": "canvass", "slot": "hood" } ],
+        "detailed": [ { "type": "service", "service": "town_data_detailed" } ],
+        "lead": { "key": "lead-community-centre", "to": { "type": "slot", "slot": "organiser" },
+                  "else": { "key": "lead-community-centre-streets", "to": { "type": "streets", "slot": "hood" } } },
+      },
+    },
+
+    // --- A park for a dense neighbourhood that has none ---------------------------------
+    {
+      "id": "family.park",
+      "name_key": "family-park",
+      "desc_key": "family-park-desc",
+      "tier": "local", "category": "environment", "requires": "propose_ordinance",
+      "draw": { "rarity": "common", "weight": 1 },
+      "slots": [
+        { "id": "hood", "bind": { "type": "neighborhood", "kinds": ["core", "inner", "industrial"], "lacks": ["park"], "pick": "largest" } },
+        { "id": "organiser", "bind": { "type": "person", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.park_keeper", "occupation.teacher"], "in_slot": "hood" }, "optional": true },
+        { "id": "builders", "bind": { "type": "person", "occupations": ["occupation.business_leader"] }, "optional": true },
+      ],
+      "trigger": {
+        "any": [
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.environment", "top": 3 },
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.services", "top": 2 },
+        ],
+        "reason_key": "reason-park",
+      },
+      "expiry": { "grace_months": 6, "max_months": 12, "cooldown_months": 18 },
+      "base": {
+        "params": [ { "id": "size", "name_key": "param-park-size", "min": 1, "max": 3, "default": 1, "step": 1, "unit_key": "unit-level" } ],
+        "cost": { "per_capita_per_unit": 4, "param": "size" },
+        "mechanisms": [ { "type": "service", "category": "environment", "param": "size", "per_unit": 0.015 } ],
+        "implementation_months": 10,
+        "signature": { "environment": 0.6, "localism": 0.2, "redistribution": 0.1, "tax_tolerance": 0.1 },
+        "secondary_keys": ["secondary-park-plots"],
+        "side_effects": [ { "type": "disruption", "per_unit": 0.01, "param": "size" } ],
+        "works": { "kind": "park", "at": "hood", "contractor_risk": 0.01 },
+      },
+      "axes": [
+        // Where the land comes from: a vacant lot, or homes the council buys out.
+        { "id": "land", "name_key": "axis-park-land", "default": "lot",
+          "options": [
+            { "id": "lot", "name_key": "opt-park-lot", "desc_key": "opt-park-lot-desc",
+              "effect_factor": 0.8 },
+            { "id": "buyout", "name_key": "opt-park-buyout", "desc_key": "opt-park-buyout-desc",
+              "cost_factor": 1.6, "months": 6,
+              "mechanisms": [ { "type": "zoning", "param": "size", "per_unit": -0.03 } ],
+              "side_effects": [ { "type": "grievance", "class": "high", "min_age_band": 2, "per_unit": 0.01, "param": "size" } ] },
+          ] },
+        { "id": "pay", "name_key": "axis-paid-by", "default": "budget",
+          "options": [
+            { "id": "budget", "name_key": "opt-pay-budget", "desc_key": "opt-pay-budget-desc" },
+            { "id": "bond", "name_key": "opt-pay-bond", "desc_key": "opt-pay-bond-desc",
+              "mechanisms": [ { "type": "borrow", "share": 1.0 } ],
+              "signature": { "tax_tolerance": 0.1 } },
+            // A builder pays for it next to new flats: more homes, less green.
+            { "id": "developer", "name_key": "opt-park-developer", "desc_key": "opt-park-developer-desc",
+              "effect_factor": 0.7,
+              "mechanisms": [ { "type": "revenue", "per_capita": 3 }, { "type": "zoning", "param": "size", "per_unit": 0.03 } ],
+              "signature": { "environment": -0.2, "reform_appetite": 0.1 } },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "organiser", "slot": "organiser", "name_key": "sponsor-residents-version",
+          "preset": { "land": "buyout", "pay": "budget" }, "params": { "size": 2 },
+          "price": { "type": "endorsement", "area": { "type": "slot", "slot": "hood" }, "approval": 0.03, "backlash": 0.01 } },
+        { "id": "builders", "slot": "builders", "name_key": "sponsor-builders-version",
+          "preset": { "land": "lot", "pay": "developer" }, "params": { "size": 1 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-park" } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "hood" }, { "type": "overheard", "at": ["diner", "market"] } ],
+        "known": [ { "type": "meet", "slot": "organiser" }, { "type": "action", "action": "town_hall", "slot": "hood" } ],
+        "detailed": [ { "type": "service", "service": "town_data_detailed" } ],
+        "lead": { "key": "lead-park", "to": { "type": "streets", "slot": "hood" } },
+      },
+    },
+
+    // --- Night buses for an outlying neighbourhood --------------------------------------
+    {
+      "id": "family.night_buses",
+      "name_key": "family-night-buses",
+      "desc_key": "family-night-buses-desc",
+      "tier": "local", "category": "infrastructure", "requires": "propose_ordinance",
+      "draw": { "rarity": "common", "weight": 1 },
+      "slots": [
+        { "id": "hood", "bind": { "type": "neighborhood", "kinds": ["suburb", "rural", "industrial"], "pick": "largest" } },
+        { "id": "residents", "bind": { "type": "person", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.nurse", "occupation.shop_steward"], "in_slot": "hood" }, "optional": true },
+      ],
+      "trigger": {
+        "any": [
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.jobs", "top": 2 },
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.services", "top": 2 },
+        ],
+        "reason_key": "reason-night-buses",
+      },
+      "expiry": { "grace_months": 6, "max_months": 12, "cooldown_months": 12 },
+      "base": {
+        "params": [ { "id": "routes", "name_key": "param-routes", "min": 1, "max": 4, "default": 2, "step": 1, "unit_key": "unit-routes" } ],
+        "cost": { "per_capita_per_unit": 9, "param": "routes" },
+        "mechanisms": [ { "type": "service", "category": "infrastructure", "param": "routes", "per_unit": 0.01 } ],
+        "implementation_months": 4,
+        "signature": { "redistribution": 0.3, "environment": 0.3, "tax_tolerance": 0.1, "tradition": -0.1, "reform_appetite": 0.1 },
+        "secondary_keys": ["secondary-night-buses-noise"],
+        "side_effects": [ { "type": "grievance", "min_age_band": 3, "per_unit": 0.004, "param": "routes" } ],
+      },
+      "axes": [
+        { "id": "where", "name_key": "axis-where", "default": "hood",
+          "options": [
+            { "id": "hood", "name_key": "opt-buses-hood", "desc_key": "opt-buses-hood-desc",
+              "area": { "type": "slot", "slot": "hood" }, "months": -1 },
+            { "id": "and_next", "name_key": "opt-buses-and-next", "desc_key": "opt-buses-and-next-desc",
+              "area": { "type": "slot_and_adjacent", "slot": "hood" } },
+          ] },
+        { "id": "run_by", "name_key": "axis-run-by", "default": "council",
+          "options": [
+            { "id": "council", "name_key": "opt-buses-council", "desc_key": "opt-buses-council-desc" },
+            { "id": "contractor", "name_key": "opt-buses-contractor", "desc_key": "opt-buses-contractor-desc",
+              "cost_factor": 0.8, "effect_factor": 0.85,
+              "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.003, "param": "routes" } ] },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "residents", "slot": "residents", "name_key": "sponsor-residents-version",
+          "preset": { "where": "and_next", "run_by": "council" }, "params": { "routes": 3 },
+          "price": { "type": "endorsement", "area": { "type": "slot", "slot": "hood" }, "approval": 0.03, "backlash": 0.01 } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "hood" }, { "type": "overheard", "at": ["diner", "union_hall"] } ],
+        "known": [ { "type": "meet", "slot": "residents" }, { "type": "action", "action": "canvass", "slot": "hood" }, { "type": "action", "action": "town_hall", "slot": "hood" } ],
+        "detailed": [ { "type": "service", "service": "town_data_detailed" } ],
+        "lead": { "key": "lead-night-buses", "to": { "type": "streets", "slot": "hood" } },
+      },
+    },
+
+    // --- Clinic hours -------------------------------------------------------------------
+    {
+      "id": "family.clinic_hours",
+      "name_key": "family-clinic-hours",
+      "desc_key": "family-clinic-hours-desc",
+      "tier": "local", "category": "health", "requires": "propose_ordinance",
+      "draw": { "rarity": "common", "weight": 2 },
+      "slots": [
+        { "id": "clinic", "bind": { "type": "place", "kinds": ["clinic"] } },
+        { "id": "hood", "bind": { "type": "neighborhood", "of_slot": "clinic" } },
+        { "id": "doctor", "bind": { "type": "person", "occupations": ["occupation.gp", "occupation.nurse"], "at_slot": "clinic" }, "optional": true },
+      ],
+      "trigger": {
+        "any": [
+          { "type": "concern", "concern": "concern.services", "top": 3 },
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.services", "top": 3 },
+          { "type": "indicator", "indicator": "service_shortfall", "min": 0.05 },
+        ],
+        "reason_key": "reason-clinic-hours",
+      },
+      "expiry": { "grace_months": 4, "max_months": 12, "cooldown_months": 18 },
+      "base": {
+        "params": [ { "id": "hours", "name_key": "param-clinic-hours", "min": 4, "max": 20, "default": 8, "step": 4, "unit_key": "unit-hours-per-week" } ],
+        "cost": { "per_capita_per_unit": 0.6, "param": "hours" },
+        "mechanisms": [ { "type": "service", "category": "health", "param": "hours", "per_unit": 0.002 } ],
+        "implementation_months": 3,
+        "signature": { "redistribution": 0.3, "tax_tolerance": 0.2, "social_liberalism": 0.1, "tradition": 0.1 },
+        "secondary_keys": ["secondary-clinic-staff"],
+        "side_effects": [ { "type": "labour_supply", "class": "middle", "per_unit": -0.0001, "param": "hours" } ],
+      },
+      "axes": [
+        { "id": "when", "name_key": "axis-clinic-when", "default": "evenings",
+          "options": [
+            { "id": "evenings", "name_key": "opt-clinic-evenings", "desc_key": "opt-clinic-evenings-desc" },
+            // Weekends suit working families; staff are harder to find.
+            { "id": "weekends", "name_key": "opt-clinic-weekends", "desc_key": "opt-clinic-weekends-desc",
+              "cost_factor": 1.2, "effect_factor": 1.15, "months": 2 },
+          ] },
+        { "id": "staffed_by", "name_key": "axis-clinic-staff", "default": "council",
+          "options": [
+            { "id": "council", "name_key": "opt-clinic-council", "desc_key": "opt-clinic-council-desc" },
+            // An agency fills the rota: quick and dear, and the regulars resent it.
+            { "id": "agency", "name_key": "opt-clinic-agency", "desc_key": "opt-clinic-agency-desc",
+              "cost_factor": 1.3, "months": -2,
+              "side_effects": [ { "type": "grievance", "class": "middle", "per_unit": 0.001, "param": "hours" } ] },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "doctor", "slot": "doctor", "name_key": "sponsor-clinic-version",
+          "preset": { "when": "evenings", "staffed_by": "council" }, "params": { "hours": 12 },
+          "price": { "type": "endorsement", "classes": ["low", "middle"], "approval": 0.02, "backlash": 0.01 } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "clinic" }, { "type": "overheard", "at": ["diner", "market"] } ],
+        "known": [ { "type": "meet", "slot": "doctor" }, { "type": "action", "action": "town_hall", "slot": "hood" }, { "type": "service", "service": "budget_papers" } ],
+        "detailed": [ { "type": "service", "service": "town_data_detailed" } ],
+        "lead": { "key": "lead-clinic-hours", "to": { "type": "slot", "slot": "doctor" },
+                  "else": { "key": "lead-clinic-hours-clinic", "to": { "type": "slot", "slot": "clinic" } } },
+      },
+    },
+
+    // --- Clean air by a works ------------------------------------------------------------
+    {
+      "id": "family.clean_air",
+      "name_key": "family-clean-air",
+      "desc_key": "family-clean-air-desc",
+      "tier": "local", "category": "environment", "requires": "propose_ordinance",
+      "draw": { "rarity": "common", "weight": 2 },
+      // A works, the neighbourhood around it, its manager (else the power
+      // broker), and the neighbours' organiser.
+      "slots": [
+        { "id": "plant", "bind": { "type": "place", "kinds": ["factory", "mill", "mine", "port"], "pick": "largest" } },
+        { "id": "hood", "bind": { "type": "neighborhood", "of_slot": "plant" } },
+        { "id": "owner", "bind": { "type": "person", "occupations": ["occupation.plant_manager", "occupation.harbourmaster"], "at_slot": "plant", "fallback": "broker" } },
+        { "id": "residents", "bind": { "type": "person", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.resident"], "in_slot": "hood" }, "optional": true },
+      ],
+      "trigger": {
+        "all": [ { "type": "place_open", "slot": "plant" } ],
+        "any": [
+          { "type": "indicator", "indicator": "pollution", "min": 0.3 },
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.environment", "top": 2 },
+        ],
+        "reason_key": "reason-clean-air",
+      },
+      "expiry": {
+        "when": { "any": [ { "type": "place_closed", "slot": "plant" } ], "reason_key": "reason-plant-closed" },
+        "grace_months": 4, "max_months": 12, "cooldown_months": 18,
+      },
+      "base": {
+        "params": [ { "id": "standard", "name_key": "param-air-standard", "min": 1, "max": 3, "default": 2, "step": 1, "unit_key": "unit-level" } ],
+        "cost": { "per_capita_per_unit": 3, "param": "standard" },
+        "mechanisms": [ { "type": "service", "category": "environment", "param": "standard", "per_unit": 0.015 } ],
+        "implementation_months": 9,
+        "signature": { "environment": 0.6, "law_and_order": 0.1, "localism": 0.1, "reform_appetite": 0.2 },
+        "secondary_keys": ["secondary-clean-air-costs"],
+        "side_effects": [ { "type": "grievance", "class": "high", "per_unit": 0.006, "param": "standard" } ],
+      },
+      "axes": [
+        { "id": "how", "name_key": "axis-clean-air-how", "default": "grant",
+          "options": [
+            // The council pays for filters: quicker, and the firm agrees.
+            { "id": "grant", "name_key": "opt-air-grant", "desc_key": "opt-air-grant-desc",
+              "cost": { "per_capita_per_unit": 3, "param": "standard" } },
+            // An order: the firm pays, after a fight, and may cut jobs.
+            { "id": "order", "name_key": "opt-air-order", "desc_key": "opt-air-order-desc",
+              "months": 6,
+              "side_effects": [
+                { "type": "grievance", "class": "high", "per_unit": 0.01, "param": "standard" },
+                { "type": "grievance", "class": "low", "per_unit": 0.004, "param": "standard" },
+              ],
+              "signature": { "law_and_order": 0.1, "tax_tolerance": -0.1 } },
+          ] },
+        { "id": "where", "name_key": "axis-where", "default": "hood",
+          "options": [
+            { "id": "hood", "name_key": "opt-air-hood", "desc_key": "opt-air-hood-desc",
+              "area": { "type": "slot", "slot": "hood" }, "months": -2 },
+            { "id": "downwind", "name_key": "opt-air-downwind", "desc_key": "opt-air-downwind-desc",
+              "area": { "type": "slot_and_adjacent", "slot": "hood" } },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "residents", "slot": "residents", "name_key": "sponsor-neighbours-version",
+          "preset": { "how": "order", "where": "downwind" }, "params": { "standard": 3 },
+          "price": { "type": "endorsement", "area": { "type": "slot", "slot": "hood" }, "approval": 0.03, "backlash": 0.01 } },
+        { "id": "owner", "slot": "owner", "name_key": "sponsor-owner-version",
+          "preset": { "how": "grant", "where": "hood" }, "params": { "standard": 1 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-clean-air" } },
+      ],
+      "knowledge": {
+        "heard": [ { "type": "visit", "slot": "plant" }, { "type": "overheard", "at": ["diner", "market"] }, { "type": "action", "action": "canvass", "slot": "hood" } ],
+        "known": [ { "type": "meet", "slot": "owner" }, { "type": "meet", "slot": "residents" }, { "type": "action", "action": "town_hall", "slot": "hood" } ],
+        "detailed": [ { "type": "service", "service": "town_data_detailed" } ],
+        "lead": { "key": "lead-clean-air", "to": { "type": "slot", "slot": "residents" },
+                  "else": { "key": "lead-clean-air-streets", "to": { "type": "streets", "slot": "hood" } } },
+      },
+    },
+  ],
+}

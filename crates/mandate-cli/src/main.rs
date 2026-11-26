@@ -9,6 +9,7 @@ mod doctor;
 mod lab;
 mod mapimg;
 mod png;
+mod policies;
 mod replay;
 mod routines;
 mod seeds;
@@ -272,6 +273,39 @@ enum Cmd {
     Arcs {
         #[command(subcommand)]
         cmd: ArcsCmd,
+    },
+    /// Policy families (DEC-092): one world's proposals (`--seed`), their
+    /// coverage over seeds (`--coverage`, a CI gate: a family that binds in
+    /// no world fails it), or validation item 11 on the canonical worlds
+    /// (`--check`: the five scenarios at two sizes, 36 months).
+    Policies {
+        /// List this world's families (the default mode).
+        #[arg(long)]
+        seed: Option<u64>,
+        #[arg(long, value_enum, default_value_t = Size::Small)]
+        size: Size,
+        /// Scenario id (see `sweep --scenario`).
+        #[arg(long)]
+        scenario: Option<String>,
+        /// Also probe this municipality now (any town, whatever the focus).
+        #[arg(long)]
+        town: Option<u32>,
+        /// Months to play (default 24; 36 with `--check`).
+        #[arg(long)]
+        months: Option<u32>,
+        /// Coverage over `--seeds` worlds from `--seed` (default 1).
+        #[arg(long)]
+        coverage: bool,
+        #[arg(long, default_value_t = 16)]
+        seeds: u64,
+        /// Validation item 11: every family binds in a canonical world.
+        #[arg(long)]
+        check: bool,
+        /// Print coverage or the check without failing.
+        #[arg(long)]
+        report_only: bool,
+        #[command(flatten)]
+        lab: LabArgs,
     },
     /// Show details for one municipality or region of a generated world.
     Inspect {
@@ -991,6 +1025,59 @@ fn run(cli: Cli) -> Result<(), String> {
                     failures.join(", ")
                 ))
             }
+        }
+        Cmd::Policies {
+            seed,
+            size,
+            scenario,
+            town,
+            months,
+            coverage,
+            seeds,
+            check,
+            report_only,
+            lab,
+        } => {
+            if !lab.grid.is_empty() {
+                return Err("policies takes --set, not --grid".into());
+            }
+            let content = lab::load(&cli.content, &lab::parse_sets(&lab.set)?)?;
+            lab::runner::set_content_root(&cli.content);
+            let scenario = resolve_scenario(&content, scenario.as_deref())?;
+            let v = if check {
+                policies::check(&content, seed.unwrap_or(1), months.unwrap_or(policies::CHECK_MONTHS))?
+            } else if coverage {
+                policies::coverage(
+                    &content,
+                    seed.unwrap_or(1),
+                    seeds,
+                    size.into(),
+                    scenario.as_deref(),
+                    months.unwrap_or(policies::MONTHS),
+                )?
+            } else {
+                policies::listing(
+                    &content,
+                    seed.unwrap_or(1),
+                    size.into(),
+                    scenario.as_deref(),
+                    town,
+                    months.unwrap_or(policies::MONTHS),
+                )?
+            };
+            let never = v["never_bind"].as_array().cloned().unwrap_or_default();
+            out(v);
+            if (check || coverage) && !never.is_empty() && !report_only {
+                let ids: Vec<String> = never
+                    .iter()
+                    .filter_map(|x| x.as_str().map(str::to_string))
+                    .collect();
+                return Err(format!(
+                    "policy families that bind in no world: {}",
+                    ids.join(", ")
+                ));
+            }
+            Ok(())
         }
         Cmd::SaveInfo { path } => {
             let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;

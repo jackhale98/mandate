@@ -1,0 +1,163 @@
+// Policy families for hard times (DEC-092; M6_ENGINE_CONTRACTS §2.20): rent
+// relief where rents bite, and closing a hole in the town's budget. Both
+// were situational templates (`policies/situational.jsonc`, now retired);
+// their unlocks are these triggers. Numbers are first guesses
+// (TUNING_QUEUE). Fluent: locale/en/families.ftl.
+{
+  "kind": "policy_families",
+  "items": [
+    // --- Rent relief (was policy.emergency_rent) ------------------------------------------
+    {
+      "id": "family.rent_relief",
+      "name_key": "family-rent-relief",
+      "desc_key": "family-rent-relief-desc",
+      "tier": "local", "category": "housing", "requires": "propose_ordinance",
+      "draw": { "rarity": "always", "weight": 4 },
+      // The neighbourhood most worried about housing, a tenants' organiser
+      // there, and the landlords' voice (the business association's chair).
+      "slots": [
+        { "id": "hood", "bind": { "type": "neighborhood", "concern": "concern.housing", "top": 3, "pick": "most_concerned" } },
+        { "id": "tenants", "bind": { "type": "person", "occupations": ["occupation.organiser", "occupation.clergy"], "in_slot": "hood" }, "optional": true },
+        { "id": "landlords", "bind": { "type": "person", "occupations": ["occupation.business_leader"], "fallback": "broker" }, "optional": true },
+      ],
+      // The situational unlock, and a neighbourhood whose first worry is housing.
+      "trigger": {
+        "any": [
+          { "type": "crisis", "kind": "crisis.housing_squeeze" },
+          { "type": "indicator", "indicator": "rent_burden", "min": 0.2 },
+          { "type": "hood_concern", "slot": "hood", "concern": "concern.housing", "top": 1 },
+        ],
+        "reason_key": "reason-rent-relief",
+      },
+      "expiry": { "grace_months": 4, "max_months": 30, "cooldown_months": 12 },
+      "base": {
+        "params": [ { "id": "relief", "name_key": "param-rent-relief", "min": 100, "max": 1500, "default": 400, "step": 100, "unit_key": "unit-currency-per-year" } ],
+        "cost": { "per_capita_per_unit": 0.25, "param": "relief" },
+        "mechanisms": [ { "type": "transfer", "class": "low", "param": "relief" } ],
+        "implementation_months": 2,
+        "signature": { "redistribution": 0.8, "tax_tolerance": 0.2, "social_liberalism": 0.2, "localism": 0.1, "tradition": -0.1, "reform_appetite": 0.3 },
+        "secondary_keys": ["secondary-rent-relief"],
+        "side_effects": [ { "type": "grievance", "class": "middle", "per_unit": 0.00002, "param": "relief" } ],
+      },
+      "axes": [
+        { "id": "form", "name_key": "axis-rent-form", "default": "payments",
+          "options": [
+            { "id": "payments", "name_key": "opt-rent-payments", "desc_key": "opt-rent-payments-desc" },
+            // A cap on rent rises too: 3% a year at level 1, 1.5% at 2, none at 3.
+            { "id": "freeze", "name_key": "opt-rent-freeze", "desc_key": "opt-rent-freeze-desc",
+              "params": [ { "id": "freeze", "name_key": "param-rent-freeze", "min": 1, "max": 3, "default": 1, "step": 1, "unit_key": "unit-level" } ],
+              "mechanisms": [ { "type": "rent_cap", "param": "freeze", "loosest": 0.03, "per_unit": -0.015 } ],
+              "secondary_keys": ["secondary-rent-supply"],
+              "side_effects": [ { "type": "grievance", "class": "high", "min_age_band": 2, "per_unit": 0.05, "param": "freeze" } ] },
+          ] },
+        { "id": "where", "name_key": "axis-where", "default": "town",
+          "options": [
+            { "id": "hood", "name_key": "opt-rent-hood", "desc_key": "opt-rent-hood-desc",
+              "area": { "type": "slot", "slot": "hood" }, "months": -1 },
+            { "id": "town", "name_key": "opt-rent-town", "desc_key": "opt-rent-town-desc",
+              "area": { "type": "town" } },
+          ] },
+        { "id": "pay", "name_key": "axis-paid-by", "default": "budget",
+          "options": [
+            { "id": "budget", "name_key": "opt-pay-budget", "desc_key": "opt-pay-budget-desc" },
+            { "id": "levy", "name_key": "opt-pay-levy", "desc_key": "opt-pay-levy-desc",
+              "params": [ { "id": "levy", "name_key": "param-levy", "min": 0.05, "max": 0.3, "default": 0.1, "step": 0.05, "unit_key": "unit-percent-points" } ],
+              "mechanisms": [ { "type": "local_tax_rate", "param": "levy" } ],
+              "side_effects": [ { "type": "grievance", "min_age_band": 1, "per_unit": 0.4, "param": "levy" } ] },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "tenants", "slot": "tenants", "name_key": "sponsor-tenants-version",
+          "preset": { "form": "freeze", "where": "town", "pay": "levy" }, "params": { "relief": 600, "freeze": 2 },
+          "price": { "type": "endorsement", "classes": ["low"], "approval": 0.04, "backlash": 0.02 } },
+        { "id": "landlords", "slot": "landlords", "name_key": "sponsor-landlords-version",
+          "preset": { "form": "payments", "where": "hood", "pay": "budget" }, "params": { "relief": 300 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-rent-relief" } },
+      ],
+      "knowledge": {
+        "public": true,
+        "heard": [ { "type": "overheard", "at": ["diner", "market"] } ],
+        "known": [ { "type": "meet", "slot": "tenants" }, { "type": "meet", "slot": "landlords" }, { "type": "action", "action": "canvass", "slot": "hood" }, { "type": "action", "action": "town_hall", "slot": "hood" } ],
+        "detailed": [ { "type": "service", "service": "town_data_detailed" } ],
+        "lead": { "key": "lead-rent-relief", "to": { "type": "slot", "slot": "tenants" },
+                  "else": { "key": "lead-rent-relief-streets", "to": { "type": "streets", "slot": "hood" } } },
+      },
+    },
+
+    // --- Close the gap (was policy.fiscal_bridge) ------------------------------------------
+    {
+      "id": "family.fiscal_bridge",
+      "name_key": "family-fiscal-bridge",
+      "desc_key": "family-fiscal-bridge-desc",
+      "tier": "local", "category": "administration", "requires": "propose_ordinance",
+      "draw": { "rarity": "always", "weight": 4 },
+      // The union and the business association's chair, where the town has them.
+      "slots": [
+        { "id": "union", "bind": { "type": "person", "occupations": ["occupation.union_steward", "occupation.shop_steward"] }, "optional": true },
+        { "id": "business", "bind": { "type": "person", "occupations": ["occupation.business_leader"], "fallback": "broker" }, "optional": true },
+      ],
+      // The situational unlock, and a year in the red.
+      "trigger": {
+        "any": [
+          { "type": "crisis", "kind": "crisis.fiscal_hole" },
+          { "type": "indicator", "indicator": "budget_stress", "min": 0.3 },
+          // New (F4): the town spent more than it took last year.
+          { "type": "budget_balance", "max": -0.02 },
+        ],
+        "reason_key": "reason-fiscal-bridge",
+      },
+      "expiry": { "grace_months": 3, "max_months": 24, "cooldown_months": 12 },
+      "base": {
+        "params": [ { "id": "points", "name_key": "param-levy", "min": 0.05, "max": 0.4, "default": 0.15, "step": 0.05, "unit_key": "unit-percent-points" } ],
+        "cost": { "per_capita": 0.5 },
+        "mechanisms": [ { "type": "local_tax_rate", "param": "points" } ],
+        "implementation_months": 1,
+        "signature": { "redistribution": 0.3, "tax_tolerance": 0.7, "law_and_order": 0.1, "tradition": 0.1 },
+        "secondary_keys": ["secondary-bridge-temporary"],
+        // The levy falls on those who own.
+        "side_effects": [ { "type": "grievance", "class": "middle", "min_age_band": 1, "per_unit": 0.4, "param": "points" } ],
+      },
+      "axes": [
+        { "id": "protect", "name_key": "axis-bridge-protect", "default": "poorest",
+          "options": [
+            // A rebate for the poorest households.
+            { "id": "poorest", "name_key": "opt-bridge-poorest", "desc_key": "opt-bridge-poorest-desc",
+              "params": [ { "id": "rebate", "name_key": "param-rebate", "min": 0, "max": 300, "default": 100, "step": 50, "unit_key": "unit-currency-per-year" } ],
+              "cost": { "per_capita_per_unit": 0.3, "param": "rebate" },
+              "mechanisms": [ { "type": "transfer", "class": "low", "param": "rebate" } ] },
+            // The levy keeps services running: no rebate, and it takes longer to show.
+            { "id": "services", "name_key": "opt-bridge-services", "desc_key": "opt-bridge-services-desc",
+              "months": 2,
+              "mechanisms": [ { "type": "service", "category": "social", "param": "points", "per_unit": 0.05 } ],
+              "excludes": ["who_pays.flat"] },
+          ] },
+        { "id": "who_pays", "name_key": "axis-bridge-who-pays", "default": "flat",
+          "options": [
+            // Everyone pays the same rate: the most money.
+            { "id": "flat", "name_key": "opt-bridge-flat", "desc_key": "opt-bridge-flat-desc",
+              "side_effects": [ { "type": "grievance", "class": "low", "min_age_band": 1, "per_unit": 0.4, "param": "points" } ] },
+            // The dearest homes pay more: a little less money, and the well-off notice.
+            { "id": "progressive", "name_key": "opt-bridge-progressive", "desc_key": "opt-bridge-progressive-desc",
+              "effect_factor": 0.9,
+              "side_effects": [ { "type": "grievance", "class": "high", "min_age_band": 1, "per_unit": 0.3, "param": "points" } ],
+              "signature": { "redistribution": 0.2 } },
+          ] },
+      ],
+      "sponsors": [
+        { "id": "union", "slot": "union", "name_key": "sponsor-union-version",
+          "preset": { "protect": "poorest", "who_pays": "progressive" }, "params": { "points": 0.2, "rebate": 150 },
+          "price": { "type": "endorsement", "classes": ["low"], "approval": 0.03, "backlash": 0.02 } },
+        { "id": "business", "slot": "business", "name_key": "sponsor-business-version",
+          "preset": { "protect": "poorest", "who_pays": "flat" }, "params": { "points": 0.1, "rebate": 50 },
+          "price": { "type": "favour", "count": 1, "context_key": "favour-fiscal-bridge" } },
+      ],
+      "knowledge": {
+        "public": true,
+        "heard": [ { "type": "overheard", "at": ["diner", "market", "union_hall"] } ],
+        "known": [ { "type": "meet", "slot": "union" }, { "type": "meet", "slot": "business" }, { "type": "service", "service": "budget_papers" } ],
+        "detailed": [ { "type": "service", "service": "internal_polls" } ],
+        "lead": { "key": "lead-fiscal-bridge", "to": { "type": "place_kind", "kind": "town_hall" } },
+      },
+    },
+  ],
+}

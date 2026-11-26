@@ -168,7 +168,7 @@ pub(super) fn career(
             .unwrap_or(last_decision);
         // Situational policies on the table in the player's town.
         if let Some(m) = mandate_sim::player::home(st).map(|h| h.0) {
-            for t in content.policies.values().filter(|p| p.unlock.is_some()) {
+            for t in content.policies.values().filter(|p| p.unlock.is_some() && !p.retired) {
                 if mandate_sim::policy::unlocked(st, content, t, m) {
                     seen.pick("situational", &t.id);
                 }
@@ -239,7 +239,7 @@ pub(super) fn all_items(b: &ContentBundle) -> Vec<(&'static str, String, String,
         .then(|| "spotlight".to_string());
         out.push(("dilemma", d.id.clone(), d.id.clone(), g));
     }
-    for p in b.policies.values().filter(|p| p.unlock.is_some()) {
+    for p in b.policies.values().filter(|p| p.unlock.is_some() && !p.retired) {
         out.push(("situational", p.id.clone(), p.id.clone(), None));
     }
     for s in &b.scenes {

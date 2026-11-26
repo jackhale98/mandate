@@ -159,8 +159,81 @@ pub(super) fn lobby(e: &mut Engine, content: &ContentBundle, target: u32, bill: 
     any
 }
 
+/// The open proposals (DEC-092) the player knows well enough to draft
+/// (`known`, DEC-091), holds the power for, and no one has a live bill of,
+/// each
+/// with its default package's ward support as the player knows it (the
+/// higher of the proposal's and the family's support subjects, as the
+/// sheet shows it: coarse until learned).
+pub(super) fn known_proposals(e: &Engine, content: &ContentBundle) -> Vec<(f64, u32)> {
+    let st = e.state();
+    let Some(pl) = st.player.as_ref() else {
+        return Vec::new();
+    };
+    let k = Knowing::of(e);
+    let focus = st.focus();
+    let hoods = ward_hoods(&st.world, pl.ward);
+    let mut out = Vec::new();
+    for inst in st
+        .policy
+        .families
+        .instances
+        .iter()
+        .filter(|i| i.is_open() && focus.contains(&i.at))
+    {
+        use mandate_sim::player::knowledge::Subject;
+        if k.level(&Subject::Proposal { proposal: inst.id }) < Level::Known {
+            continue;
+        }
+        let Some(f) = content.family(&inst.family) else {
+            continue;
+        };
+        if !mandate_sim::actions::player_holds_power_at(st, content, f.requires, inst.at) {
+            continue;
+        }
+        // One live bill per proposal (as for NPCs).
+        let live = inst.drafts.iter().any(|d| {
+            st.policy
+                .get(*d)
+                .is_some_and(|p| p.status != PolicyStatus::Ended)
+        });
+        if live {
+            continue;
+        }
+        let Some(t) =
+            mandate_sim::policy::resolve::compose(content, f, Some(inst), &BTreeMap::new())
+        else {
+            continue;
+        };
+        let v = mandate_sim::policy::public_support(&t, &st.population, &hoods);
+        let support = |policy: PolicyRef| {
+            k.level(&Subject::PolicySupport {
+                town: pl.municipality,
+                policy,
+            })
+        };
+        let level = support(PolicyRef::Template {
+            template: f.id.clone(),
+        })
+        .max(support(PolicyRef::Proposal { proposal: inst.id }));
+        let coarse = |step: f64| (v / step).round() * step;
+        let shown = match level {
+            Level::Unknown | Level::Heard => coarse(0.25),
+            Level::Known => coarse(0.1),
+            Level::Detailed => v,
+        };
+        out.push((shown, inst.id.0));
+    }
+    out
+}
+
 pub(super) fn legislate(e: &mut Engine, content: &ContentBundle) {
     if own_bill(e).is_none() {
+        // The best open proposal the player knows (DEC-092), drafted at its
+        // defaults when it beats the best of the standard menu.
+        let proposal = known_proposals(e, content)
+            .into_iter()
+            .max_by(|a, b| a.0.total_cmp(&b.0).then(b.1.cmp(&a.1)));
         let best = {
             let st = e.state();
             let Some(pl) = st.player.as_ref() else { return };
@@ -183,13 +256,29 @@ pub(super) fn legislate(e: &mut Engine, content: &ContentBundle) {
                 })
                 .map(|t| (known_ward_support(e, &t.id), t))
                 .max_by(|a, b| a.0.total_cmp(&b.0))
-                .map(|(_, t)| t.id.clone())
+                .map(|(s, t)| (s, t.id.clone()))
         };
-        if let Some(t) = best {
-            let cmd = e.route(PlayerCommand::DraftPolicy {
-                template: t,
+        let cmd = match (best, proposal) {
+            (Some((s, _)), Some((p, proposal))) if p > s => Some(PlayerCommand::DraftFamily {
+                proposal,
+                choices: BTreeMap::new(),
                 params: BTreeMap::new(),
-            });
+                sponsor: None,
+            }),
+            (None, Some((_, proposal))) => Some(PlayerCommand::DraftFamily {
+                proposal,
+                choices: BTreeMap::new(),
+                params: BTreeMap::new(),
+                sponsor: None,
+            }),
+            (Some((_, template)), _) => Some(PlayerCommand::DraftPolicy {
+                template,
+                params: BTreeMap::new(),
+            }),
+            (None, None) => None,
+        };
+        if let Some(cmd) = cmd {
+            let cmd = e.route(cmd);
             let r = apply(e, cmd);
             if let Some(id) = r.ok().and_then(|r| r.result).and_then(|x| x.created) {
                 let cmd = e.route(PlayerCommand::IntroducePolicy { policy: id });

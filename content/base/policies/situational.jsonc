@@ -4,13 +4,19 @@
 // threshold). A bill already drafted and a law already passed stay when the
 // situation eases. They are validated like every policy: each has a
 // simulated downside besides its money (DEC-073).
+//
+// Retired (DEC-092 §6, M6_ENGINE_CONTRACTS §2.20): each became a policy
+// family whose trigger is its unlock (`family.closure_response`,
+// `family.rebuild`, `family.rent_relief`, `family.fiscal_bridge`). They stay
+// so that bills and laws of them continue and saves that hold them load;
+// no one drafts them, and they are never on the table.
 {
   "kind": "policies",
   "items": [
     // After a plant shuts: stipends while people retrain, and wage subsidies
     // for the firms that hire them.
     {
-      "id": "policy.closure_response", "name_key": "policy-closure-response", "desc_key": "policy-closure-response-desc",
+      "id": "policy.closure_response", "retired": true, "name_key": "policy-closure-response", "desc_key": "policy-closure-response-desc",
       "tier": "local", "category": "economic_development", "requires": "propose_ordinance",
       "unlock": {
         "any": [
@@ -41,7 +47,7 @@
     },
     // After a disaster: rebuild homes to a higher standard against the next one.
     {
-      "id": "policy.rebuild_fund", "name_key": "policy-rebuild-fund", "desc_key": "policy-rebuild-fund-desc",
+      "id": "policy.rebuild_fund", "retired": true, "name_key": "policy-rebuild-fund", "desc_key": "policy-rebuild-fund-desc",
       "tier": "local", "category": "housing", "requires": "propose_ordinance",
       "unlock": {
         "any": [
@@ -70,7 +76,7 @@
     // rises (the housing market answers: a shortage, fewer starts, and a
     // jump when it lifts).
     {
-      "id": "policy.emergency_rent", "name_key": "policy-emergency-rent", "desc_key": "policy-emergency-rent-desc",
+      "id": "policy.emergency_rent", "retired": true, "name_key": "policy-emergency-rent", "desc_key": "policy-emergency-rent-desc",
       "tier": "local", "category": "housing", "requires": "propose_ordinance",
       "unlock": {
         "any": [
@@ -101,7 +107,7 @@
     // In a fiscal hole: a levy to close the gap, with a rebate for the
     // poorest households.
     {
-      "id": "policy.fiscal_bridge", "name_key": "policy-fiscal-bridge", "desc_key": "policy-fiscal-bridge-desc",
+      "id": "policy.fiscal_bridge", "retired": true, "name_key": "policy-fiscal-bridge", "desc_key": "policy-fiscal-bridge-desc",
       "tier": "local", "category": "administration", "requires": "propose_ordinance",
       "unlock": {
         "any": [

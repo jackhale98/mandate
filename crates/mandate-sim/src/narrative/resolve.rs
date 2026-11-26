@@ -481,6 +481,39 @@ fn apply_effect(
             );
             Applied::CalledIn { person: p, policy }
         }
+        EffectDef::Draft { template, params } if content.family(template).is_some() => {
+            // A policy family (DEC-092 §2.19): the open proposal of it in
+            // the player's focus, drafted at its defaults. The decision put
+            // it in front of the player, so they know it (DEC-091).
+            let focus = state.focus();
+            let Some(proposal) = state
+                .policy
+                .families
+                .instances
+                .iter()
+                .find(|i| i.is_open() && &i.family == template && focus.contains(&i.at))
+                .map(|i| i.id)
+            else {
+                return skip("draft");
+            };
+            knowledge::teach_one(
+                state,
+                knowledge::Subject::Proposal { proposal },
+                Level::Known,
+                knowledge::Source::Decision { decision: id },
+            );
+            match crate::actions::draft_family(
+                state,
+                content,
+                proposal,
+                &std::collections::BTreeMap::new(),
+                params,
+                None,
+            ) {
+                Ok(id) => Applied::Drafted { policy: id },
+                Err(_) => skip("draft"),
+            }
+        }
         EffectDef::Draft { template, params } => {
             match crate::actions::draft(state, content, template, params) {
                 Ok(id) => Applied::Drafted { policy: id },

@@ -524,13 +524,18 @@ pub fn situation_holds(
 }
 
 /// Is a template on the table in town `m`? Templates without an unlock
-/// always are; a situational one while any of its conditions holds.
+/// always are; a situational one while any of its conditions holds; a
+/// retired one never (DEC-092 §2.19, §2.20: its laws continue, no one
+/// drafts it).
 pub fn unlocked(
     state: &crate::state::State,
     content: &ContentBundle,
     t: &PolicyTemplate,
     m: u32,
 ) -> bool {
+    if t.retired {
+        return false;
+    }
     match &t.unlock {
         None => true,
         Some(u) => triggered(state, content, u, m),

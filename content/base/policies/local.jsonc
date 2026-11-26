@@ -1,5 +1,10 @@
 // Local policy templates (DEC-024, DEC-026). `signature` weighs the policy by
 // attitude key (content/base/attitudes.jsonc); attitudes left out weigh 0.
+// The standard menu (DEC-092 §1, M6_ENGINE_CONTRACTS §2.19) is the eight
+// general levers; flood defences, the tech incubator and the wage floor are
+// `retired` into policy families (`family.flood_wall`,
+// `family.campus_incubator`, `family.living_wage_deal`): no one drafts them,
+// but laws already in force continue and saves that hold them load.
 {
   "kind": "policies",
   "items": [
@@ -55,7 +60,7 @@
       "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.02, "param": "pct" } ],
     },
     {
-      "id": "policy.tech_incubator", "name_key": "policy-tech-incubator", "desc_key": "policy-tech-incubator-desc",
+      "id": "policy.tech_incubator", "retired": true, "name_key": "policy-tech-incubator", "desc_key": "policy-tech-incubator-desc",
       "tier": "local", "category": "economic_development", "requires": "propose_ordinance",
       "params": [ { "id": "pct", "name_key": "param-subsidy", "min": 1, "max": 10, "default": 3, "step": 1, "unit_key": "unit-percent-wages" } ],
       "cost": { "per_capita_per_unit": 10, "param": "pct" },
@@ -79,7 +84,7 @@
       "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.04, "param": "level" } ],
     },
     {
-      "id": "policy.flood_defenses", "name_key": "policy-flood", "desc_key": "policy-flood-desc",
+      "id": "policy.flood_defenses", "retired": true, "name_key": "policy-flood", "desc_key": "policy-flood-desc",
       "tier": "local", "category": "environment", "requires": "propose_ordinance",
       "params": [ { "id": "level", "name_key": "param-protection", "min": 1, "max": 3, "default": 1, "step": 1, "unit_key": "unit-level" } ],
       "cost": { "per_capita_per_unit": 30, "param": "level" },
@@ -94,7 +99,7 @@
       "side_effects": [ { "type": "disruption", "per_unit": 0.05, "param": "level" } ],
     },
     {
-      "id": "policy.local_wage_floor", "name_key": "policy-wage-floor", "desc_key": "policy-wage-floor-desc",
+      "id": "policy.local_wage_floor", "retired": true, "name_key": "policy-wage-floor", "desc_key": "policy-wage-floor-desc",
       "tier": "local", "category": "administration", "requires": "propose_ordinance",
       "params": [ { "id": "pct", "name_key": "param-wage-uplift", "min": 5, "max": 30, "default": 10, "step": 5, "unit_key": "unit-percent" } ],
       "cost": { "per_capita": 2 },

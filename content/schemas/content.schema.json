@@ -6096,6 +6096,24 @@
         },
         {
           "additionalProperties": false,
+          "description": "An open proposal of this policy family is on the table in the\njurisdiction: `$proposal_<slot>` for each of its place and\nneighbourhood slots (their names), `$proposal_<slot>_key` for its\nsector, crisis and hazard slots. People are never named.",
+          "properties": {
+            "family": {
+              "type": "string"
+            },
+            "type": {
+              "const": "proposal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "family"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Any one of these holds (the first that does gives the arguments).",
           "properties": {
             "of": {
