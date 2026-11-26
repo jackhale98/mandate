@@ -483,10 +483,19 @@ fn each_opening_does_what_its_preview_says() {
             })
             .map(|x| x.0)
             .expect("members distance themselves");
+        // A member with no relationship to the broker yet forms one, from
+        // their first impression, when the opinion lands; `compliance` reads
+        // a missing one as neutral. Form it first, so `was` is what moves.
+        ok.setup(|s| {
+            characters::change_opinion(&mut s.politics, &c, member, b, 0.0);
+        });
         let was = compliance(&ok.state().politics, member, b);
         ok.setup(|s| broker::apply(s, &c, Opening::Expose, &p, false));
         assert!(compliance(&ok.state().politics, member, b) < was);
         let mut bad = twin(&e, &c);
+        bad.setup(|s| {
+            characters::change_opinion(&mut s.politics, &c, member, b, 0.0);
+        });
         let before = approval_by_class(&bad);
         bad.setup(|s| broker::apply(s, &c, Opening::Expose, &p, true));
         let after = approval_by_class(&bad);
