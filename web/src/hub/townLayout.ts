@@ -164,7 +164,9 @@ export type PropKind =
   // a field gate where a road or track meets farmland; a railing where a road meets water (quay end, bank).
   | "bollards"
   | "field_gate"
-  | "railing";
+  | "railing"
+  // Street dressing (DEC-114, B4): a fault's cue on its spot (./layoutV2/dressing), drawn by the art kit's `cue_<cue>`.
+  | `cue_${string}`;
 
 /**
  * How a street that does not join another street ends. Every such end
@@ -232,6 +234,8 @@ export interface TownProp {
   /** Whether it blocks walking (trees, the fountain); lamps and benches do not. */
   blocks: boolean;
   variant: number;
+  /** A fault's cue: the engine's fault id (the dress pass adds these, B4). */
+  fault?: number;
 }
 
 export type WaterSide = "north" | "south" | "east" | "west";

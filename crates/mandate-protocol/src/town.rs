@@ -1037,6 +1037,10 @@ pub struct TownStateView {
     pub last_disaster: Option<TownDisasterView>,
     /// The region's remaining mineral stock, per mille of the initial stock.
     pub mineral_stock_pm: u32,
+    /// Faults on the town's streets (DEC-114): open, being repaired, and
+    /// repaired lately, by neighbourhood and oldest first, each with its spot and the cue the
+    /// street draws now (B4). On the street for anyone to see: never rounded.
+    pub faults: Vec<crate::upkeep::FaultView>,
 }
 
 fn months_between(a: mandate_core::SimDate, b: mandate_core::SimDate) -> u32 {
@@ -1192,6 +1196,11 @@ pub fn town_state_view(engine: &Engine, id: u32) -> Option<TownStateView> {
                 .get(m.region.index())
                 .map_or(1.0, |r| r.mineral_stock),
         ),
+        faults: baseline
+            .neighborhoods
+            .iter()
+            .flat_map(|hb| crate::upkeep::faults_in(engine, hb.id))
+            .collect(),
     })
 }
 

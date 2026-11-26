@@ -97,7 +97,7 @@ export function dressStateOf(v: TownStateView, home: number | null): TownState {
 
 /** A key for what the dress reads (the same key: the same map). */
 export function dressKey(s: TownState): string {
-  return JSON.stringify([s.home, s.hoods, s.vacancy, s.unemployment, s.housingPm, s.pipelinePm, s.closedPlaces]);
+  return JSON.stringify([s.home, s.hoods, s.vacancy, s.unemployment, s.housingPm, s.pipelinePm, s.closedPlaces, s.faults?.map((f) => [f.id, f.hood, f.spot.kind, f.spot.slot, f.spot.slots, f.status, f.cue])]);
 }
 
 const dressed = new WeakMap<TownPlan, { key: string; map: TownMap }>();

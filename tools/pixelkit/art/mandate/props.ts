@@ -14,7 +14,9 @@ import { blank, blit, grid, outline, type Indexed } from "../../src/core/image";
 import type { Palette } from "../../src/core/palette";
 import { marketStalls, PROP2_LEGEND_RAMPS, round4Props } from "./props2";
 import { endProps } from "./props3";
+import { faultCueProps } from "./faultCues";
 import { legendFor } from "./tiles";
+import { worksLegend, worksLitLegend } from "./worksParts";
 
 export const PROP_LEGEND_RAMPS: Readonly<Record<string, readonly [string, number]>> = {
   i: ["iron", 0],
@@ -59,6 +61,8 @@ interface PropDef {
   left?: number;
   /** A lit prop's pool when it is not the street lamp's (round 6: lit bollards cast a small one). */
   pool?: "bollard";
+  /** Drawn in the works kit's legend (./worksParts) instead of this one: the fault cues (./faultCues, B4). */
+  legend?: "works";
 }
 
 const PROPS: Record<string, readonly PropDef[]> = {
@@ -408,8 +412,8 @@ const PROPS: Record<string, readonly PropDef[]> = {
   ],
 };
 
-/** Every prop: round 1's, the market stall's variants after its first (round 4), the layout v2 props (./props2) and the street-end props (./props3, round 6). */
-const ALL_PROPS: Record<string, readonly PropDef[]> = { ...PROPS, stall: [...(PROPS.stall ?? []), ...marketStalls()], ...round4Props(), ...endProps() };
+/** Every prop: round 1's, the market stall's variants after its first (round 4), the layout v2 props (./props2), the street-end props (./props3, round 6) and the fault cues (./faultCues, B4). */
+const ALL_PROPS: Record<string, readonly PropDef[]> = { ...PROPS, stall: [...(PROPS.stall ?? []), ...marketStalls()], ...round4Props(), ...endProps(), ...faultCueProps() };
 
 export const PROP_KINDS = Object.keys(ALL_PROPS);
 
@@ -454,11 +458,14 @@ export interface Spill {
 export function buildProps(p: Palette, lightness: readonly number[]): Record<string, BuiltProp[]> {
   const legend = legendFor(p, { ...PROP_LEGEND_RAMPS, ...PROP2_LEGEND_RAMPS });
   const litLegend: Record<string, number> = { ...legend, g: legendFor(p, { l: ["lamp", 1] }).l as number, y: legendFor(p, { l: ["lamp", 2] }).l as number, G: legendFor(p, { l: ["lamp", 0] }).l as number };
+  const works = worksLegend(p);
+  const { default: _unlit, ...worksLit } = worksLitLegend(p);
+  const worksLitL: Record<string, number> = { ...works, ...worksLit };
   const out: Record<string, BuiltProp[]> = {};
   const bollardPool = smallPool(p);
   for (const [kind, defs] of Object.entries(ALL_PROPS)) {
     out[kind] = defs.map((d) => {
-      const g = grid(d.grid, legend);
+      const g = grid(d.grid, d.legend === "works" ? works : legend);
       // One pixel of room all round for the outline.
       const padded = blank(g.w + 2, g.h + 2);
       blit(padded, g, 1, 1);
@@ -470,7 +477,7 @@ export function buildProps(p: Palette, lightness: readonly number[]): Record<str
           .filter((r) => r.trim())
           .map((r) => [...r.trim()].map((ch) => (d.lit?.includes(ch) ? ch : ".")).join(""));
         emissive = blank(g.w + 2, g.h + 2);
-        blit(emissive, grid(rows.join("\n"), litLegend), 1, 1);
+        blit(emissive, grid(rows.join("\n"), d.legend === "works" ? worksLitL : litLegend), 1, 1);
       }
       const ax = d.left !== undefined ? d.left + 1 : Math.floor((albedo.w - 16) / 2);
       const ay = d.base + 1 - 15;

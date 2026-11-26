@@ -7,6 +7,12 @@
 // thresholds are monotonic (more housing only ever adds built plots, more
 // vacancy only adds boarded ones, the same ones in the same order).
 //
+// Street dressing (S7, DEC-114, task B4): faults the engine reports stand on
+// their spots as cues (open, being repaired, new), placed and drawn by the
+// registry (./dressing); a street-light fault's cue stands in for its lamp.
+// Cues never block walking and never move: a spot's cell is a function of
+// the plan alone.
+//
 // Stage A state comes from what the game sends today (see `stateFromViews`):
 // current neighbourhood populations, the town's vacancy and unemployment.
 // Gaps (TownStateView, §4.2, task E3): baselines (the plan's populations
@@ -17,6 +23,7 @@ import type { TownLocation } from "../townInput";
 import { Terrain, locationCell, type PlotState, type TownBuilding, type TownConnector, type TownDistrict, type TownMap } from "../townLayout";
 import { HOOD_KINDS, type HoodKind } from "../townInput";
 import { mix } from "../rng";
+import { placeCues, type DressFault } from "./dressing";
 import type { TownPlan } from "./plan";
 import { WaterKind, type PlanPlot } from "./work";
 
@@ -36,6 +43,8 @@ export interface TownState {
   pipelinePm?: number;
   /** Places that are closed (a works shut down): shown closed, never removed. */
   closedPlaces?: number[];
+  /** Faults on the town's streets (`TownStateView.faults`): each shows its cue on its spot. */
+  faults?: DressFault[];
 }
 
 /** The dress state from what the game sends today (stage A). */
@@ -171,6 +180,13 @@ export function dressTown(plan: TownPlan, state: TownState): TownMap {
     cells: d.cells,
     bounds: { ...d.bounds },
   }));
+  // Faults: each cue on its spot; a street light's cue stands in for its lamp.
+  let props = plan.props;
+  if (state.faults?.length) {
+    const cues = placeCues(plan, state.faults);
+    const gone = new Set(cues.map((c) => c.replaces).filter((i): i is number => i !== null));
+    props = [...plan.props.filter((_, i) => !gone.has(i)), ...cues.map((c) => c.prop)];
+  }
   const places = buildings
     .filter((b) => b.place !== null)
     .map((b) => ({ place: b.place as number, building: b.index }))
@@ -190,7 +206,7 @@ export function dressTown(plan: TownPlan, state: TownState): TownMap {
     district: plan.district,
     buildings,
     districts,
-    props: plan.props,
+    props,
     places,
     square: { ...plan.square },
     water: plan.waterSide,
@@ -220,5 +236,7 @@ export function dressHash(map: TownMap): string {
   for (const e of map.streetEnds ?? []) for (const n of [e.x, e.y, e.w, e.h, e.kind.length, e.facing.length]) feed(n);
   if (map.streetAxis) for (let i = 0; i < map.streetAxis.length; i++) if (map.streetAxis[i]) feed(i * 4 + (map.streetAxis[i] as number));
   for (const p of map.props) feed(p.x * 31 + p.y);
+  // Fault cues (B4): which drawing stands where (absent from every map without faults, so their hashes are as before).
+  for (const p of map.props) if (p.fault !== undefined) for (let i = 0; i < p.kind.length; i++) feed(p.kind.charCodeAt(i) + p.variant * 256);
   return (h >>> 0).toString(16).padStart(8, "0");
 }

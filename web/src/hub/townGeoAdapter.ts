@@ -16,6 +16,7 @@ import type { TownCharacterView } from "../engine/protocol/TownCharacterView";
 import type { TownGeographyView } from "../engine/protocol/TownGeographyView";
 import type { TownStateView } from "../engine/protocol/TownStateView";
 import type { TownState } from "./layoutV2/dress";
+import { dressFaults } from "./layoutV2/dressing";
 import { NO_BEARING, bearingGap, bearingOf, opposite, type Compass16 } from "./layoutV2/imath";
 import type { GeoLink, TownClass, TownGeo } from "./layoutV2/geo";
 import type { TownInput, TownLocation } from "./townInput";
@@ -100,6 +101,7 @@ export function stateFromEngine(v: TownStateView, home: number | null, location:
     housingPm: v.housing.stock_pm,
     pipelinePm: v.housing.pipeline_pm,
     closedPlaces: v.places.filter((p) => p.status === "closed").map((p) => p.id),
+    faults: dressFaults(v.faults),
   };
 }
 
