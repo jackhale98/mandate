@@ -129,4 +129,11 @@ describe("the Why panel's layout", () => {
     for (const link of LINKS) expect(tr.t(`why-link-${link}`), link).not.toMatch(RAW);
     expect(rootOf(tr, { type: "event", event: 1, link: "caused", in_chain: true })).toBeNull();
   });
+
+  it("names the worry a matter was raised by, as said in a sentence", () => {
+    const named = rootOf(tr, { type: "pressure", pressure: "worry", concern_key: "talk-concern-housing" })?.text ?? "";
+    expect(named).not.toMatch(RAW);
+    expect(named).toContain(tr.t("talk-concern-housing"));
+    expect(named).not.toBe(rootOf(tr, { type: "pressure", pressure: "worry" })?.text);
+  });
 });

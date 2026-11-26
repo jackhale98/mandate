@@ -18,9 +18,9 @@
 //! - the paper's story, the promise made on stage, and the causes of each;
 //! - the v29 step withdraws a challenge that was waiting as a decision.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+use mandate_content::ContentBundle;
 use mandate_content::exchange::{MoveKind, Outcome};
 use mandate_content::knowledge::Level;
-use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
 use mandate_save::*;
 use mandate_sim::actions::{Action, PlayerCommand};
 use mandate_sim::arcs::beats::{self, BeatAction};
@@ -41,14 +41,11 @@ use std::sync::{Arc, Mutex, OnceLock};
 const SEEDS: [u64; 8] = [1, 2, 3, 7, 31, 99, 777, 2026];
 const ARC: &str = "arc.rival";
 
+/// The base pack with the rival alone (the arc-test harness's `only`):
+/// these are the debate's tests; where arcs meet is the director's test.
 fn content() -> Arc<ContentBundle> {
     static C: OnceLock<Arc<ContentBundle>> = OnceLock::new();
-    C.get_or_init(|| {
-        let src =
-            read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
-        Arc::new(load(&src).unwrap().0)
-    })
-    .clone()
+    C.get_or_init(|| mandate_testkit::only(&[ARC])).clone()
 }
 
 fn game(seed: u64) -> Engine {
@@ -63,8 +60,7 @@ struct Debate {
     hall: Location,
 }
 
-/// The debate on offer (another arc's scene may be open first: the zoning
-/// fight's meeting, 2026-11-25).
+/// The debate on offer.
 fn open(e: &Engine) -> Option<Debate> {
     exchange::view::open_scenes(e.state(), e.content())
         .into_iter()
@@ -1096,11 +1092,8 @@ fn a_skip_stops_at_a_debate_and_the_stand_in_never_plays_it() {
             })
             .unwrap();
             let stop = e.state().act.last_skip.as_ref().map(|s| s.stop.clone());
-            // A stop at another arc's scene (the zoning fight's meeting) is
-            // skipped past: this test is the debate's.
             if let Some(SkipStop::Interrupted { interrupt, key, .. }) = stop
                 && interrupt == "interrupt.exchange"
-                && open(&e).is_some()
             {
                 assert_eq!(key, "exchange-interrupt");
                 stopped = true;
@@ -1248,9 +1241,7 @@ fn the_paper_runs_the_debate_and_a_promise_made_there_is_real() {
 /// `mandate-cli`, `with_no_arc_content_every_pin_holds`).
 #[test]
 fn with_no_exchange_in_the_content_nothing_of_it_is_saved() {
-    let src =
-        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
-    let mut b = load(&src).unwrap().0;
+    let mut b = mandate_testkit::pack();
     for a in &mut b.arcs {
         for s in &mut a.stages {
             s.beats

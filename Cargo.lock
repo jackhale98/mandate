@@ -455,6 +455,7 @@ dependencies = [
  "mandate-core",
  "mandate-seeds",
  "mandate-sim",
+ "mandate-testkit",
  "mandate-worldgen",
  "miniz_oxide",
  "serde",
@@ -487,6 +488,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mandate-testkit"
+version = "0.1.0"
+dependencies = [
+ "mandate-content",
+ "mandate-core",
+ "mandate-sim",
+ "mandate-worldgen",
+]
+
+[[package]]
 name = "mandate-wasm"
 version = "0.1.0"
 dependencies = [
@@ -498,6 +509,7 @@ dependencies = [
  "mandate-save",
  "mandate-seeds",
  "mandate-sim",
+ "mandate-testkit",
  "mandate-worldgen",
  "serde",
  "serde_json",
@@ -512,6 +524,7 @@ dependencies = [
  "mandate-core",
  "mandate-seeds",
  "mandate-sim",
+ "mandate-testkit",
  "proptest",
  "serde",
  "serde_json",

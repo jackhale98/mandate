@@ -33,16 +33,15 @@ use std::sync::Arc;
 const FLOOD: &str = "arc.flood";
 const SEVERITY: f64 = 0.9;
 
-/// The base pack without the zoning fight: these are the flood's views,
-/// and in these worlds the zoning run (raised at the start, where housing
-/// is the strongest worry) would hold the place for arcs the flood needs
-/// (2026-11-25).
+/// The embedded pack with the flood alone (the arc-test harness's `keep`):
+/// these are the flood's views, and a world of the whole pack may hold the
+/// places for arcs with other matters (where arcs meet is the director's
+/// test, `mandate-worldgen/tests/director_arcs.rs`).
 fn base() -> ContentBundle {
-    let mut b = mandate_content::load(&mandate_content::embedded::sources())
+    let b = mandate_content::load(&mandate_content::embedded::sources())
         .unwrap()
         .0;
-    b.arcs.retain(|a| a.id != "arc.zoning");
-    b
+    mandate_testkit::keep(b, &[FLOOD])
 }
 
 /// The base pack with the flood's first stage hidden and nothing in it

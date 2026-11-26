@@ -1,7 +1,7 @@
 {
   "arc_leads": [
     {
-      "arc": 1,
+      "arc": 0,
       "route": {
         "action": "go",
         "here": false,

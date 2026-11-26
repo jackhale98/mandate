@@ -479,6 +479,22 @@ pub enum Condition {
         #[serde(default = "yes")]
         is: bool,
     },
+    /// The run finished a scene (DEC-112) whose outcome is one of
+    /// `outcomes` (`won`, `split`, `lost`, `absent`; any, if empty) and
+    /// whose result (Σ weight × change in lean, per mille) is within
+    /// [`min_pm`, `max_pm`]: the scene the player played, read where the
+    /// ending is decided. `beat` (`<stage>.<beat>`) names one scene of
+    /// the arc; omitted, the latest. Inside an arc only.
+    ArcScene {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        beat: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        outcomes: Vec<crate::exchange::Outcome>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        min_pm: Option<i32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        max_pm: Option<i32>,
+    },
     /// The run's heat within [min, max] (0..1). Inside an arc only.
     ArcHeat {
         #[serde(default)]
@@ -842,6 +858,7 @@ impl Condition {
             C::PlaceClosed { .. } => "place_closed",
             C::Arc { .. } => "arc",
             C::ArcMark { .. } => "arc_mark",
+            C::ArcScene { .. } => "arc_scene",
             C::ArcHeat { .. } => "arc_heat",
             C::ArcDays { .. } => "arc_days",
             C::Displaced { .. } => "displaced",
@@ -959,6 +976,7 @@ impl Condition {
             | C::PlaceOpen { .. }
             | C::PlaceClosed { .. } => n.family = true,
             C::ArcMark { .. }
+            | C::ArcScene { .. }
             | C::ArcHeat { .. }
             | C::ArcDays { .. }
             | C::Displaced { .. }
@@ -1806,6 +1824,13 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
         C::ArcMark { mark, .. } => {
             if mark.is_empty() {
                 err(issues, "an arc_mark condition names a mark".into());
+            }
+        }
+        C::ArcScene { min_pm, max_pm, .. } => {
+            if let (Some(lo), Some(hi)) = (min_pm, max_pm)
+                && lo > hi
+            {
+                err(issues, "arc_scene: min_pm is at most max_pm".into());
             }
         }
         C::ArcHeat { min, max } => range(owner, "arc_heat", min, max, 0.0, 1.0, issues),

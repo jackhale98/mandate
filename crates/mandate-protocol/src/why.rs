@@ -85,14 +85,17 @@ pub enum CauseView {
     /// A standing condition the engine's formula names (`world_demand`,
     /// `commodity_prices`, `depletion`, `competitiveness`, `labour_costs`,
     /// `track`, `external_demand`, `home_demand`, `input_costs`, `supply`,
-    /// `water`, `slack_labour`). External demand names the market and the
-    /// good by their Fluent keys (DEC-110).
+    /// `water`, `slack_labour`, `worry`). External demand names the market
+    /// and the good by their Fluent keys (DEC-110); a worry, the concern's
+    /// key as said in a sentence (`talk-concern-housing`: "the rent").
     Pressure {
         pressure: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         market_key: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         good_key: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        concern_key: Option<String>,
     },
     /// The world as it was made.
     History,
@@ -435,10 +438,20 @@ pub fn why_view(engine: &Engine, event: u32, depth: Option<u8>) -> Option<WhyVie
                                 }
                                 _ => (None, None),
                             };
+                            let concern_key = match p {
+                                mandate_sim::spine::Pressure::Worry { concern } => engine
+                                    .content()
+                                    .concerns
+                                    .get(usize::from(*concern))
+                                    // Said in a sentence: "the rent".
+                                    .map(|c| c.talk_key.clone().unwrap_or(c.name_key.clone())),
+                                _ => None,
+                            };
                             CauseView::Pressure {
                                 pressure: p.key().to_string(),
                                 market_key,
                                 good_key,
+                                concern_key,
                             }
                         }
                         Cause::History => CauseView::History,

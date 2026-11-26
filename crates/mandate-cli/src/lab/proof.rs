@@ -276,13 +276,13 @@ const PINS: [(u64, &str, u32, &str, &str); 8] = [
     (2026, "mixed", 96, "7ba70a88815de570", "90ac43d47f94a0f4"), // 3308 events
     (7, "idle", 96, "d4a947cbd3bf85a5", "73409ebb60c39005"),    // 1764 events
     (7, "corrupt", 96, "6e74c32319e2735d", "808e6b5b96285339"), // 3283 events
-    (31, "idle", 96, "c89ca66286d70ada", "6cdad0610a99efcc"),   // 2058 events
+    (31, "idle", 96, "ff24b41ef5734380", "4fa5efc271ed51fb"),   // 2058 events
     (
         31,
         "explorer_legislator",
         96,
-        "2094fca53eb9fa37",
-        "c53cf6cab55f003a",
+        "a5838989817e8c9c",
+        "7d5717ea1ca8aca4",
     ), // 3920 events
     (
         2026,

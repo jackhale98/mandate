@@ -21,7 +21,7 @@
   "kind": "arcs",
   "items": [
     {
-      "id": "arc.flood", "title_key": "arc-flood", "themes": ["crisis"],
+      "id": "arc.flood", "title_key": "arc-flood", "themes": ["crisis"], "rank": "crisis",
       // A town's matter until `disaster` and `law_in_force` read a region.
       "tiers": ["local"], "cooldown_days": 0,
       "raise": [ { "type": "disaster", "hazard": "flood", "within_months": 1 } ],
@@ -86,9 +86,12 @@
             { "id": "weeks", "type": "press", "headline_key": "headline-arc-flood-weeks",
               "when": [ { "type": "arc_days", "min": 35 }, { "type": "displaced", "slot": "hood", "min": 0.001 } ] },
           ],
+          // Work started early does not skip the hall: the street is called
+          // to hear the plan, and a player who paid or sent a crew faces a
+          // cooler room. Only a law answers the matter without one.
           "next": [
             { "to": "rebuilding", "when": [ { "type": "law_in_force", "templates": ["policy.rebuild_fund", "policy.flood_defenses"] } ] },
-            { "to": "rebuilding", "when": [
+            { "to": "meeting", "when": [
                 { "type": "any", "of": [ { "type": "arc_mark", "mark": "paid_first" }, { "type": "arc_mark", "mark": "crew" } ] },
                 { "type": "recovered", "slot": "hood", "min": 0.2 } ] },
             { "to": "meeting", "when": [ { "type": "arc_heat", "min": 0.75 } ] },
@@ -100,10 +103,15 @@
         // organiser who called it. The room's temper is the run's heat, so a
         // hot room hears less: owning what went wrong and staying for every
         // question cool it before anything is spent on it. The clock is the
-        // meeting's night; a player who never came leaves an empty chair.
+        // meeting's night (at least a turn away: the engine holds a scene's
+        // clock to a turn); a player who never came leaves an empty chair.
         // Beside it, the date itself is given to the organiser, in person:
         // a promise with the repairs behind it, as before.
-        { "id": "meeting", "key": "arc-flood-meeting", "climax": true, "clock": { "days": [7, 14] },
+        //
+        // How the room ends decides the matter: a hall carried backs the
+        // work already started and the street stays; a hall lost, or an
+        // empty chair, and the street gives up on the town sooner.
+        { "id": "meeting", "key": "arc-flood-meeting", "climax": true, "clock": { "days": [14, 21] },
           "beats": [
             { "id": "room", "type": "exchange", "once": true,
               "at": "hall", "time": "slot",
@@ -146,7 +154,10 @@
           ],
           "next": [
             { "to": "rebuilding", "when": [ { "type": "law_in_force", "templates": ["policy.rebuild_fund", "policy.flood_defenses"] } ] },
+            { "to": "rebuilding", "when": [ { "type": "arc_scene", "beat": "meeting.room", "outcomes": ["won", "split"] },
+                { "type": "recovered", "slot": "hood", "min": 0.2 } ] },
             { "to": "rebuilding", "when": [ { "type": "arc_mark", "mark": "dated" }, { "type": "recovered", "slot": "hood", "min": 0.45 } ] },
+            { "to": "hollowed", "after_days": 60, "when": [ { "type": "arc_scene", "beat": "meeting.room", "outcomes": ["lost", "absent"] } ] },
             { "to": "hollowed", "after_days": 120 } ] },
 
         // Work has started; the question is how it ends.

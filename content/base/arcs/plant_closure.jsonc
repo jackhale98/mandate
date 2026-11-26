@@ -36,7 +36,7 @@
   "kind": "arcs",
   "items": [
     {
-      "id": "arc.plant_closure", "title_key": "arc-plant", "themes": ["crisis"],
+      "id": "arc.plant_closure", "title_key": "arc-plant", "themes": ["crisis"], "rank": "crisis",
       // A town's matter: `law_in_force` reads a town.
       "tiers": ["local"], "cooldown_days": 730,
       "raise": [ { "type": "plant", "status": ["short_time", "threatened"] } ],
@@ -147,9 +147,15 @@
 
         // The turn: the steward has the members at the hall before the
         // date, and the player is expected. The clock is the meeting's
-        // night; staying away is an empty chair the members remember.
+        // night (at least a turn away: the engine holds a scene's clock to
+        // a turn); staying away is an empty chair the members remember.
+        //
+        // How the room ends reaches the plant, whose review decides the
+        // ending: a hall carried takes the player's case to the manager
+        // with the floor behind it (relief on the margin); a hall lost was
+        // at least heard; an empty chair, and the members down tools.
         { "id": "hall", "key": "arc-plant-hall", "climax": true, "rise": 0.03,
-          "clock": { "days": [7, 14] },
+          "clock": { "days": [14, 21] },
           "beats": [
             { "id": "meeting", "type": "exchange", "once": true,
               "at": "hall", "time": "slot",
@@ -168,11 +174,14 @@
               "moves": ["record", "heard", "act", "own", "offer", "pass"],
               "prep": [ { "mark": "at_gate", "removes": "cold" } ],
               "outcome": {
-                "won": { "sets": "meeting_won", "heat": -0.25 },
+                "won": { "sets": "meeting_won", "heat": -0.25,
+                  "effects": [ { "type": "plant_relief", "place": "site", "relief": 0.06, "months": 12 } ] },
                 "split": { "sets": "meeting_split", "heat": -0.10 },
                 "lost": { "sets": "meeting_lost", "heat": 0.10 },
                 "absent": { "sets": "stayed_away", "heat": 0.20,
-                  "effects": [ { "type": "opinion", "role": "steward", "delta": -8, "memory": "ignored_me" } ] } },
+                  "effects": [
+                    { "type": "opinion", "role": "steward", "delta": -8, "memory": "ignored_me" },
+                    { "type": "plant_relief", "place": "site", "relief": -0.04, "months": 3 } ] } },
               "text": "exchange-plant" },
             // What was not put on the table before can still be.
             { "id": "case", "type": "talk", "with": "owner",

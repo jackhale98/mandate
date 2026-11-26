@@ -14,12 +14,10 @@ use super::seed_reqs::{flooded, flooded_in};
 
 #[test]
 fn a_planted_flood_raises_the_arc_in_eight_seeds_of_eight() {
-    // The flood alone: a standing matter (the zoning fight) can hold the
-    // second place for arcs when the flood strikes. Whether a crisis should
-    // outrank it is the arc-infrastructure task's (2026-11-26).
-    let mut content = (*crate::lab::load(&super::runner::content_root(), &[]).unwrap()).clone();
-    content.arcs.retain(|a| a.id != "arc.zoning");
-    let content = std::sync::Arc::new(content);
+    // The whole pack: a crisis takes a place over the matters that hold
+    // them (the arc template's `rank`), so a zoning fight raised at the
+    // start no longer keeps the flood out (it did in seed 7 before).
+    let content = crate::lab::load(&super::runner::content_root(), &[]).unwrap();
     let mut raised = 0;
     for seed in SEEDS {
         let mut g = flooded_in(&content, seed);

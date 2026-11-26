@@ -86,6 +86,10 @@ why-pressure-supply = What weighed most on the industry: less was coming in from
 why-pressure-water = What weighed most on the industry: the region was short of water.
 why-pressure-slack_labour = People in the town were out of work, and idle hands draw a new works.
 why-pressure-boom = Demand for what the works makes had run high for two years.
+# A matter raised by the town's own worry (the zoning fight, by housing): the
+# concern named when the view carries it.
+why-pressure-worry = It was what people in the town worried about most.
+why-pressure-worry-named = People in the town worried most about { $concern }.
 
 ## Uncaused inside the game by design, and saying so (`Shock`).
 why-exogenous-world_economy = The world economy: nothing here caused it.

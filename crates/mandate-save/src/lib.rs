@@ -40,7 +40,8 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// town calendar and familiarity (B1, DEC-114): the day played, the events
 /// the player was at this turn, familiarity on a relationship. v33: upkeep
 /// and faults (B2, DEC-114): the upkeep domain, a fault an ask is about,
-/// fault events on the spine.
+/// fault events on the spine. (The arcs' infrastructure added a root a
+/// cause can name, `Pressure::Worry`, with no change to the state's shape.)
 pub const SAVE_FORMAT_VERSION: u16 = 33;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;

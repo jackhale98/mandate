@@ -751,6 +751,7 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
                 .unwrap_or_default(),
         ),
         C::ArcMark { .. }
+        | C::ArcScene { .. }
         | C::ArcHeat { .. }
         | C::ArcDays { .. }
         | C::Displaced { .. }
@@ -758,6 +759,17 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
         | C::ArcLastTurn { .. } => {
             if let Some(r) = cx.arc {
                 put("stage", r.stage.clone());
+                if let Some(p) = r.played.last() {
+                    put(
+                        "scene",
+                        format!(
+                            "{} {} {}‰",
+                            p.beat.key(),
+                            p.outcome.key(),
+                            (p.result * 1000.0).round()
+                        ),
+                    );
+                }
                 put("marks", r.marks.join(", "));
                 put("heat", num(f64::from(r.heat)));
                 put("last turn", r.before.clone().unwrap_or_default());

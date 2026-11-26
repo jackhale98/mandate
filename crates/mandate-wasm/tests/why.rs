@@ -867,6 +867,7 @@ fn every_cause_and_link_has_a_line() {
             Pressure::Water,
             Pressure::SlackLabour,
             Pressure::Boom,
+            Pressure::Worry { concern: 0 },
         ];
         let _exhaustive = |x: Pressure| match x {
             Pressure::WorldDemand
@@ -881,11 +882,14 @@ fn every_cause_and_link_has_a_line() {
             | Pressure::Supply
             | Pressure::Water
             | Pressure::SlackLabour
-            | Pressure::Boom => (),
+            | Pressure::Boom
+            | Pressure::Worry { .. } => (),
         };
         all.iter().map(|p| p.key().to_string()).collect::<Vec<_>>()
     };
     family("why-pressure", pressures);
+    // A worry that names its concern has a line of its own.
+    family("why-pressure-worry", vec!["named".into()]);
     family(
         "why-exogenous",
         every!(Shock: WorldEconomy, Commodities, Hazard, Race),

@@ -15,8 +15,8 @@
 //!   with no stand-in still leaves the chair empty: `exchange.rs`,
 //!   `a_skip_stops_at_a_debate_and_the_stand_in_never_plays_it`.)
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+use mandate_content::ContentBundle;
 use mandate_content::exchange::Outcome;
-use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
 use mandate_sim::actions::PlayerCommand;
 use mandate_sim::arcs::exchange::{self, ExchangeAct, Phase, SceneView};
 use mandate_sim::events::EventKind;
@@ -25,20 +25,16 @@ use mandate_sim::standin::{self, Career, Kind, Play, Seat, Turn};
 use mandate_sim::{Command, Engine, State};
 use mandate_worldgen::{WorldConfig, WorldSize, generate};
 use std::collections::BTreeMap;
-use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 
 const SEEDS: [u64; 4] = [1, 3, 31, 99];
 const ARC: &str = "arc.rival";
 
+/// The base pack with the rival alone (the arc-test harness's `only`):
+/// these are the debate's tests; where arcs meet is the director's test.
 fn content() -> Arc<ContentBundle> {
     static C: OnceLock<Arc<ContentBundle>> = OnceLock::new();
-    C.get_or_init(|| {
-        let src =
-            read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
-        Arc::new(load(&src).unwrap().0)
-    })
-    .clone()
+    C.get_or_init(|| mandate_testkit::only(&[ARC])).clone()
 }
 
 fn game(seed: u64) -> Engine {

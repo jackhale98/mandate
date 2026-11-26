@@ -13,113 +13,30 @@
 //! - the rival's lead-up comes before the showdown, with preparation on
 //!   offer there, and a turn that is one decision is gone from all four.
 
-use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
+use mandate_sim::Command;
+use mandate_sim::arcs::ArcActor;
 use mandate_sim::arcs::beats::{self, BeatAction};
-use mandate_sim::arcs::{ArcActor, ArcRun};
-use mandate_sim::economy::plants::{self, PlantStatus};
+use mandate_sim::economy::plants::PlantStatus;
 use mandate_sim::events::EventKind;
-use mandate_sim::standin::{self, Kind, Seat};
-use mandate_sim::world::{Jurisdiction, MunicipalityId};
-use mandate_sim::{Command, Engine};
-use mandate_worldgen::{WorldConfig, WorldSize, generate};
-use std::path::Path;
-use std::sync::Arc;
-
-fn pack() -> ContentBundle {
-    let src =
-        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
-    load(&src).unwrap().0
-}
-
-/// The base pack with one arc.
-fn only(id: &str) -> Arc<ContentBundle> {
-    let mut b = pack();
-    b.arcs.retain(|a| a.id == id);
-    Arc::new(b)
-}
-
-fn engine(c: &Arc<ContentBundle>, seed: u64) -> Engine {
-    generate(&WorldConfig::new(seed, WorldSize::Small), c.clone()).unwrap()
-}
-
-fn home(e: &Engine) -> MunicipalityId {
-    mandate_sim::player::home(e.state()).unwrap()
-}
-
-fn run_of<'a>(e: &'a Engine, template: &str) -> Option<&'a ArcRun> {
-    e.state().arcs.runs.iter().find(|r| r.template == template)
-}
-
-fn exit_of(e: &Engine, template: &str) -> Option<String> {
-    e.state()
-        .arcs
-        .past
-        .iter()
-        .rev()
-        .find(|p| p.template == template)
-        .map(|p| p.exit.clone())
-}
-
-fn end_turn(e: &mut Engine) {
-    e.apply(Command::EndTurn).unwrap();
-}
-
-fn seat(e: &Engine) -> Seat {
-    Seat::of_player(e.state(), e.content()).unwrap_or(Seat {
-        at: Jurisdiction::town(home(e)),
-        post: None,
-    })
-}
-
-/// A fall in demand for the industry of the town's largest plant that can
-/// close, held for `months` (as the lab plants a plant's review).
-fn shock_plant(e: &mut Engine, factor: f64, months: u16) -> plants::PlantId {
-    let town = home(e);
-    let c = e.content().clone();
-    let (id, industry) = plants::of_town(&e.state().economy, town)
-        .filter(|p| p.is_open())
-        .filter(|p| c.industry(&p.industry).is_some_and(|d| d.plants.closes))
-        .max_by(|a, b| a.capacity.total_cmp(&b.capacity).then(b.id.cmp(&a.id)))
-        .map(|p| (p.id, p.industry.clone()))
-        .expect("a plant that can close");
-    let def = c.industry(&industry).unwrap().clone();
-    e.setup(|st| {
-        st.economy.munis[town.index()]
-            .shocks
-            .push(mandate_sim::economy::ActiveShock {
-                sector: def.sector.clone(),
-                factor,
-                months_left: months,
-                industry: Some(def.id.clone()),
-                demand: true,
-            });
-    });
-    id
-}
+use mandate_testkit::{
+    self as kit, Kind, Policy, Scene, end_turn, exit_of, home, only, run_of, shock_plant, world,
+};
 
 const PLANT: &str = "arc.plant_closure";
 /// A small world with a plant that can close at home, whose middling
 /// review (a planted fall to 0.72 of demand) a rescue can lift.
 const PLANT_SEED: u64 = 8;
 
-/// Play until the run of `template` is at `stage` or has ended.
-fn until_stage(e: &mut Engine, template: &str, stage: &str, kind: Kind, turns: u32) {
-    for _ in 0..turns {
-        if run_of(e, template).is_some_and(|r| r.stage == stage) || exit_of(e, template).is_some() {
-            return;
-        }
-        if kind != Kind::Passive && run_of(e, template).is_some() {
-            let s = seat(e);
-            standin::play_turn(e, kind, s);
-        }
-        end_turn(e);
-    }
+/// Play until the run of `template` is at `stage` or has ended, its levers
+/// taken by a stand-in of `kind` (scenes left alone, as before).
+fn until_stage(e: &mut mandate_sim::Engine, template: &str, stage: &str, kind: Kind, turns: u32) {
+    kit::until_stage(e, template, stage, Policy::new(kind, Scene::Away), turns);
 }
 
 #[test]
 fn a_plant_on_short_time_raises_the_arc_with_its_own_people() {
-    let c = only(PLANT);
-    let mut e = engine(&c, PLANT_SEED);
+    let c = only(&[PLANT]);
+    let mut e = world(&c, PLANT_SEED);
     let plant = shock_plant(&mut e, 0.72, 30);
     for _ in 0..20 {
         if run_of(&e, PLANT).is_some() {
@@ -185,8 +102,8 @@ fn a_plant_on_short_time_raises_the_arc_with_its_own_people() {
 
 #[test]
 fn the_notice_carries_the_plants_date_and_the_levers_reach_the_plant() {
-    let c = only(PLANT);
-    let mut e = engine(&c, PLANT_SEED);
+    let c = only(&[PLANT]);
+    let mut e = world(&c, PLANT_SEED);
     let plant = shock_plant(&mut e, 0.72, 30);
     until_stage(&mut e, PLANT, "notice", Kind::Passive, 60);
     let r = run_of(&e, PLANT).expect("a notice").clone();
@@ -224,8 +141,8 @@ fn the_notice_carries_the_plants_date_and_the_levers_reach_the_plant() {
     // An engaged turn: at the gate, short time carried, the case made, and
     // the relief is on the plant's margin once the economy's month turns.
     let before = st.economy.plants[plant.index()].relief;
-    let s = seat(&e);
-    standin::play_turn(&mut e, Kind::Engaged, s);
+    let s = kit::seat(&e);
+    mandate_sim::standin::play_turn(&mut e, Kind::Engaged, s);
     let r = run_of(&e, PLANT).unwrap();
     for m in ["at_gate", "conceded", "offered"] {
         assert!(r.has_mark(m), "{m}: {:?}", r.marks);
@@ -250,9 +167,9 @@ fn the_notice_carries_the_plants_date_and_the_levers_reach_the_plant() {
 
 #[test]
 fn a_rescue_can_lift_a_notice_that_a_passive_player_meets_closed() {
-    let c = only(PLANT);
-    let mut passive = engine(&c, PLANT_SEED);
-    let mut engaged = engine(&c, PLANT_SEED);
+    let c = only(&[PLANT]);
+    let mut passive = world(&c, PLANT_SEED);
+    let mut engaged = world(&c, PLANT_SEED);
     shock_plant(&mut passive, 0.72, 30);
     shock_plant(&mut engaged, 0.72, 30);
     until_stage(&mut passive, PLANT, "__end", Kind::Passive, 120);
@@ -267,8 +184,8 @@ fn a_rescue_can_lift_a_notice_that_a_passive_player_meets_closed() {
 
 #[test]
 fn a_debt_raises_the_favour_and_paying_it_in_any_coin_ends_it() {
-    let c = only("arc.favour_debt");
-    let mut e = engine(&c, 5);
+    let c = only(&["arc.favour_debt"]);
+    let mut e = world(&c, 5);
     let town = home(&e);
     let date = e.state().calendar.date;
     let me = e
@@ -313,10 +230,10 @@ fn a_debt_raises_the_favour_and_paying_it_in_any_coin_ends_it() {
 
 #[test]
 fn the_rival_prepares_in_the_lead_up_before_the_showdown() {
-    let c = only("arc.rival");
+    let c = only(&["arc.rival"]);
     let mut found = false;
     for seed in [1u64, 7, 2026] {
-        let mut e = engine(&c, seed);
+        let mut e = world(&c, seed);
         for _ in 0..80 {
             if run_of(&e, "arc.rival").is_some_and(|r| r.stage == "lead_up") {
                 break;
@@ -387,7 +304,7 @@ fn the_rival_prepares_in_the_lead_up_before_the_showdown() {
 
 #[test]
 fn no_turn_of_the_four_is_one_decision() {
-    let b = pack();
+    let b = kit::pack();
     let flagged = mandate_content::arcs::single_decision_turns(&b);
     for arc in [
         "arc.rival",

@@ -10,43 +10,36 @@
 //!   different exits, and the difference is in simulated state: a change
 //!   voted into the next budget (and the budget itself once the year
 //!   turns), a colleague's opinion, a favour owed;
-//! - every beat a player takes is reached in quick mode and through Places;
-//! - a material arc (a flood) runs beside it and outranks it for the lead.
+//! - every beat a player takes is reached in quick mode and through Places.
+//!
+//! A crisis beside it, which leads, is `director_arcs.rs`.
 
 use mandate_content::arcs::BeatKind;
-use mandate_content::{ContentBundle, Power, bundle::read_dir_sources, load};
+use mandate_content::{ContentBundle, Power};
 use mandate_sim::actions::{Action, PlayerCommand};
 use mandate_sim::arcs::beats::{self, BeatAction, BeatOffer};
 use mandate_sim::arcs::{ArcActor, ArcRun, ArcSummary};
 use mandate_sim::characters::{self, CharacterId};
-use mandate_sim::environment::{DeferredHazard, HazardKind};
 use mandate_sim::events::EventKind;
 use mandate_sim::places::Location;
 use mandate_sim::talk::TalkTarget;
 use mandate_sim::world::Jurisdiction;
 use mandate_sim::{Command, Engine};
-use mandate_worldgen::{WorldConfig, WorldSize, generate};
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::Path;
 use std::sync::Arc;
 
 const ARC: &str = "arc.budget_round";
 /// The seeds of the acceptance run (the flood's, in A1).
 const SEEDS: [u64; 8] = [1, 2, 3, 7, 31, 99, 777, 2026];
 
+/// The base pack with the round alone (the arc-test harness's `only`):
+/// these are the round's tests. A flood beside it, and which leads, is the
+/// director's (`director_arcs.rs`).
 fn base() -> Arc<ContentBundle> {
-    let src =
-        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
-    Arc::new(load(&src).unwrap().0)
+    mandate_testkit::only(&[ARC])
 }
 
-fn engine(c: &Arc<ContentBundle>, seed: u64) -> Engine {
-    generate(&WorldConfig::new(seed, WorldSize::Small), c.clone()).unwrap()
-}
-
-fn town(e: &Engine) -> Jurisdiction {
-    Jurisdiction::town(mandate_sim::player::home(e.state()).unwrap())
-}
+use mandate_testkit::{town, world as engine};
 
 /// The round in progress.
 fn round(e: &Engine) -> Option<&ArcRun> {
@@ -596,73 +589,4 @@ fn every_beat_is_reached_in_quick_mode_and_through_places() {
         seen[0], seen[1],
         "quick mode and Places reach the same beats"
     );
-}
-
-/// A flood strikes the player's town at the next monthly hazard step.
-fn plant_flood(e: &mut Engine) {
-    let town = mandate_sim::player::home(e.state()).unwrap().0;
-    let max = e.content().director.chance.hazard_max_defer_days;
-    e.setup(|st| {
-        let drawn = mandate_core::SimDate(st.calendar.date.0.saturating_sub(max + 1));
-        st.environment.deferred.push(DeferredHazard {
-            municipality: town,
-            kind: HazardKind::Flood,
-            severity: 0.9,
-            drawn,
-            hold_event: None,
-        });
-    });
-}
-
-/// A material arc runs beside the standing one, and outranks it for the
-/// chapter's lead while it can still turn: the flood's meeting is the
-/// chapter's climax, though the budget round turns in the same chapter.
-/// The round is raised all the same (a standing arc is outside the cap),
-/// and each ends by its own rules.
-#[test]
-fn a_flood_runs_beside_the_round_and_leads_the_chapter() {
-    // Without the zoning fight, which holds the second place for arcs in
-    // this world when the flood comes (2026-11-25).
-    let mut b = (*base()).clone();
-    b.arcs.retain(|a| a.id != "arc.zoning");
-    let c = Arc::new(b);
-    let flood_def = c.arc("arc.flood").unwrap();
-    // A world where the flood's turn comes before the round's (seed 7 before
-    // industries, 99 after: one of eleven tried; 106 since the power broker
-    // leans on votes, M6 note 27, which puts flood defences in force in
-    // seed 99's town before the flood, so its arc has no meeting).
-    let mut e = engine(&c, 106);
-    plant_flood(&mut e);
-    let mut together = false;
-    let mut flood_led = false;
-    for _ in 0..40 {
-        e.apply(Command::EndTurn).unwrap();
-        let st = e.state();
-        let flood = st.arcs.runs.iter().find(|r| r.template == "arc.flood");
-        together |= flood.is_some() && round(&e).is_some();
-        // While the flood has not turned and its turn is ahead, it leads,
-        // whatever else runs.
-        if let Some(f) = flood
-            && f.turn.is_none()
-            && mandate_sim::arcs::turn_ahead(flood_def, &f.stage)
-        {
-            let lead = st.narrative.chapter.as_ref().and_then(|ch| ch.lead);
-            assert_eq!(lead, Some(f.id.0), "{:?}", st.narrative.chapter);
-            flood_led = true;
-        }
-    }
-    assert!(together, "the flood and the round ran at once");
-    assert!(flood_led);
-    let st = e.state();
-    let rounds = rounds(&e);
-    assert!(!rounds.is_empty(), "the round ended by its own rules");
-    // The first chapter's climax was the flood's turn, and the round
-    // turned inside the same chapter without being it.
-    let first = &st.narrative.chapters[0];
-    println!("{first:?}");
-    assert_eq!(first.climaxes, 1);
-    assert_eq!(first.turn.as_deref(), Some("arc.flood/meeting"));
-    let turned = rounds[0].turn.as_ref().unwrap().on;
-    assert!(turned >= first.start && Some(turned) <= first.closed);
-    assert!(st.narrative.chapters.iter().all(|ch| ch.climaxes <= 1));
 }
