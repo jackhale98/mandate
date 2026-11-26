@@ -554,7 +554,10 @@ fn find_named(e: &Engine, occupation: &str) -> Option<(CharacterId, Location)> {
             return None;
         }
         let p = st.world.places.get(n.place?.index())?;
-        (p.municipality == t).then_some((c.id, Location::Place { place: p.id }))
+        // Where the engine says they are today (DEC-114): not always at
+        // their own place.
+        let now = characters::routines::whereabouts(st, e.content(), c.id)?;
+        (p.municipality == t).then_some((c.id, now))
     })
 }
 

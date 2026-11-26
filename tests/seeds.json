@@ -71,6 +71,10 @@
     "seed": 1,
     "needs": "the player's town has a factory (small world)"
   },
+  "town_worry_readings_differ": {
+    "seed": 4,
+    "needs": "a small world, three turns in, where the player's town's strongest worry by level is not the one most felt"
+  },
   "voices_close_unequally": {
     "seed": 36,
     "needs": "a chamber where the smooth and plain voices each close, and smooth closes more often"

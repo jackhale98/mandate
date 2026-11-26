@@ -120,6 +120,11 @@ pub const ALL: &[Requirement] = &[
         needs: "a chamber where the smooth and plain voices each close, and smooth closes more often",
         holds: voices_close_unequally,
     },
+    Requirement {
+        name: "town_worry_readings_differ",
+        needs: "a small world, three turns in, where the player's town's strongest worry by level is not the one most felt",
+        holds: town_worry_readings_differ,
+    },
 ];
 
 // ---- shared setup -------------------------------------------------------
@@ -604,4 +609,33 @@ fn voices_close_unequally(seed: u64) -> bool {
             .iter()
             .all(|l| l.starts_with("line.close.plain."))
         && closers[0].len() > closers[1].len()
+}
+
+fn town_worry_readings_differ(seed: u64) -> bool {
+    use mandate_content::condition::Worry;
+    use mandate_sim::concerns::{self, Scope};
+    let c = content();
+    let mut e = small(seed);
+    for _ in 0..3 {
+        if !end_turn(&mut e) {
+            return false;
+        }
+    }
+    let st = e.state();
+    let Some(home) = mandate_sim::player::home(st) else {
+        return false;
+    };
+    let felt = mandate_protocol::concerns_for(st, &c, Scope::town(home));
+    let measured = concerns::ranked(
+        &st.population,
+        &c,
+        &st.world,
+        Scope::town(home),
+        Worry::Measured,
+    );
+    let Some((first, _)) = concerns::top(&measured, 1).next() else {
+        return false;
+    };
+    felt.first()
+        .is_some_and(|x| x.name_key != c.concerns[first].name_key)
 }

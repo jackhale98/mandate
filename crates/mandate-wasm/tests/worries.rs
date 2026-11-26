@@ -446,7 +446,11 @@ fn said_of_the_whole_town(e: &mut Engine, who: CharacterId) -> Option<String> {
 fn the_player_is_told_one_ranking_of_the_towns_worries() {
     let c = content();
     let (mut spoken, mut differ) = (0, 0);
-    for seed in [7u64, 53, 59] {
+    // And a world where the two readings name different top worries,
+    // picked by that requirement: as worries are added the band's worlds
+    // move, and the last check needs one where they differ.
+    let apart = mandate_seeds::seed("town_worry_readings_differ");
+    for seed in [7u64, 53, 59, apart] {
         let mut base = game(seed, &c);
         for _ in 0..3 {
             base.apply(Command::EndTurn).unwrap();
