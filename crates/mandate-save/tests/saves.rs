@@ -176,7 +176,7 @@ fn state_shape_matches_format_version() {
     // characters gained `households` (doorstep records and the canvass under
     // way; absent while empty, as in this sample game, which canvasses
     // nobody), an action `doorstep`. Migration: `doorsteps` (no change).
-    const EXPECTED: (u16, &str) = (34, "0c4e6ceb189381f3");
+    const EXPECTED: (u16, &str) = (34, "ae811331e9aea01d");
     let c = content();
     let mut e = generate(
         &WorldConfig {

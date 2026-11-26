@@ -1,6 +1,6 @@
 {
   "unfinished": true,
-  "name": "Saul Raskuwell",
+  "name": "Aurel Achter",
   "party": "Open Society Party",
   "town": "Norton",
   "world": {
@@ -47,17 +47,17 @@
         {
           "factor": "record",
           "key": "factor-record",
-          "margin_pm": 331
+          "margin_pm": 474
         },
         {
           "factor": "valence",
           "key": "factor-valence",
-          "margin_pm": 77
+          "margin_pm": 42
         },
         {
           "factor": "campaign",
           "key": "factor-campaign",
-          "margin_pm": 48
+          "margin_pm": 31
         }
       ]
     }
@@ -99,17 +99,17 @@
           {
             "factor": "record",
             "key": "factor-record",
-            "margin_pm": 366
+            "margin_pm": 452
           },
           {
             "factor": "campaign",
             "key": "factor-campaign",
-            "margin_pm": 265
+            "margin_pm": 261
           },
           {
             "factor": "shock",
             "key": "factor-shock",
-            "margin_pm": 74
+            "margin_pm": 49
           }
         ]
       },
@@ -137,130 +137,14 @@
   "arcs": [
     {
       "title": {
-        "key": "arc-plant",
-        "args": {
-          "day": "4",
-          "hall": "Oldfield",
-          "hood": "Oldfield",
-          "industry_key": "industry-food_processing",
-          "jobs": "4079",
-          "month_key": "month-1",
-          "owner": "Ivo Farrow",
-          "owner_role_key": "occupation-plant_manager",
-          "place": "Norton",
-          "plant_key": "plant-name-place",
-          "player": "Saul Raskuwell",
-          "product_key": "product-canned_fish",
-          "site": "Oldfield",
-          "stem": "Norton",
-          "steward": "Amos Wren",
-          "steward_role_key": "occupation-shop_steward",
-          "town": "Norton",
-          "weeks": "9",
-          "works_key": "works-cannery",
-          "year": "2020"
-        }
-      },
-      "text": {
-        "key": "arc-plant-scare",
-        "args": {
-          "day": "4",
-          "hall": "Oldfield",
-          "hood": "Oldfield",
-          "industry_key": "industry-food_processing",
-          "jobs": "4079",
-          "month_key": "month-1",
-          "owner": "Ivo Farrow",
-          "owner_role_key": "occupation-plant_manager",
-          "place": "Norton",
-          "plant_key": "plant-name-place",
-          "player": "Saul Raskuwell",
-          "product_key": "product-canned_fish",
-          "site": "Oldfield",
-          "stem": "Norton",
-          "steward": "Amos Wren",
-          "steward_role_key": "occupation-shop_steward",
-          "town": "Norton",
-          "weeks": "9",
-          "works_key": "works-cannery",
-          "year": "2020"
-        }
-      },
-      "on": {
-        "day_number": 737366,
-        "year": 2020,
-        "month": 3,
-        "day": 8
-      },
-      "under_way": false
-    },
-    {
-      "title": {
-        "key": "arc-zoning",
-        "args": {
-          "clock_day": "27",
-          "clock_month_key": "month-5",
-          "day": "4",
-          "developer": "Neve Oak",
-          "developer_role_key": "occupation-business_leader",
-          "hall": "Norton",
-          "hood": "Norton",
-          "member": "Karim Wareley",
-          "member_role_key": "role-councillor",
-          "month_key": "month-1",
-          "neighbour": "Toma Novakwell",
-          "neighbour_role_key": "occupation-shopkeeper",
-          "organiser": "Gideon Bracken",
-          "organiser_role_key": "occupation-teacher",
-          "place": "Norton",
-          "player": "Saul Raskuwell",
-          "town": "Norton",
-          "weeks": "20",
-          "year": "2020"
-        }
-      },
-      "text": {
-        "key": "arc-zoning-shelved",
-        "args": {
-          "clock_day": "27",
-          "clock_month_key": "month-5",
-          "day": "4",
-          "developer": "Neve Oak",
-          "developer_role_key": "occupation-business_leader",
-          "hall": "Norton",
-          "hood": "Norton",
-          "member": "Karim Wareley",
-          "member_role_key": "role-councillor",
-          "month_key": "month-1",
-          "neighbour": "Toma Novakwell",
-          "neighbour_role_key": "occupation-shopkeeper",
-          "organiser": "Gideon Bracken",
-          "organiser_role_key": "occupation-teacher",
-          "place": "Norton",
-          "player": "Saul Raskuwell",
-          "town": "Norton",
-          "weeks": "20",
-          "year": "2020"
-        }
-      },
-      "on": {
-        "day_number": 737446,
-        "year": 2020,
-        "month": 5,
-        "day": 27
-      },
-      "under_way": false
-    },
-    {
-      "title": {
         "key": "arc-budget",
         "args": {
           "backers": "6",
           "books": "over",
-          "clock_day": "29",
-          "clock_month_key": "month-7",
+          "clock_day": "9",
+          "clock_month_key": "month-8",
           "day": "26",
-          "gap": "7",
+          "gap": "5",
           "hall": "Norton",
           "hood": "Norton",
           "member": "Karim Wareley",
@@ -268,11 +152,11 @@
           "members": "6",
           "month_key": "month-4",
           "place": "Norton",
-          "player": "Saul Raskuwell",
+          "player": "Aurel Achter",
           "proposer": "Halle Reedwood",
           "proposer_role_key": "role-mayor",
           "town": "Norton",
-          "weeks": "13",
+          "weeks": "15",
           "year": "2020"
         }
       },
@@ -281,10 +165,10 @@
         "args": {
           "backers": "6",
           "books": "over",
-          "clock_day": "29",
-          "clock_month_key": "month-7",
+          "clock_day": "9",
+          "clock_month_key": "month-8",
           "day": "26",
-          "gap": "7",
+          "gap": "5",
           "hall": "Norton",
           "hood": "Norton",
           "member": "Karim Wareley",
@@ -292,19 +176,19 @@
           "members": "6",
           "month_key": "month-4",
           "place": "Norton",
-          "player": "Saul Raskuwell",
+          "player": "Aurel Achter",
           "proposer": "Halle Reedwood",
           "proposer_role_key": "role-mayor",
           "town": "Norton",
-          "weeks": "13",
+          "weeks": "15",
           "year": "2020"
         }
       },
       "on": {
-        "day_number": 737509,
+        "day_number": 737520,
         "year": 2020,
-        "month": 7,
-        "day": 29
+        "month": 8,
+        "day": 9
       },
       "under_way": false
     },
@@ -318,14 +202,14 @@
           "backer_role_key": "occupation-union_steward",
           "chair": "Hector Birchby",
           "chair_role_key": "occupation-editor",
-          "clock_day": "24",
+          "clock_day": "23",
           "clock_month_key": "month-10",
           "day": "13",
           "hall": "Foundryside",
           "month_key": "month-9",
           "paper": "The Norton Post",
           "place": "Norton",
-          "player": "Saul Raskuwell",
+          "player": "Aurel Achter",
           "rival": "Rolf Wareer",
           "rival_role_key": "role-candidate",
           "town": "Norton",
@@ -343,14 +227,14 @@
           "backer_role_key": "occupation-union_steward",
           "chair": "Hector Birchby",
           "chair_role_key": "occupation-editor",
-          "clock_day": "24",
+          "clock_day": "23",
           "clock_month_key": "month-10",
           "day": "13",
           "hall": "Foundryside",
           "month_key": "month-9",
           "paper": "The Norton Post",
           "place": "Norton",
-          "player": "Saul Raskuwell",
+          "player": "Aurel Achter",
           "rival": "Rolf Wareer",
           "rival_role_key": "role-candidate",
           "town": "Norton",
@@ -442,6 +326,6 @@
     "expected_pm": 0,
     "over_pm": 0
   },
-  "code": "M1.39U.S0.-.B2GE.BR43.-.C4T27.COI",
-  "build": "0.1.0 · e1f7ad61"
+  "code": "M1.39U.S0.-.B2GE.BR43.-.65R9K.TTA",
+  "build": "0.1.0 · 36132508"
 }

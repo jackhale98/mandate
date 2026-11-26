@@ -9670,7 +9670,7 @@
           ]
         },
         "legacy_key": {
-          "description": "The Legacy record's line (task A2).",
+          "description": "The Legacy record's line for how the arc ended (its `ArcEnded`\nentry; the career card, M6 note 23). Without one, the exit's own\ntext (`key`) stands for it.",
           "type": [
             "string",
             "null"

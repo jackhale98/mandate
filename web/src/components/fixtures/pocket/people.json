@@ -1,22 +1,22 @@
 {
   "groups": [
     {
-      "count": 4,
+      "count": 3,
       "group": "now",
       "show": 8
     },
     {
-      "count": 6,
+      "count": 5,
       "group": "office",
       "show": 12
     },
     {
-      "count": 25,
+      "count": 35,
       "group": "rest",
       "show": 12
     },
     {
-      "count": 21,
+      "count": 11,
       "group": "gone",
       "show": 12
     }
@@ -29,129 +29,30 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "news_office",
+          "kind_key": "town_hall",
           "location": {
-            "place": 129,
+            "place": 132,
             "type": "place"
           },
-          "name": "The Belenwick Post",
-          "neighborhood": 90,
+          "name": "",
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "now",
       "here": false,
-      "id": 1411,
+      "id": 1028,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Mara Uedawood",
-      "new_this_turn": true,
-      "note": null,
-      "now": [
-        {
-          "arc": null,
-          "args": {},
-          "ask": 1,
-          "bill": null,
-          "days_left": 3,
-          "decision": null,
-          "due": {
-            "day": 15,
-            "day_number": 737345,
-            "month": 2,
-            "year": 2020
-          },
-          "key": "now-ask-offer",
-          "kind": "ask",
-          "title": {
-            "args": {
-              "asker": "Mara Uedawood",
-              "asker_hood": "Queens Cross",
-              "asker_occupation": "editor",
-              "asker_role_key": "occupation-editor",
-              "crisis_key": "ask-crisis-disaster_recovery",
-              "days": "3",
-              "history": "none",
-              "player": "Fen Galloway",
-              "town": "Belenwick"
-            },
-            "key": "ask-say-something"
-          }
-        }
-      ],
-      "opinion_band": "warm",
-      "owes_you": 0,
-      "party": null,
-      "rank": 0,
-      "role_key": "occupation-editor",
-      "stance": {
-        "band": "warm",
-        "shape": "up"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": true,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": true,
-        "late_night": false,
-        "neighborhood": 94,
-        "to": {
-          "kind_key": "community_centre",
-          "location": {
-            "place": 127,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
-        }
-      },
-      "group": "now",
-      "here": true,
-      "id": 1409,
-      "is_rival": false,
-      "last_seen": {
-        "args": {
-          "kind_key": "place-community_centre",
-          "part_key": "day-part-morning",
-          "place_key": "talk-place-community_centre"
-        },
-        "at": {
-          "kind_key": "community_centre",
-          "location": {
-            "place": 127,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
-        },
-        "key": "seen-last",
-        "on": {
-          "day": 12,
-          "day_number": 737342,
-          "month": 2,
-          "year": 2020
-        },
-        "part": "morning",
-        "part_key": "day-part-morning"
-      },
-      "level": "detailed",
-      "name": "Neve Oak",
-      "new_this_turn": true,
+      "name": "Nadia Gallowaywood",
+      "new_this_turn": false,
       "note": null,
       "now": [
         {
@@ -159,29 +60,29 @@
           "args": {},
           "ask": 2,
           "bill": null,
-          "days_left": 7,
+          "days_left": 9,
           "decision": null,
           "due": {
-            "day": 19,
-            "day_number": 737349,
+            "day": 21,
+            "day_number": 737351,
             "month": 2,
             "year": 2020
           },
-          "key": "now-ask-offer",
+          "key": "now-ask-talk",
           "kind": "ask",
           "title": {
             "args": {
-              "asker": "Neve Oak",
-              "asker_hood": "Orchardrow",
-              "asker_occupation": "organiser",
-              "asker_role_key": "occupation-organiser",
+              "asker": "Sana Vargawell",
+              "asker_hood": "Orchardfield",
+              "asker_occupation": "shopkeeper",
+              "asker_role_key": "occupation-shopkeeper",
               "crisis_key": "ask-crisis-disaster_recovery",
-              "days": "7",
+              "days": "9",
               "history": "none",
-              "official": "Osric Dell",
+              "official": "Nadia Gallowaywood",
               "official_role_key": "role-mayor",
-              "player": "Fen Galloway",
-              "town": "Belenwick"
+              "player": "Mara Whit",
+              "town": "Halobridge"
             },
             "key": "ask-flood-shelter"
           }
@@ -204,35 +105,23 @@
           "title": {
             "args": {
               "crisis_key": "crisis-disaster_recovery",
-              "hood": "East Hill",
-              "official": "Osric Dell",
+              "hood": "Orchardfield",
+              "official": "Nadia Gallowaywood",
               "official_role_key": "role-mayor",
-              "organiser": "Neve Oak",
-              "organiser_role_key": "occupation-organiser",
-              "player": "Fen Galloway",
-              "town": "Belenwick"
+              "organiser": "Sana Vargawell",
+              "organiser_role_key": "occupation-shopkeeper",
+              "player": "Mara Whit",
+              "town": "Halobridge"
             },
             "key": "dilemma-flood-money"
           }
-        },
-        {
-          "arc": null,
-          "args": {},
-          "ask": null,
-          "bill": null,
-          "days_left": null,
-          "decision": null,
-          "due": null,
-          "key": "now-here",
-          "kind": "here",
-          "title": null
         }
       ],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": null,
-      "rank": 1,
-      "role_key": "occupation-organiser",
+      "party": 1,
+      "rank": 0,
+      "role_key": "role-mayor",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -249,29 +138,29 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "town_hall",
+          "kind_key": "market",
           "location": {
-            "place": 120,
+            "place": 136,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 90,
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "now",
       "here": false,
-      "id": 1044,
+      "id": 1410,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
-      "name": "Osric Dell",
+      "level": "known",
+      "name": "Sana Vargawell",
       "new_this_turn": true,
       "note": null,
       "now": [
@@ -280,29 +169,29 @@
           "args": {},
           "ask": 2,
           "bill": null,
-          "days_left": 7,
+          "days_left": 9,
           "decision": null,
           "due": {
-            "day": 19,
-            "day_number": 737349,
+            "day": 21,
+            "day_number": 737351,
             "month": 2,
             "year": 2020
           },
-          "key": "now-ask-talk",
+          "key": "now-ask-offer",
           "kind": "ask",
           "title": {
             "args": {
-              "asker": "Neve Oak",
-              "asker_hood": "Orchardrow",
-              "asker_occupation": "organiser",
-              "asker_role_key": "occupation-organiser",
+              "asker": "Sana Vargawell",
+              "asker_hood": "Orchardfield",
+              "asker_occupation": "shopkeeper",
+              "asker_role_key": "occupation-shopkeeper",
               "crisis_key": "ask-crisis-disaster_recovery",
-              "days": "7",
+              "days": "9",
               "history": "none",
-              "official": "Osric Dell",
+              "official": "Nadia Gallowaywood",
               "official_role_key": "role-mayor",
-              "player": "Fen Galloway",
-              "town": "Belenwick"
+              "player": "Mara Whit",
+              "town": "Halobridge"
             },
             "key": "ask-flood-shelter"
           }
@@ -325,13 +214,13 @@
           "title": {
             "args": {
               "crisis_key": "crisis-disaster_recovery",
-              "hood": "East Hill",
-              "official": "Osric Dell",
+              "hood": "Orchardfield",
+              "official": "Nadia Gallowaywood",
               "official_role_key": "role-mayor",
-              "organiser": "Neve Oak",
-              "organiser_role_key": "occupation-organiser",
-              "player": "Fen Galloway",
-              "town": "Belenwick"
+              "organiser": "Sana Vargawell",
+              "organiser_role_key": "occupation-shopkeeper",
+              "player": "Mara Whit",
+              "town": "Halobridge"
             },
             "key": "dilemma-flood-money"
           }
@@ -339,9 +228,9 @@
       ],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 0,
-      "rank": 2,
-      "role_key": "role-mayor",
+      "party": null,
+      "rank": 1,
+      "role_key": "occupation-shopkeeper",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -358,21 +247,21 @@
         "action": "talk",
         "here": true,
         "late_night": false,
-        "neighborhood": 94,
+        "neighborhood": 104,
         "to": {
           "kind_key": "community_centre",
           "location": {
-            "place": 127,
+            "place": 139,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
         }
       },
       "group": "now",
       "here": true,
-      "id": 1410,
+      "id": 1412,
       "is_rival": false,
       "last_seen": {
         "args": {
@@ -383,12 +272,12 @@
         "at": {
           "kind_key": "community_centre",
           "location": {
-            "place": 127,
+            "place": 139,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
         },
         "key": "seen-last",
         "on": {
@@ -401,7 +290,7 @@
         "part_key": "day-part-morning"
       },
       "level": "heard",
-      "name": "Ysolde Wrener",
+      "name": "Delphine Harrow",
       "new_this_turn": true,
       "note": {
         "args": {},
@@ -424,8 +313,8 @@
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": null,
-      "rank": 3,
-      "role_key": "occupation-clergy",
+      "rank": 2,
+      "role_key": "occupation-organiser",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -442,36 +331,40 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 95,
+        "neighborhood": 100,
         "to": {
           "kind_key": "streets",
           "location": {
-            "neighborhood": 95,
+            "neighborhood": 100,
             "type": "street"
           },
           "name": "",
-          "neighborhood": 95,
-          "neighborhood_name": "Orchardrow"
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "office",
       "here": false,
-      "id": 354,
+      "id": 95,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Hal Nash",
+      "name": "Maud Ueda",
       "new_this_turn": false,
       "note": null,
       "now": [],
-      "opinion_band": "warm",
+      "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 0,
+      "party": 1,
       "rank": 0,
       "role_key": "role-councillor",
       "stance": {
-        "band": "warm",
-        "shape": "up"
+        "band": "neutral",
+        "shape": "level"
       },
       "trust_band": "some",
       "usually": null,
@@ -485,26 +378,26 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 93,
+        "neighborhood": 105,
         "to": {
           "kind_key": "streets",
           "location": {
-            "neighborhood": 93,
+            "neighborhood": 105,
             "type": "street"
           },
           "name": "",
-          "neighborhood": 93,
-          "neighborhood_name": "Westwood"
+          "neighborhood": 105,
+          "neighborhood_name": "Churchfield"
         }
       },
       "group": "office",
       "here": false,
-      "id": 358,
+      "id": 368,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
-      "name": "Otto Tullwell",
-      "new_this_turn": true,
+      "level": "known",
+      "name": "Linus Tallis",
+      "new_this_turn": false,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
@@ -528,35 +421,31 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 104,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "streets",
           "location": {
-            "place": 123,
-            "type": "place"
+            "neighborhood": 104,
+            "type": "street"
           },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "name": "",
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
         }
       },
       "group": "office",
       "here": false,
-      "id": 360,
+      "id": 828,
       "is_rival": false,
       "last_seen": null,
-      "level": "known",
-      "name": "Bodil Sedge",
-      "new_this_turn": false,
+      "level": "detailed",
+      "name": "Maud Pryce",
+      "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 0,
+      "party": 1,
       "rank": 2,
       "role_key": "role-councillor",
       "stance": {
@@ -565,7 +454,7 @@
       },
       "trust_band": "some",
       "usually": null,
-      "ward_number": 5,
+      "ward_number": 2,
       "you_owe": 0
     },
     {
@@ -575,31 +464,31 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 94,
+        "neighborhood": 101,
         "to": {
           "kind_key": "streets",
           "location": {
-            "neighborhood": 94,
+            "neighborhood": 101,
             "type": "street"
           },
           "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
         }
       },
       "group": "office",
       "here": false,
-      "id": 863,
+      "id": 1031,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Hector Achter",
+      "name": "Nils Teagueer",
       "new_this_turn": false,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 0,
+      "party": 1,
       "rank": 3,
       "role_key": "role-councillor",
       "stance": {
@@ -618,25 +507,25 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 96,
+        "neighborhood": 102,
         "to": {
           "kind_key": "streets",
           "location": {
-            "neighborhood": 96,
+            "neighborhood": 102,
             "type": "street"
           },
           "name": "",
-          "neighborhood": 96,
-          "neighborhood_name": "Greentown"
+          "neighborhood": 102,
+          "neighborhood_name": "Abbey Green"
         }
       },
       "group": "office",
       "here": false,
-      "id": 866,
+      "id": 1032,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Leif Teague",
+      "name": "Delphine Wadewood",
       "new_this_turn": false,
       "note": null,
       "now": [],
@@ -651,7 +540,7 @@
       },
       "trust_band": "some",
       "usually": null,
-      "ward_number": 7,
+      "ward_number": 5,
       "you_owe": 0
     },
     {
@@ -661,294 +550,20 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 91,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 91,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 91,
-          "neighborhood_name": "East Hill"
-        }
-      },
-      "group": "office",
-      "here": false,
-      "id": 1217,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "known",
-      "name": "Silas Cobbson",
-      "new_this_turn": false,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 0,
-      "rank": 5,
-      "role_key": "role-councillor",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": 2,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 100,
         "to": {
           "kind_key": "market",
           "location": {
-            "place": 124,
+            "place": 136,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 90,
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 352,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Nadia Mercerwood",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 0,
-      "rank": 0,
-      "role_key": "occupation-shopkeeper",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "diner",
-          "location": {
-            "place": 123,
-            "type": "place"
-          },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 356,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Silas Brackenwell",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 1,
-      "rank": 1,
-      "role_key": "occupation-hotel_manager",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "diner",
-          "location": {
-            "place": 123,
-            "type": "place"
-          },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 357,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "known",
-      "name": "Rosa Nashwell",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 0,
-      "rank": 2,
-      "role_key": "occupation-head_teacher",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "diner",
-          "location": {
-            "place": 123,
-            "type": "place"
-          },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 359,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Anouk Gallowaywell",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 1,
-      "rank": 3,
-      "role_key": "occupation-head_teacher",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 90,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 361,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Ysolde Garrowley",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "cool",
-      "owes_you": 0,
-      "party": 1,
-      "rank": 4,
-      "role_key": "occupation-shop_steward",
-      "stance": {
-        "band": "cool",
-        "shape": "down"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 92,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 92,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 92,
-          "neighborhood_name": "Castle Green"
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "rest",
@@ -957,61 +572,18 @@
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Tobias Quill",
+      "name": "Aurel Garrowby",
       "new_this_turn": true,
       "note": null,
       "now": [],
-      "opinion_band": "cool",
-      "owes_you": 0,
-      "party": 1,
-      "rank": 5,
-      "role_key": "occupation-teacher",
-      "stance": {
-        "band": "cool",
-        "shape": "down"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 96,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 96,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 96,
-          "neighborhood_name": "Greentown"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 364,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Elsa Whit",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
+      "opinion_band": "warm",
       "owes_you": 0,
       "party": 0,
-      "rank": 6,
+      "rank": 0,
       "role_key": "occupation-farmhand",
       "stance": {
-        "band": "neutral",
-        "shape": "level"
+        "band": "warm",
+        "shape": "up"
       },
       "trust_band": "some",
       "usually": null,
@@ -1025,122 +597,36 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 100,
         "to": {
           "kind_key": "diner",
           "location": {
-            "place": 123,
+            "place": 135,
             "type": "place"
           },
-          "name": "Cora's",
-          "neighborhood": 90,
+          "name": "Rolf's",
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "rest",
       "here": false,
-      "id": 650,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Wim Zeller",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 1,
-      "rank": 7,
-      "role_key": "occupation-hotel_manager",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 92,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 92,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 92,
-          "neighborhood_name": "Castle Green"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 653,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Damaris Novak",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 1,
-      "rank": 8,
-      "role_key": "occupation-head_teacher",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 96,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 96,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 96,
-          "neighborhood_name": "Greentown"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 859,
+      "id": 365,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
-      "name": "Ines Black",
+      "name": "Saul Garrow",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 9,
+      "rank": 1,
       "role_key": "occupation-clergy",
       "stance": {
         "band": "neutral",
@@ -1158,36 +644,32 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 104,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "streets",
           "location": {
-            "place": 123,
-            "type": "place"
+            "neighborhood": 104,
+            "type": "street"
           },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "name": "",
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
         }
       },
       "group": "rest",
       "here": false,
-      "id": 862,
+      "id": 366,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
-      "name": "Ulric Pryce",
+      "level": "known",
+      "name": "Hal Farrow",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 10,
+      "rank": 2,
       "role_key": "occupation-dean",
       "stance": {
         "band": "neutral",
@@ -1205,36 +687,75 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 105,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "streets",
           "location": {
-            "place": 123,
-            "type": "place"
+            "neighborhood": 105,
+            "type": "street"
           },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "name": "",
+          "neighborhood": 105,
+          "neighborhood_name": "Churchfield"
         }
       },
       "group": "rest",
       "here": false,
-      "id": 865,
+      "id": 367,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
-      "name": "Olek Wexler",
+      "level": "detailed",
+      "name": "Rolf Bakr",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 11,
+      "rank": 3,
+      "role_key": "occupation-software_engineer",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 101,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 101,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 369,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "known",
+      "name": "Effie Iron",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 4,
       "role_key": "occupation-clergy",
       "stance": {
         "band": "neutral",
@@ -1252,220 +773,169 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 96,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 96,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 96,
-          "neighborhood_name": "Greentown"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1216,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Otto Iron",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 1,
-      "rank": 12,
-      "role_key": "occupation-organiser",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "diner",
-          "location": {
-            "place": 123,
-            "type": "place"
-          },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1218,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Hedda Garrowwood",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 1,
-      "rank": 13,
-      "role_key": "occupation-teacher",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "diner",
-          "location": {
-            "place": 123,
-            "type": "place"
-          },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1404,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Liv Mercer",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": null,
-      "rank": 14,
-      "role_key": "occupation-party_chair",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "diner",
-          "location": {
-            "place": 123,
-            "type": "place"
-          },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1405,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "known",
-      "name": "Elsa Yatesson",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "warm",
-      "owes_you": 0,
-      "party": null,
-      "rank": 15,
-      "role_key": "occupation-diner_owner",
-      "stance": {
-        "band": "warm",
-        "shape": "up"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 100,
         "to": {
           "kind_key": "market",
           "location": {
-            "place": 124,
+            "place": 136,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 90,
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "rest",
       "here": false,
-      "id": 1406,
+      "id": 370,
       "is_rival": false,
       "last_seen": null,
       "level": "detailed",
-      "name": "Dal Sedge",
+      "name": "Rosa Thatcher",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": null,
-      "rank": 16,
+      "party": 0,
+      "rank": 5,
+      "role_key": "occupation-shop_steward",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 103,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 103,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 103,
+          "neighborhood_name": "Wharfvale"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 371,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "heard",
+      "name": "Mirela Kellwood",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 6,
+      "role_key": "occupation-clergy",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 104,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 104,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 630,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "known",
+      "name": "Greta Marshby",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 7,
+      "role_key": "occupation-park_keeper",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "diner",
+          "location": {
+            "place": 135,
+            "type": "place"
+          },
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 631,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Lorcan Quarryer",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 8,
       "role_key": "occupation-shopkeeper",
       "stance": {
         "band": "neutral",
@@ -1483,216 +953,32 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 94,
+        "neighborhood": 104,
         "to": {
-          "kind_key": "school",
+          "kind_key": "streets",
           "location": {
-            "place": 125,
-            "type": "place"
+            "neighborhood": 104,
+            "type": "street"
           },
           "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
         }
       },
       "group": "rest",
       "here": false,
-      "id": 1407,
+      "id": 632,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
-      "name": "Dal Dell",
+      "name": "Goran Vargawood",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": null,
-      "rank": 17,
-      "role_key": "occupation-teacher",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "clinic",
-          "location": {
-            "place": 126,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1408,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "known",
-      "name": "Osric Grayby",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "cool",
-      "owes_you": 0,
-      "party": null,
-      "rank": 18,
-      "role_key": "occupation-nurse",
-      "stance": {
-        "band": "cool",
-        "shape": "down"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "market",
-          "location": {
-            "place": 124,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1412,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Dorian Nasher",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "cool",
-      "owes_you": 0,
-      "party": null,
-      "rank": 19,
-      "role_key": "occupation-business_leader",
-      "stance": {
-        "band": "cool",
-        "shape": "down"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "diner",
-          "location": {
-            "place": 123,
-            "type": "place"
-          },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1413,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Leda Achter",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": null,
-      "rank": 20,
-      "role_key": "occupation-union_steward",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 94,
-        "to": {
-          "kind_key": "school",
-          "location": {
-            "place": 125,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1704,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "known",
-      "name": "Lucan West",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": null,
-      "rank": 21,
+      "party": 0,
+      "rank": 9,
       "role_key": "occupation-head_teacher",
       "stance": {
         "band": "neutral",
@@ -1710,220 +996,32 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 101,
         "to": {
-          "kind_key": "clinic",
+          "kind_key": "streets",
           "location": {
-            "place": 126,
-            "type": "place"
+            "neighborhood": 101,
+            "type": "street"
           },
           "name": "",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
         }
       },
       "group": "rest",
       "here": false,
-      "id": 1705,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Linus Reed",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "warm",
-      "owes_you": 0,
-      "party": null,
-      "rank": 22,
-      "role_key": "occupation-gp",
-      "stance": {
-        "band": "warm",
-        "shape": "up"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "park",
-          "location": {
-            "place": 128,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1706,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Flora Wren",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "cool",
-      "owes_you": 0,
-      "party": null,
-      "rank": 23,
-      "role_key": "occupation-park_keeper",
-      "stance": {
-        "band": "cool",
-        "shape": "down"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 92,
-        "to": {
-          "kind_key": "factory",
-          "location": {
-            "place": 132,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 92,
-          "neighborhood_name": "Castle Green"
-        }
-      },
-      "group": "rest",
-      "here": false,
-      "id": 1707,
+      "id": 633,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Edda Petrovfield",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "cool",
-      "owes_you": 0,
-      "party": null,
-      "rank": 24,
-      "role_key": "occupation-shop_steward",
-      "stance": {
-        "band": "cool",
-        "shape": "down"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "market",
-          "location": {
-            "place": 124,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 84,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Enzo Galloway",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "warm",
-      "owes_you": 0,
-      "party": 0,
-      "rank": 0,
-      "role_key": "occupation-shop_steward",
-      "stance": {
-        "band": "warm",
-        "shape": "up"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "diner",
-          "location": {
-            "place": 123,
-            "type": "place"
-          },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 85,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "known",
-      "name": "Jory Ormeley",
+      "name": "Iris Ferranteley",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 1,
+      "rank": 10,
       "role_key": "occupation-clergy",
       "stance": {
         "band": "neutral",
@@ -1941,76 +1039,33 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 93,
+        "neighborhood": 102,
         "to": {
           "kind_key": "streets",
           "location": {
-            "neighborhood": 93,
+            "neighborhood": 102,
             "type": "street"
           },
           "name": "",
-          "neighborhood": 93,
-          "neighborhood_name": "Westwood"
+          "neighborhood": 102,
+          "neighborhood_name": "Abbey Green"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 86,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Viggo Rook",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 1,
-      "rank": 2,
-      "role_key": "occupation-head_teacher",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 94,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 94,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 87,
+      "id": 826,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
-      "name": "Milo Tallis",
+      "name": "Felix Oakwood",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 3,
-      "role_key": "occupation-teacher",
+      "rank": 11,
+      "role_key": "occupation-software_engineer",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -2027,126 +1082,36 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "diner",
           "location": {
-            "neighborhood": 90,
-            "type": "street"
+            "place": 135,
+            "type": "place"
           },
-          "name": "",
-          "neighborhood": 90,
+          "name": "Rolf's",
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 88,
+      "id": 827,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Effie Quarryley",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "cool",
-      "owes_you": 0,
-      "party": 2,
-      "rank": 4,
-      "role_key": "occupation-shop_steward",
-      "stance": {
-        "band": "cool",
-        "shape": "down"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 92,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 92,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 92,
-          "neighborhood_name": "Castle Green"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 89,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Dov Wade",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "cool",
-      "owes_you": 0,
-      "party": 2,
-      "rank": 5,
-      "role_key": "occupation-resident",
-      "stance": {
-        "band": "cool",
-        "shape": "down"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "market",
-          "location": {
-            "place": 124,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 90,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Gil Ferrante",
+      "name": "Felix Dornewood",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 1,
-      "rank": 6,
+      "party": 0,
+      "rank": 12,
       "role_key": "occupation-farmhand",
       "stance": {
         "band": "neutral",
@@ -2164,37 +1129,37 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 100,
         "to": {
           "kind_key": "streets",
           "location": {
-            "neighborhood": 90,
+            "neighborhood": 100,
             "type": "street"
           },
           "name": "",
-          "neighborhood": 90,
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 91,
+      "id": 1027,
       "is_rival": false,
       "last_seen": null,
-      "level": "known",
-      "name": "Emeric Bircher",
+      "level": "detailed",
+      "name": "Mina Vaneson",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 1,
-      "rank": 7,
-      "role_key": "occupation-retiree",
+      "party": 0,
+      "rank": 13,
+      "role_key": "occupation-clergy",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -2211,36 +1176,75 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 104,
         "to": {
-          "kind_key": "market",
+          "kind_key": "streets",
           "location": {
-            "place": 124,
-            "type": "place"
+            "neighborhood": 104,
+            "type": "street"
           },
           "name": "",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 353,
+      "id": 1029,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
-      "name": "Rosa Haddad",
+      "level": "known",
+      "name": "Hugo Wexler",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "cool",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 14,
+      "role_key": "occupation-clergy",
+      "stance": {
+        "band": "cool",
+        "shape": "down"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 105,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 105,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 105,
+          "neighborhood_name": "Churchfield"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1030,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Wim North",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 1,
-      "rank": 8,
+      "party": 0,
+      "rank": 15,
       "role_key": "occupation-hotel_manager",
       "stance": {
         "band": "neutral",
@@ -2258,33 +1262,131 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 95,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "diner",
+          "location": {
+            "place": 135,
+            "type": "place"
+          },
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1212,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "heard",
+      "name": "Bettina Yarrow",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 16,
+      "role_key": "occupation-retiree",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
         "to": {
           "kind_key": "streets",
           "location": {
-            "neighborhood": 95,
+            "neighborhood": 100,
             "type": "street"
           },
           "name": "",
-          "neighborhood": 95,
-          "neighborhood_name": "Orchardrow"
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 355,
+      "id": 1213,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "known",
+      "name": "Enzo Ashson",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 17,
+      "role_key": "occupation-farmhand",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "diner",
+          "location": {
+            "place": 135,
+            "type": "place"
+          },
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1214,
       "is_rival": false,
       "last_seen": null,
       "level": "detailed",
-      "name": "Nell Beckfield",
+      "name": "Ilka Kemp",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 1,
-      "rank": 9,
-      "role_key": "occupation-park_keeper",
+      "party": 0,
+      "rank": 18,
+      "role_key": "occupation-clergy",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -2301,37 +1403,80 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 102,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 102,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 102,
+          "neighborhood_name": "Abbey Green"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1215,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "heard",
+      "name": "Tariq Vaneley",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 19,
+      "role_key": "occupation-shopkeeper",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
         "to": {
           "kind_key": "market",
           "location": {
-            "place": 124,
+            "place": 136,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 90,
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 362,
-      "is_rival": false,
+      "id": 1216,
+      "is_rival": true,
       "last_seen": null,
-      "level": "heard",
-      "name": "Ilka Yateser",
+      "level": "known",
+      "name": "Selma Rookley",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 0,
-      "rank": 10,
-      "role_key": "occupation-software_engineer",
+      "rank": 20,
+      "role_key": "occupation-clergy",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -2348,80 +1493,37 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 95,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "party_office",
           "location": {
-            "neighborhood": 95,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 95,
-          "neighborhood_name": "Orchardrow"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 648,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "heard",
-      "name": "Rhea Asher",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "neutral",
-      "owes_you": 0,
-      "party": 0,
-      "rank": 11,
-      "role_key": "occupation-shop_steward",
-      "stance": {
-        "band": "neutral",
-        "shape": "level"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "market",
-          "location": {
-            "place": 124,
+            "place": 134,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 90,
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 649,
+      "id": 1408,
       "is_rival": false,
       "last_seen": null,
-      "level": "known",
-      "name": "Sana Ardenby",
+      "level": "detailed",
+      "name": "Noor Fennwood",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 0,
-      "rank": 12,
-      "role_key": "occupation-tech_founder",
+      "party": null,
+      "rank": 21,
+      "role_key": "occupation-party_chair",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -2438,33 +1540,37 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 93,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "diner",
           "location": {
-            "neighborhood": 93,
-            "type": "street"
+            "place": 135,
+            "type": "place"
           },
-          "name": "",
-          "neighborhood": 93,
-          "neighborhood_name": "Westwood"
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 651,
+      "id": 1409,
       "is_rival": false,
       "last_seen": null,
       "level": "heard",
-      "name": "Kalinda Alder",
+      "name": "Oona Thatchwood",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 1,
-      "rank": 13,
-      "role_key": "occupation-teacher",
+      "party": null,
+      "rank": 22,
+      "role_key": "occupation-diner_owner",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -2481,33 +1587,37 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 94,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "clinic",
           "location": {
-            "neighborhood": 94,
-            "type": "street"
+            "place": 138,
+            "type": "place"
           },
           "name": "",
-          "neighborhood": 94,
-          "neighborhood_name": "Queens Cross"
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 652,
+      "id": 1411,
       "is_rival": false,
       "last_seen": null,
-      "level": "known",
-      "name": "Cosmo Achterer",
+      "level": "detailed",
+      "name": "Basil Teagueer",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "cool",
       "owes_you": 0,
-      "party": 1,
-      "rank": 14,
-      "role_key": "occupation-farmhand",
+      "party": null,
+      "rank": 23,
+      "role_key": "occupation-nurse",
       "stance": {
         "band": "cool",
         "shape": "down"
@@ -2524,32 +1634,302 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 95,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "news_office",
           "location": {
-            "neighborhood": 95,
-            "type": "street"
+            "place": 141,
+            "type": "place"
           },
-          "name": "",
-          "neighborhood": 95,
-          "neighborhood_name": "Orchardrow"
+          "name": "The Halobridge Herald",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 860,
+      "id": 1413,
       "is_rival": false,
       "last_seen": null,
       "level": "known",
-      "name": "Liv Calder",
+      "name": "Felix Hollisley",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 1,
-      "rank": 15,
+      "party": null,
+      "rank": 24,
+      "role_key": "occupation-editor",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "news_office",
+          "location": {
+            "place": 141,
+            "type": "place"
+          },
+          "name": "The Halobridge Herald",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1414,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Imre Rasku",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "cool",
+      "owes_you": 0,
+      "party": null,
+      "rank": 25,
+      "role_key": "occupation-journalist",
+      "stance": {
+        "band": "cool",
+        "shape": "down"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "business_association",
+          "location": {
+            "place": 142,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1415,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "heard",
+      "name": "Goran Brackenwood",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": null,
+      "rank": 26,
+      "role_key": "occupation-business_leader",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 102,
+        "to": {
+          "kind_key": "union_hall",
+          "location": {
+            "place": 143,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 102,
+          "neighborhood_name": "Abbey Green"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1416,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "known",
+      "name": "Anouk Wadewood",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": null,
+      "rank": 27,
+      "role_key": "occupation-union_steward",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 102,
+        "to": {
+          "kind_key": "factory",
+          "location": {
+            "place": 144,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 102,
+          "neighborhood_name": "Abbey Green"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1417,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Anders Nashwell",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": null,
+      "rank": 28,
+      "role_key": "occupation-plant_manager",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 103,
+        "to": {
+          "kind_key": "mine",
+          "location": {
+            "place": 145,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 103,
+          "neighborhood_name": "Wharfvale"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1418,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "heard",
+      "name": "Pavel Dacewell",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": null,
+      "rank": 29,
+      "role_key": "occupation-plant_manager",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 104,
+        "to": {
+          "kind_key": "school",
+          "location": {
+            "place": 137,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 104,
+          "neighborhood_name": "Bridgegate"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1706,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "known",
+      "name": "Quin Dunmore",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": null,
+      "rank": 30,
       "role_key": "occupation-head_teacher",
       "stance": {
         "band": "neutral",
@@ -2567,131 +1947,37 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "diner",
+          "kind_key": "clinic",
           "location": {
-            "place": 123,
-            "type": "place"
-          },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 861,
-      "is_rival": false,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Oona Wrenson",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "warm",
-      "owes_you": 0,
-      "party": 0,
-      "rank": 16,
-      "role_key": "occupation-clergy",
-      "stance": {
-        "band": "warm",
-        "shape": "up"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "diner",
-          "location": {
-            "place": 123,
-            "type": "place"
-          },
-          "name": "Cora's",
-          "neighborhood": 90,
-          "neighborhood_args": {
-            "centre_town": "Belenwick"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
-        }
-      },
-      "group": "gone",
-      "here": false,
-      "id": 864,
-      "is_rival": true,
-      "last_seen": null,
-      "level": "detailed",
-      "name": "Rosa Brookwell",
-      "new_this_turn": true,
-      "note": null,
-      "now": [],
-      "opinion_band": "cool",
-      "owes_you": 0,
-      "party": 2,
-      "rank": 17,
-      "role_key": "occupation-student",
-      "stance": {
-        "band": "cool",
-        "shape": "down"
-      },
-      "trust_band": "some",
-      "usually": null,
-      "ward_number": null,
-      "you_owe": 0
-    },
-    {
-      "can_talk": false,
-      "familiar_key": null,
-      "go": {
-        "action": "talk",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 90,
-        "to": {
-          "kind_key": "market",
-          "location": {
-            "place": 124,
+            "place": 138,
             "type": "place"
           },
           "name": "",
-          "neighborhood": 90,
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 1045,
+      "id": 1707,
       "is_rival": false,
       "last_seen": null,
-      "level": "heard",
-      "name": "Sabine Gallowayby",
+      "level": "detailed",
+      "name": "Frida Alder",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 1,
-      "rank": 18,
-      "role_key": "occupation-software_engineer",
+      "party": null,
+      "rank": 31,
+      "role_key": "occupation-gp",
       "stance": {
         "band": "neutral",
         "shape": "level"
@@ -2708,32 +1994,79 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 93,
+        "neighborhood": 100,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "park",
           "location": {
-            "neighborhood": 93,
-            "type": "street"
+            "place": 140,
+            "type": "place"
           },
           "name": "",
-          "neighborhood": 93,
-          "neighborhood_name": "Westwood"
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
         }
       },
-      "group": "gone",
+      "group": "rest",
       "here": false,
-      "id": 1046,
+      "id": 1708,
       "is_rival": false,
       "last_seen": null,
-      "level": "known",
-      "name": "Senna Beckwood",
+      "level": "heard",
+      "name": "Bettina Iron",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
-      "party": 0,
-      "rank": 19,
+      "party": null,
+      "rank": 32,
+      "role_key": "occupation-park_keeper",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 102,
+        "to": {
+          "kind_key": "factory",
+          "location": {
+            "place": 144,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 102,
+          "neighborhood_name": "Abbey Green"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1709,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "known",
+      "name": "Alba Hartfield",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": null,
+      "rank": 33,
       "role_key": "occupation-shop_steward",
       "stance": {
         "band": "neutral",
@@ -2751,40 +2084,525 @@
         "action": "talk",
         "here": false,
         "late_night": false,
-        "neighborhood": 90,
+        "neighborhood": 103,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "mine",
           "location": {
-            "neighborhood": 90,
-            "type": "street"
+            "place": 145,
+            "type": "place"
           },
           "name": "",
-          "neighborhood": 90,
+          "neighborhood": 103,
+          "neighborhood_name": "Wharfvale"
+        }
+      },
+      "group": "rest",
+      "here": false,
+      "id": 1710,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Bram Garrow",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": null,
+      "rank": 34,
+      "role_key": "occupation-shop_steward",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "diner",
+          "location": {
+            "place": 135,
+            "type": "place"
+          },
+          "name": "Rolf's",
+          "neighborhood": 100,
           "neighborhood_args": {
-            "centre_town": "Belenwick"
+            "centre_town": "Halobridge"
           },
           "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Belenwick"
+          "neighborhood_name": "Halobridge"
         }
       },
       "group": "gone",
       "here": false,
-      "id": 1047,
+      "id": 96,
       "is_rival": false,
       "last_seen": null,
-      "level": "detailed",
-      "name": "Rafe Yates",
+      "level": "known",
+      "name": "Yara Moreauley",
       "new_this_turn": true,
       "note": null,
       "now": [],
       "opinion_band": "neutral",
       "owes_you": 0,
       "party": 1,
-      "rank": 20,
+      "rank": 0,
+      "role_key": "occupation-clergy",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 105,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 105,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 105,
+          "neighborhood_name": "Churchfield"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 97,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Odile Lindqvist",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "cool",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 1,
+      "role_key": "occupation-park_keeper",
+      "stance": {
+        "band": "cool",
+        "shape": "down"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 101,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 101,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 98,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "heard",
+      "name": "Birgit Mercerwell",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 2,
+      "role_key": "occupation-diner_owner",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 102,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 102,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 102,
+          "neighborhood_name": "Abbey Green"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 99,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "known",
+      "name": "Aurel Wrenwell",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 3,
       "role_key": "occupation-park_keeper",
       "stance": {
         "band": "neutral",
         "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 103,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 103,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 103,
+          "neighborhood_name": "Wharfvale"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 100,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Tobias Petrov",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 4,
+      "role_key": "occupation-hotel_manager",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "diner",
+          "location": {
+            "place": 135,
+            "type": "place"
+          },
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 101,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "heard",
+      "name": "Valen Uedason",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 5,
+      "role_key": "occupation-shop_steward",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 101,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 101,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 364,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Ines Kellby",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 6,
+      "role_key": "occupation-clergy",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 102,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 102,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 102,
+          "neighborhood_name": "Abbey Green"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 634,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Celia Novakfield",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 7,
+      "role_key": "occupation-software_engineer",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 102,
+        "to": {
+          "kind_key": "streets",
+          "location": {
+            "neighborhood": 102,
+            "type": "street"
+          },
+          "name": "",
+          "neighborhood": 102,
+          "neighborhood_name": "Abbey Green"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 829,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "heard",
+      "name": "Vic Gold",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "neutral",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 8,
+      "role_key": "occupation-teacher",
+      "stance": {
+        "band": "neutral",
+        "shape": "level"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "market",
+          "location": {
+            "place": 136,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 830,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "known",
+      "name": "Oona Moreauley",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "warm",
+      "owes_you": 0,
+      "party": 0,
+      "rank": 9,
+      "role_key": "occupation-clergy",
+      "stance": {
+        "band": "warm",
+        "shape": "up"
+      },
+      "trust_band": "some",
+      "usually": null,
+      "ward_number": null,
+      "you_owe": 0
+    },
+    {
+      "can_talk": false,
+      "familiar_key": null,
+      "go": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "diner",
+          "location": {
+            "place": 135,
+            "type": "place"
+          },
+          "name": "Rolf's",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "group": "gone",
+      "here": false,
+      "id": 1033,
+      "is_rival": false,
+      "last_seen": null,
+      "level": "detailed",
+      "name": "Oona Harrow",
+      "new_this_turn": true,
+      "note": null,
+      "now": [],
+      "opinion_band": "warm",
+      "owes_you": 0,
+      "party": 1,
+      "rank": 10,
+      "role_key": "occupation-tech_founder",
+      "stance": {
+        "band": "warm",
+        "shape": "up"
       },
       "trust_band": "some",
       "usually": null,

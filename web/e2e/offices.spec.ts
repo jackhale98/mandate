@@ -26,7 +26,17 @@ test("vote, see the signer's lean, file for the executive office and see its rac
   const whip = panel.getByTestId("whip");
   await expect(whip.getByRole("heading", { name: "Town council" })).toBeVisible();
   await expect(whip.getByTestId("signer-lean")).toHaveText(/Mayor: (will sign|leaning to sign|undecided|leaning to veto|will veto)/);
+  // A colleague's bill to vote on: the policy families (F4) changed which
+  // bills the council has on the first turn, so wait up to six turns for one.
   const vote = whip.getByTestId("your-vote");
+  for (let turn = 0; turn < 6 && (await vote.getByRole("button", { name: "Vote yes" }).count()) === 0; turn++) {
+    await panel.getByRole("button", { name: "Close" }).first().click();
+    await page.getByRole("button", { name: "End turn" }).click();
+    await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled({ timeout: 30_000 });
+    await showPlaces(page);
+    await page.getByTestId("spot-council_chamber").first().click();
+    await expect(page.getByTestId("where-place")).toHaveText("Council chamber", { timeout: 30_000 });
+  }
   await vote.getByRole("button", { name: "Vote yes" }).click();
   await expect(vote.getByText("You voted yes")).toBeVisible();
   await expect(panel.getByTestId("members").getByText("Mayor").first()).toBeVisible();

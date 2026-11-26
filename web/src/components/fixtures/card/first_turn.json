@@ -1,7 +1,7 @@
 {
   "unfinished": true,
-  "name": "Lio Flint",
-  "party": "New Dawn League",
+  "name": "Vera Flinter",
+  "party": "Heritage Alliance",
   "town": "Belenmouth",
   "world": {
     "size": "small",
@@ -28,14 +28,14 @@
         "name": "Belenmouth",
         "name_key": "jurisdiction-municipality"
       },
-      "constituency_number": 1,
+      "constituency_number": 5,
       "label_key": "body-council",
       "role_key": "role-councillor"
     },
     "rating": {
       "plays": 4,
-      "wins": 4,
-      "win_pm": 1000,
+      "wins": 0,
+      "win_pm": 0,
       "on_ballot": 4,
       "rated_on": {
         "day_number": 737300,
@@ -47,17 +47,17 @@
         {
           "factor": "record",
           "key": "factor-record",
-          "margin_pm": 443
-        },
-        {
-          "factor": "campaign",
-          "key": "factor-campaign",
-          "margin_pm": 45
+          "margin_pm": -421
         },
         {
           "factor": "issues",
           "key": "factor-issues",
-          "margin_pm": -38
+          "margin_pm": -91
+        },
+        {
+          "factor": "party",
+          "key": "factor-party",
+          "margin_pm": 20
         }
       ]
     }
@@ -73,7 +73,7 @@
       "name": "Belenmouth",
       "name_key": "jurisdiction-municipality"
     },
-    "constituency_number": 1,
+    "constituency_number": 5,
     "label_key": "body-council",
     "role_key": "role-councillor"
   },
@@ -144,7 +144,7 @@
         "name": "Belenmouth",
         "name_key": "jurisdiction-municipality"
       },
-      "constituency_number": 1,
+      "constituency_number": 5,
       "label_key": "body-council",
       "role_key": "role-councillor"
     }
@@ -155,6 +155,6 @@
     "expected_pm": 0,
     "over_pm": 0
   },
-  "code": "M1.3.S0.-.B2GE.BR43.-.C4T27.CU3",
-  "build": "0.1.0 · e1f7ad61"
+  "code": "M1.3.S0.-.B2GE.BR43.-.65R9K.49H",
+  "build": "0.1.0 · 36132508"
 }
