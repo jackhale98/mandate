@@ -473,10 +473,13 @@ fn each_opening_does_what_its_preview_says() {
             Some(mandate_sim::actions::press_gaffe_risk(e.state(), &c))
         );
         let mut ok = twin(&e, &c);
+        // A member whose compliance can still fall (one already at 0 cannot).
         let member = p
             .opinions
             .iter()
-            .find(|(h, t, _)| *t == b && *h != me)
+            .find(|(h, t, _)| {
+                *t == b && *h != me && compliance(&ok.state().politics, *h, b) > 0.0
+            })
             .map(|x| x.0)
             .expect("members distance themselves");
         let was = compliance(&ok.state().politics, member, b);

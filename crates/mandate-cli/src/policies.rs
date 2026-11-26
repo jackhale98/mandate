@@ -126,8 +126,7 @@ fn probe_month(e: &Engine, content: &ContentBundle, month: u32, probes: &mut [Pr
                 if !p.probed_in.contains(&at) {
                     p.probed_in.push(at);
                 }
-                if !p.bound_in.contains(&at) && families::probe(e.state(), content, f, at).is_ok()
-                {
+                if !p.bound_in.contains(&at) && families::probe(e.state(), content, f, at).is_ok() {
                     p.bound_in.push(at);
                 }
             }
@@ -196,7 +195,9 @@ fn indicators(e: &Engine, content: &ContentBundle, max: &mut BTreeMap<String, f6
 fn jurisdiction_json(e: &Engine, at: Jurisdiction) -> Value {
     let w = &e.state().world;
     let name = match at {
-        Jurisdiction::Municipality { id } => w.municipalities.get(id.index()).map(|m| m.name.clone()),
+        Jurisdiction::Municipality { id } => {
+            w.municipalities.get(id.index()).map(|m| m.name.clone())
+        }
         Jurisdiction::Region { id } => w.regions.get(id.index()).map(|r| r.name.clone()),
         Jurisdiction::Nation => None,
     };
@@ -217,7 +218,10 @@ fn binding_json(e: &Engine, b: &SlotBinding) -> Value {
         ),
         Bound::Neighborhood { hood } => (
             "neighborhood",
-            st.world.neighborhoods.get(hood.index()).map(|n| n.name.clone()),
+            st.world
+                .neighborhoods
+                .get(hood.index())
+                .map(|n| n.name.clone()),
         ),
         Bound::Person { person } => (
             "person",
@@ -226,10 +230,7 @@ fn binding_json(e: &Engine, b: &SlotBinding) -> Value {
         ),
         Bound::Sector { sector } => ("sector", Some(sector.clone())),
         Bound::Crisis { kind } => ("crisis", Some(kind.clone())),
-        Bound::Hazard { hazard } => (
-            "hazard",
-            Some(families::hazard_word(*hazard).to_string()),
-        ),
+        Bound::Hazard { hazard } => ("hazard", Some(families::hazard_word(*hazard).to_string())),
         Bound::Unbound => ("unbound", None),
     };
     json!({ "slot": b.slot, "kind": kind, "name": name })
@@ -256,7 +257,8 @@ fn package(
     choices: &[mandate_protocol::proposals::ChoiceValue],
     params: &[mandate_protocol::ParamValue],
 ) -> Option<Value> {
-    let v = mandate_protocol::proposals::family_preview(e, &inst.family, inst.id.0, params, choices)?;
+    let v =
+        mandate_protocol::proposals::family_preview(e, &inst.family, inst.id.0, params, choices)?;
     Some(json!({
         "est_annual_cost": v.est_annual_cost,
         "budget_share": v.budget_share,
@@ -462,9 +464,8 @@ fn coverage_of(content: &ContentBundle, worlds: &mut [World]) -> Value {
             for x in &mine {
                 open_months.push(months_open(e, x) as f64);
                 if x.is_open()
-                    && let Some(v) = mandate_protocol::proposals::family_preview(
-                        e, &x.family, x.id.0, &[], &[],
-                    )
+                    && let Some(v) =
+                        mandate_protocol::proposals::family_preview(e, &x.family, x.id.0, &[], &[])
                 {
                     costs.push(v.est_annual_cost);
                     if let Some(s) = v.support.overall {
@@ -586,7 +587,8 @@ pub fn check(content: &Arc<ContentBundle>, seed: u64, months: u32) -> Result<Val
     .into_iter()
     .collect::<Result<_, _>>()?;
     let mut v = coverage_of(content, &mut worlds);
-    v["check"] = json!("every family binds in at least one canonical test world (validation item 11)");
+    v["check"] =
+        json!("every family binds in at least one canonical test world (validation item 11)");
     v["months"] = json!(months);
     Ok(v)
 }
@@ -621,8 +623,9 @@ mod tests {
     #[test]
     fn the_cap_on_open_proposals_is_a_set_path() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
-        let sets = crate::lab::parse_sets(&["policy_family_params.max_open_per_jurisdiction=1".into()])
-            .unwrap_or_else(|e| panic!("{e}"));
+        let sets =
+            crate::lab::parse_sets(&["policy_family_params.max_open_per_jurisdiction=1".into()])
+                .unwrap_or_else(|e| panic!("{e}"));
         let c = crate::lab::load(&root, &sets).unwrap_or_else(|e| panic!("{e}"));
         assert_eq!(c.policy_family_params.max_open_per_jurisdiction, 1);
         let w = play(&c, 2, WorldSize::Small, None, 6).unwrap_or_else(|e| panic!("{e}"));

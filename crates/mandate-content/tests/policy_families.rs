@@ -73,9 +73,17 @@ fn loaded() -> ContentBundle {
 }
 
 #[test]
-fn base_pack_has_family_params_and_no_families_yet() {
+fn base_pack_has_family_params_and_the_first_pack() {
     let (b, _) = load(&base_sources()).unwrap();
-    assert!(b.policy_families.is_empty(), "the first pack is F4");
+    // The first pack (F4, M6_ENGINE_CONTRACTS §2.21): 15–20 families, each
+    // of a tier whose offices come from the constitution (DEC-098).
+    let n = b.policy_families.len();
+    assert!((15..=20).contains(&n), "{n} families");
+    assert!(
+        b.policy_families
+            .iter()
+            .all(|f| f.id.starts_with("family."))
+    );
     assert_eq!(b.policy_family_params.max_open_per_jurisdiction, 4);
     assert_eq!(b.policy_family_params.rarity.of(Rarity::Common), 0.85);
     // Place kinds carry their sector drivers.
@@ -91,7 +99,13 @@ fn base_pack_has_family_params_and_no_families_yet() {
 #[test]
 fn sample_families_validate() {
     let b = loaded();
-    assert_eq!(b.policy_families.len(), 3);
+    assert_eq!(
+        b.policy_families
+            .iter()
+            .filter(|f| f.id.starts_with("family.test_"))
+            .count(),
+        3
+    );
     let f = b.family("family.test_flood_wall").unwrap();
     assert_eq!(f.max_instances, 2);
     assert_eq!(f.axes.len(), 2);
@@ -338,7 +352,33 @@ fn patches_apply_in_pack_order() {
 #[test]
 fn retired_and_hidden_default_off() {
     let (b, _) = load(&base_sources()).unwrap();
-    assert!(b.policies.values().all(|t| !t.retired));
+    // The trim and the conversions (§2.19, §2.20) retire seven templates;
+    // the standard menu keeps eight general levers.
+    let retired: Vec<&str> = b
+        .policies
+        .values()
+        .filter(|t| t.retired)
+        .map(|t| t.id.as_str())
+        .collect();
+    assert_eq!(
+        retired,
+        vec![
+            "policy.closure_response",
+            "policy.emergency_rent",
+            "policy.fiscal_bridge",
+            "policy.flood_defenses",
+            "policy.local_wage_floor",
+            "policy.rebuild_fund",
+            "policy.tech_incubator",
+        ]
+    );
+    assert_eq!(b.policies.values().filter(|t| !t.retired).count(), 8);
+    assert!(
+        b.policies
+            .values()
+            .filter(|t| !t.retired)
+            .all(|t| t.unlock.is_none())
+    );
     assert!(
         b.policies
             .values()

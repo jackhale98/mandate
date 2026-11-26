@@ -393,7 +393,12 @@ fn hooks_list_choices_for_the_person_the_need_names() {
             .unwrap()
             .id
     };
-    assert!(hooks::offered(e.state(), e.content(), off).is_empty());
+    let before = hooks::offered(e.state(), e.content(), off);
+    assert!(
+        before.is_empty(),
+        "{:?}",
+        before.iter().map(|c| &c.id).collect::<Vec<_>>()
+    );
     let id = introduction(&mut e, asker, off, 30);
     let at_official = hooks::offered(e.state(), e.content(), off);
     assert_eq!(at_official.len(), 1);

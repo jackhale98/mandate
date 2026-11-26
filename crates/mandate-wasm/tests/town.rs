@@ -247,7 +247,13 @@ fn town_state_is_rounded_except_at_the_town_hall() {
         at_home
             .places
             .iter()
-            .all(|p| p.status == TownPlaceStatus::Open && p.months == 0)
+            .all(|p| p.status == TownPlaceStatus::Open && p.months == 0),
+        "{:?}",
+        at_home
+            .places
+            .iter()
+            .filter(|p| p.status != TownPlaceStatus::Open || p.months != 0)
+            .collect::<Vec<_>>()
     );
     // At the town hall: precise.
     let hall = s

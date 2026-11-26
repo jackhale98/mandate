@@ -136,7 +136,7 @@
       "when": [ { "type": "proposal", "family": "family.night_buses" } ] },
     { "id": "overheard.proposal.clinic_hours", "key": "heard-proposal-clinic-hours", "weight": 2.0,
       "when": [ { "type": "proposal", "family": "family.clinic_hours" } ] },
-    { "id": "overheard.proposal.clean_air", "key": "heard-proposal-clean-air", "weight": 2.0,
+    { "id": "overheard.proposal.clean_air", "key": "heard-proposal-clean-air", "concern": "concern.environment", "weight": 2.0,
       "when": [ { "type": "proposal", "family": "family.clean_air" } ] },
     { "id": "overheard.proposal.rent_relief", "key": "heard-proposal-rent-relief", "weight": 2.5,
       "when": [ { "type": "proposal", "family": "family.rent_relief" } ] },

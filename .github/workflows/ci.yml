@@ -165,6 +165,13 @@ jobs:
         run: cargo run -q --release -p mandate-cli -- sweep --seeds 8 --years 20 > /dev/null
       - name: Bot players (the gate ladder, DEC-097 balance principle; ENGAGEMENT §7.2)
         run: cargo run -q --release -p mandate-cli -- bots --seeds 16 > bots.json || (cat bots.json; exit 1)
+      # DEC-092: every policy family binds in some world (coverage at 16
+      # seeds), and in a canonical test world (validation item 11: the five
+      # scenarios at two sizes, 36 months).
+      - name: Policy families bind (coverage and validation item 11)
+        run: |
+          cargo run -q --release -p mandate-cli -- policies --coverage --seeds 16 > policies.json || (jq '.never_bind' policies.json; exit 1)
+          cargo run -q --release -p mandate-cli -- policies --check > policies-check.json || (jq '.never_bind' policies-check.json; exit 1)
       # TODO(content workbench): make this blocking (add --strict, drop
       # continue-on-error) once the doctor reports no errors on the base pack.
       - name: Content doctor (report only, non-blocking)

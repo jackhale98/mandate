@@ -195,7 +195,14 @@ fn the_three_arc_stand_ins_part_ways_in_a_flooded_town() {
     };
     let (passive, engaged) = (st(Kind::Passive), st(Kind::Engaged));
     println!("passive {passive:?}; engaged {engaged:?}");
-    assert!(passive.0.is_empty(), "nobody acted: no mark is set");
+    // The passive stand-in takes no beat. Staying away from the meeting
+    // is the scene's own outcome for an empty chair (`absent`), not an
+    // act: with the policy families (F4) the meeting now comes within the
+    // twelve turns.
+    assert!(
+        passive.0.iter().all(|m| m == "stayed_away"),
+        "nobody acted: no mark but the empty chair's is set"
+    );
     assert!(
         engaged.0.iter().any(|m| m == "at_hall"),
         "the engaged stand-in carried boxes at the hall: {engaged:?}"

@@ -1570,10 +1570,15 @@ fn bind_targets(
                     );
                 }
             }
+            // A pack may remove a concern (as for conditions naming it): the
+            // slot then never binds.
             if let Some(c) = concern
                 && b.concern_index(c).is_none()
             {
-                err(issues, format!("slot `{slot}`: unknown concern `{c}`"));
+                issues.push(Issue::warning(
+                    owner,
+                    &format!("slot `{slot}`: unknown concern `{c}` (it never binds)"),
+                ));
             }
             if *top == 0 {
                 err(issues, format!("slot `{slot}`: top must be at least 1"));

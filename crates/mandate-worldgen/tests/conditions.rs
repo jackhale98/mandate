@@ -1374,7 +1374,24 @@ fn every_variant_evaluates_in_a_synthetic_state() {
                 "{s}"
             );
         }
+        // `proposal`: an open proposal of the family in the jurisdiction
+        // (F4), its places and neighbourhoods as arguments, never a person.
+        for f in &content.policy_families {
+            let open = st.policy.families.open_at(at).any(|i| i.family == f.id);
+            let (holds, args) = at_any(
+                &w3.e,
+                &format!(r#"{{ "type": "proposal", "family": "{}" }}"#, f.id),
+                at,
+            );
+            assert_eq!(holds, open, "{}", f.id);
+            for s in f.slots.iter().filter(|s| {
+                s.bind.kind() == mandate_content::policy_family::SlotKind::Person
+            }) {
+                assert!(!args.contains_key(&format!("proposal_{}", s.id)), "{}", f.id);
+            }
+        }
         for k in [
+            "proposal",
             "budget_year",
             "budget_balance",
             "body_majority",

@@ -39,7 +39,19 @@ fn base_sources() -> Vec<Source> {
     read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap()
 }
 
+/// The sample families beside the base pack, whose own families (F4) a
+/// `disable` patch takes out of play, so the samples are what opens.
 fn with_families(mut src: Vec<Source>) -> Vec<Source> {
+    let base = load(&src).unwrap_or_else(|e| panic!("{e:#?}")).0;
+    let items: Vec<serde_json::Value> = base
+        .policy_families
+        .iter()
+        .map(|f| serde_json::json!({ "op": "disable", "family": f.id }))
+        .collect();
+    src.push(Source {
+        path: "zz_test/policy_family_patches.jsonc".into(),
+        text: serde_json::json!({ "kind": "policy_family_patches", "items": items }).to_string(),
+    });
     src.push(Source {
         path: "zz_test/policy_families/test.jsonc".into(),
         text: FAMILIES.into(),
@@ -279,6 +291,8 @@ fn v23_and_v24_saves_migrate() {
     let base = {
         let mut b = load(&base_sources()).unwrap().0;
         b.arcs.clear();
+        // The base pack's own families (F4) out: no family state to migrate.
+        b.policy_families.clear();
         Arc::new(b)
     };
     let mut e = game(&base, 5);

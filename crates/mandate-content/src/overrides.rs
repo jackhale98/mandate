@@ -8,6 +8,9 @@
 //! a registry kind it names an entry by id in brackets:
 //! `sectors[sector.retail].base_wage`, `concerns[concern.jobs].slope`.
 //! Array elements are `[n]` or `.n`: `actions.fundraise.raised[0]`.
+//! Policy families (DEC-092 §2.14) are a registry over several files and
+//! their numbers a single value: `policy_families[family.flood_wall].draw.weight`,
+//! `policy_family_params.max_open_per_jurisdiction`.
 //!
 //! Only values written in a content file can be overridden; an unknown path
 //! is an error that lists what exists at the point it went wrong. The new
@@ -315,6 +318,50 @@ mod tests {
         assert_eq!(p["value"]["ages"], serde_json::json!([0.3, 0.5]));
         assert_eq!(value(&s, 1)["items"][0]["base_wage"], 31000);
         assert_eq!(s[2].text, "x = y\n");
+    }
+
+    /// Policy families (DEC-092 §2.14): an entry of the registry in any of
+    /// its files, a nested field of it, and the family parameters.
+    #[test]
+    fn reaches_policy_families_and_their_parameters() {
+        let mut s = vec![
+            Source {
+                path: "p/policy_families/params.jsonc".into(),
+                text: "{\"kind\":\"policy_family_params\",\"value\":{\"max_open_per_jurisdiction\":4,\"rarity\":{\"common\":0.85}}}".into(),
+            },
+            Source {
+                path: "p/policy_families/a.jsonc".into(),
+                text: "{\"kind\":\"policy_families\",\"items\":[{\"id\":\"family.a\",\"draw\":{\"rarity\":\"common\",\"weight\":1}}]}".into(),
+            },
+            Source {
+                path: "p/policy_families/b.jsonc".into(),
+                text: "{\"kind\":\"policy_families\",\"items\":[{\"id\":\"family.flood_wall\",\"draw\":{\"rarity\":\"common\",\"weight\":2},\"axes\":[{\"id\":\"where\",\"options\":[{\"id\":\"hood\",\"months\":0}]}]}]}".into(),
+            },
+        ];
+        let set = |p: &str| Override::parse(p).unwrap_or_else(|e| panic!("{e}"));
+        apply(
+            &mut s,
+            &[
+                set("policy_family_params.max_open_per_jurisdiction=3"),
+                set("policy_family_params.rarity.common=0.5"),
+                set("policy_families[family.flood_wall].draw.weight=3"),
+                set("policy_families[family.flood_wall].draw.rarity=rare"),
+                set("policy_families[family.flood_wall].axes[0].options[0].months=2"),
+            ],
+        )
+        .unwrap_or_else(|e| panic!("{e}"));
+        assert_eq!(value(&s, 0)["value"]["max_open_per_jurisdiction"], 3);
+        assert_eq!(value(&s, 0)["value"]["rarity"]["common"], 0.5);
+        let f = &value(&s, 2)["items"][0];
+        assert_eq!(f["draw"]["weight"], 3);
+        assert_eq!(f["draw"]["rarity"], "rare");
+        assert_eq!(f["axes"][0]["options"][0]["months"], 2);
+        // The other file is untouched.
+        assert_eq!(value(&s, 1)["items"][0]["draw"]["weight"], 1);
+        let mut t = s.clone();
+        let e = apply(&mut t, &[set("policy_families[family.none].draw.weight=1")])
+            .expect_err("unknown family");
+        assert!(e.contains("no `policy_families` entry has id"), "{e}");
     }
 
     #[test]

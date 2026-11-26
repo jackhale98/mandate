@@ -1045,7 +1045,11 @@ fn run(cli: Cli) -> Result<(), String> {
             lab::runner::set_content_root(&cli.content);
             let scenario = resolve_scenario(&content, scenario.as_deref())?;
             let v = if check {
-                policies::check(&content, seed.unwrap_or(1), months.unwrap_or(policies::CHECK_MONTHS))?
+                policies::check(
+                    &content,
+                    seed.unwrap_or(1),
+                    months.unwrap_or(policies::CHECK_MONTHS),
+                )?
             } else if coverage {
                 policies::coverage(
                     &content,

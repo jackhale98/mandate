@@ -1896,7 +1896,10 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
         | C::PlaceClosed { .. } => {}
         C::Proposal { family } => {
             if b.family(family).is_none() {
-                err(issues, format!("proposal: unknown policy family `{family}`"));
+                err(
+                    issues,
+                    format!("proposal: unknown policy family `{family}`"),
+                );
             }
         }
     }

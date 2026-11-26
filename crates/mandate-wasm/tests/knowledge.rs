@@ -22,15 +22,32 @@ fn content() -> Arc<mandate_content::ContentBundle> {
 }
 
 fn game(seed: u64) -> Engine {
+    game_in(seed, content())
+}
+
+fn game_in(seed: u64, c: Arc<mandate_content::ContentBundle>) -> Engine {
     generate(
         &WorldConfig {
             seed,
             size: WorldSize::Small,
             scenario: None,
         },
-        content(),
+        c,
     )
     .unwrap()
+}
+
+/// The base pack with its situational templates on offer again: F4 retired
+/// them into policy families (DEC-092 §2.20); the mechanism they run on
+/// stays, and its gating is what `situational_policies_by_level` proves.
+fn situational_content() -> Arc<mandate_content::ContentBundle> {
+    let mut src = mandate_content::embedded::sources();
+    for s in src.iter_mut() {
+        if s.path.ends_with("policies/situational.jsonc") {
+            s.text = s.text.replace("\"retired\": true, ", "");
+        }
+    }
+    Arc::new(mandate_content::load(&src).unwrap().0)
 }
 
 /// Put a subject at exactly `level` (test setup, not a command).
@@ -462,8 +479,9 @@ fn bills_by_level() {
 #[test]
 fn situational_policies_by_level() {
     // A run where a situational policy is on the table.
+    let c = situational_content();
     let found = (1..60).find_map(|seed| {
-        let mut e = game(seed);
+        let mut e = game_in(seed, c.clone());
         e.set_lab_omniscient(true);
         let t = office_view(&e)
             .unwrap()

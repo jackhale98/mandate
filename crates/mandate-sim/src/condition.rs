@@ -1240,10 +1240,7 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
                             }
                             None => {
                                 if let Some(p) = v.r.world.places.get(place.index()) {
-                                    args.insert(
-                                        key,
-                                        crate::talk::context::place_talk_key(p.kind),
-                                    );
+                                    args.insert(key, crate::talk::context::place_talk_key(p.kind));
                                 }
                             }
                         }

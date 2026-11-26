@@ -215,7 +215,7 @@ pub fn draw_deck(seed: u64, content: &ContentBundle, at: Jurisdiction) -> Vec<Co
     content
         .policy_families
         .iter()
-        .filter(|f| f.tier == at.tier() && drawn(seed, content, f, at))
+        .filter(|f| !f.disabled && f.tier == at.tier() && drawn(seed, content, f, at))
         .map(|f| f.id.clone())
         .collect()
 }
@@ -243,7 +243,7 @@ pub fn ensure_decks(
             for f in &content.policy_families {
                 let had = deck.contains(&f.id);
                 let new = !fam.family_keys.contains(&f.id);
-                if had || (new && f.tier == at.tier() && drawn(seed, content, f, *at)) {
+                if had || (new && !f.disabled && f.tier == at.tier() && drawn(seed, content, f, *at)) {
                     next.push(f.id.clone());
                 }
             }
