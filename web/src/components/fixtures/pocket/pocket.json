@@ -3,72 +3,72 @@
   "arcs": [
     {
       "args": {
-        "above": "Ferreland",
-        "away": "316",
-        "clock_day": "5",
+        "above": "Loreshire",
+        "away": "371",
+        "clock_day": "2",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
-        "hall": "Queens Cross",
-        "homes": "247",
-        "hood": "East Hill",
+        "hall": "Bridgegate",
+        "homes": "267",
+        "hood": "Orchardfield",
         "month_key": "month-2",
-        "official": "Osric Dell",
+        "official": "Nadia Gallowaywood",
         "official_role_key": "role-mayor",
-        "organiser": "Neve Oak",
-        "organiser_role_key": "occupation-organiser",
-        "place": "Belenwick",
-        "player": "Fen Galloway",
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "place": "Halobridge",
+        "player": "Mara Whit",
         "repaired": "0",
-        "town": "Belenwick",
+        "town": "Halobridge",
         "weeks": "1",
         "year": "2020"
       },
       "at": {
-        "id": 7,
+        "id": 8,
         "kind": "municipality",
-        "name": "Belenwick",
+        "name": "Halobridge",
         "name_key": "jurisdiction-municipality",
         "tier": "local"
       },
       "clock": {
-        "days_left": 21,
+        "days_left": 18,
         "due": {
-          "day": 5,
-          "day_number": 737363,
+          "day": 2,
+          "day_number": 737360,
           "month": 3,
           "year": 2020
         },
         "text": {
           "args": {
-            "days": "21"
+            "days": "18"
           },
           "key": "now-clock-days"
         }
       },
-      "id": 0,
-      "open_beats": 2,
-      "place": "Belenwick",
+      "id": 1,
+      "open_beats": 3,
+      "place": "Halobridge",
       "stage": {
         "args": {
-          "above": "Ferreland",
-          "away": "316",
-          "clock_day": "5",
+          "above": "Loreshire",
+          "away": "371",
+          "clock_day": "2",
           "clock_month_key": "month-3",
           "crisis_key": "crisis-disaster_recovery",
           "day": "1",
-          "hall": "Queens Cross",
-          "homes": "247",
-          "hood": "East Hill",
+          "hall": "Bridgegate",
+          "homes": "267",
+          "hood": "Orchardfield",
           "month_key": "month-2",
-          "official": "Osric Dell",
+          "official": "Nadia Gallowaywood",
           "official_role_key": "role-mayor",
-          "organiser": "Neve Oak",
-          "organiser_role_key": "occupation-organiser",
-          "place": "Belenwick",
-          "player": "Fen Galloway",
+          "organiser": "Sana Vargawell",
+          "organiser_role_key": "occupation-shopkeeper",
+          "place": "Halobridge",
+          "player": "Mara Whit",
           "repaired": "0",
-          "town": "Belenwick",
+          "town": "Halobridge",
           "weeks": "1",
           "year": "2020"
         },
@@ -80,27 +80,171 @@
   "asks": [
     {
       "args": {
-        "asker": "Neve Oak",
-        "asker_hood": "Orchardrow",
-        "asker_occupation": "organiser",
-        "asker_role_key": "occupation-organiser",
+        "asker": "Sana Vargawell",
+        "asker_hood": "Orchardfield",
+        "asker_occupation": "shopkeeper",
+        "asker_role_key": "occupation-shopkeeper",
         "crisis_key": "ask-crisis-disaster_recovery",
-        "days": "3",
+        "days": "9",
         "history": "none",
-        "player": "Fen Galloway",
-        "town": "Belenwick"
+        "official": "Nadia Gallowaywood",
+        "official_role_key": "role-mayor",
+        "player": "Mara Whit",
+        "town": "Halobridge"
       },
       "asker": {
         "person": {
           "ambient_slot": null,
-          "can_talk": true,
+          "can_talk": false,
           "has_news": true,
-          "id": 1409,
-          "level": "detailed",
-          "name": "Neve Oak",
-          "role_key": "occupation-organiser",
+          "id": 1410,
+          "level": "known",
+          "name": "Sana Vargawell",
+          "role_key": "occupation-shopkeeper",
           "rumoured": false,
           "tier": "named"
+        },
+        "type": "person"
+      },
+      "big": true,
+      "break_lines": [
+        {
+          "args": {
+            "delta": "−10",
+            "name": "Sana Vargawell"
+          },
+          "key": "effect-opinion",
+          "tone": "cost"
+        }
+      ],
+      "days_left": 9,
+      "decline_lines": [
+        {
+          "args": {
+            "delta": "−4",
+            "name": "Sana Vargawell"
+          },
+          "key": "effect-opinion",
+          "tone": "cost"
+        }
+      ],
+      "detail_key": "ask-flood-shelter-detail",
+      "due": {
+        "day": 21,
+        "day_number": 737351,
+        "month": 2,
+        "year": 2020
+      },
+      "due_this_turn": true,
+      "history": "none",
+      "how": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 100,
+        "to": {
+          "kind_key": "town_hall",
+          "location": {
+            "place": 132,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 100,
+          "neighborhood_args": {
+            "centre_town": "Halobridge"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Halobridge"
+        }
+      },
+      "id": 2,
+      "keep_lines": [
+        {
+          "args": {
+            "delta": "+10",
+            "name": "Sana Vargawell"
+          },
+          "key": "effect-opinion",
+          "tone": "gain"
+        },
+        {
+          "args": {
+            "delta": "+1",
+            "hood": "Orchardfield"
+          },
+          "key": "effect-approval-hood",
+          "tone": "gain"
+        }
+      ],
+      "need_key": "ask-flood-shelter-need",
+      "needs": [
+        {
+          "kind": "talk",
+          "progress": null,
+          "state": "current",
+          "watch": false
+        }
+      ],
+      "odds": null,
+      "opened": {
+        "day": 8,
+        "day_number": 737338,
+        "month": 2,
+        "year": 2020
+      },
+      "outcome_key": null,
+      "person": {
+        "ambient_slot": null,
+        "can_talk": false,
+        "has_news": true,
+        "id": 1028,
+        "level": "known",
+        "name": "Nadia Gallowaywood",
+        "role_key": "role-mayor",
+        "rumoured": false,
+        "tier": "principal"
+      },
+      "progress": null,
+      "promise": false,
+      "public": false,
+      "resolved_on": null,
+      "respond_by": {
+        "day": 21,
+        "day_number": 737351,
+        "month": 2,
+        "year": 2020
+      },
+      "status": "offered",
+      "template": "ask.flood_shelter",
+      "title_key": "ask-flood-shelter",
+      "unanswered": false
+    }
+  ],
+  "asks_due_soon": 1,
+  "asks_recent": [
+    {
+      "args": {
+        "asker": "Felix Hollisley",
+        "asker_hood": "Abbey Green",
+        "asker_occupation": "editor",
+        "asker_role_key": "occupation-editor",
+        "crisis_key": "ask-crisis-disaster_recovery",
+        "days": "0",
+        "history": "none",
+        "player": "Mara Whit",
+        "town": "Halobridge"
+      },
+      "asker": {
+        "person": {
+          "ambient_slot": null,
+          "can_talk": false,
+          "has_news": true,
+          "id": 1413,
+          "level": "known",
+          "name": "Felix Hollisley",
+          "role_key": "occupation-editor",
+          "rumoured": false,
+          "tier": "principal"
         },
         "type": "person"
       },
@@ -109,79 +253,56 @@
         {
           "args": {
             "delta": "−10",
-            "name": "Neve Oak"
+            "name": "Felix Hollisley"
           },
           "key": "effect-opinion",
           "tone": "cost"
         },
         {
           "args": {
-            "delta": "−0.6",
-            "hood": "Orchardrow"
+            "delta": "−0.4",
+            "who_key": "effect-who-town"
           },
-          "key": "effect-approval-hood",
+          "key": "effect-approval",
           "tone": "cost"
         }
       ],
-      "days_left": 3,
-      "decline_lines": [
-        {
-          "args": {
-            "delta": "−3",
-            "name": "Neve Oak"
-          },
-          "key": "effect-opinion",
-          "tone": "cost"
-        }
-      ],
-      "detail_key": "ask-town-hall-here-detail",
+      "days_left": 0,
+      "decline_lines": [],
+      "detail_key": "ask-say-something-detail",
       "due": {
-        "day": 12,
-        "day_number": 737370,
-        "month": 3,
+        "day": 11,
+        "day_number": 737341,
+        "month": 2,
         "year": 2020
       },
-      "due_this_turn": true,
+      "due_this_turn": false,
+      "event": 1881,
       "history": "none",
-      "how": {
-        "action": "town_hall",
-        "here": false,
-        "late_night": false,
-        "neighborhood": 95,
-        "to": {
-          "kind_key": "streets",
-          "location": {
-            "neighborhood": 95,
-            "type": "street"
-          },
-          "name": "",
-          "neighborhood": 95,
-          "neighborhood_name": "Orchardrow"
-        }
-      },
+      "how": null,
       "id": 1,
       "keep_lines": [
         {
           "args": {
-            "delta": "+8",
-            "name": "Neve Oak"
+            "delta": "+6",
+            "name": "Felix Hollisley"
           },
           "key": "effect-opinion",
           "tone": "gain"
         },
         {
           "args": {
-            "delta": "+1",
-            "hood": "Orchardrow"
+            "delta": "+0.4",
+            "who_key": "effect-who-town"
           },
-          "key": "effect-approval-hood",
+          "key": "effect-approval",
           "tone": "gain"
         }
       ],
-      "need_key": "ask-town-hall-here-need",
+      "need_key": "ask-say-something-need",
       "needs": [
         {
-          "kind": "town_hall",
+          "kind": "statement",
           "progress": null,
           "state": "current",
           "watch": false
@@ -199,103 +320,99 @@
       "progress": null,
       "promise": false,
       "public": true,
-      "resolved_on": null,
-      "respond_by": {
-        "day": 15,
-        "day_number": 737345,
+      "resolved_on": {
+        "day": 12,
+        "day_number": 737342,
         "month": 2,
         "year": 2020
       },
-      "status": "offered",
-      "template": "ask.town_hall_here",
-      "title_key": "ask-town-hall-here",
-      "unanswered": false
-    }
-  ],
-  "asks_due_soon": 1,
-  "asks_recent": [
+      "respond_by": null,
+      "status": "declined",
+      "template": "ask.say_something",
+      "title_key": "ask-say-something",
+      "unanswered": true
+    },
     {
       "args": {
-        "asker": "Liv Mercer",
-        "asker_hood": "East Hill",
-        "asker_occupation": "party_chair",
-        "asker_role_key": "occupation-party_chair",
-        "bill_key": "policy-upzoning",
+        "asker": "Delphine Harrow",
+        "asker_hood": "Churchfield",
+        "asker_occupation": "organiser",
+        "asker_role_key": "occupation-organiser",
         "crisis_key": "ask-crisis-disaster_recovery",
-        "days": "0",
+        "days": "19",
         "history": "none",
-        "player": "Fen Galloway",
-        "town": "Belenwick"
+        "player": "Mara Whit",
+        "town": "Halobridge"
       },
       "asker": {
-        "name": "New Dawn Front",
-        "party": 0,
-        "type": "party",
-        "voice": {
+        "person": {
           "ambient_slot": null,
-          "can_talk": false,
+          "can_talk": true,
           "has_news": true,
-          "id": 1404,
+          "id": 1412,
           "level": "heard",
-          "name": "Liv Mercer",
-          "role_key": "occupation-party_chair",
+          "name": "Delphine Harrow",
+          "role_key": "occupation-organiser",
           "rumoured": false,
-          "tier": "principal"
-        }
+          "tier": "named"
+        },
+        "type": "person"
       },
       "big": false,
       "break_lines": [
         {
           "args": {
             "delta": "−10",
-            "name": "Liv Mercer"
+            "name": "Delphine Harrow"
           },
           "key": "effect-opinion",
           "tone": "cost"
         },
         {
           "args": {
-            "delta": "−3"
+            "delta": "−0.6",
+            "hood": "Churchfield"
           },
-          "key": "effect-standing",
+          "key": "effect-approval-hood",
           "tone": "cost"
         }
       ],
       "days_left": 0,
       "decline_lines": [],
-      "detail_key": "ask-party-budget-detail",
+      "detail_key": "ask-town-hall-here-detail",
       "due": {
-        "day": 21,
-        "day_number": 737320,
-        "month": 1,
+        "day": 3,
+        "day_number": 737361,
+        "month": 3,
         "year": 2020
       },
       "due_this_turn": false,
-      "event": 2033,
+      "event": 1880,
       "history": "none",
       "how": null,
       "id": 0,
       "keep_lines": [
         {
           "args": {
-            "delta": "+6",
-            "name": "Liv Mercer"
+            "delta": "+8",
+            "name": "Delphine Harrow"
           },
           "key": "effect-opinion",
           "tone": "gain"
         },
         {
           "args": {
-            "delta": "+2"
+            "delta": "+1",
+            "hood": "Churchfield"
           },
-          "key": "effect-standing",
+          "key": "effect-approval-hood",
           "tone": "gain"
         }
       ],
-      "need_key": "ask-party-budget-need",
+      "need_key": "ask-town-hall-here-need",
       "needs": [
         {
-          "kind": "vote",
+          "kind": "town_hall",
           "progress": null,
           "state": "current",
           "watch": false
@@ -303,8 +420,8 @@
       ],
       "odds": null,
       "opened": {
-        "day": 11,
-        "day_number": 737310,
+        "day": 25,
+        "day_number": 737324,
         "month": 1,
         "year": 2020
       },
@@ -312,17 +429,17 @@
       "person": null,
       "progress": null,
       "promise": false,
-      "public": false,
+      "public": true,
       "resolved_on": {
-        "day": 22,
-        "day_number": 737321,
-        "month": 1,
+        "day": 9,
+        "day_number": 737339,
+        "month": 2,
         "year": 2020
       },
       "respond_by": null,
       "status": "declined",
-      "template": "ask.party_budget",
-      "title_key": "ask-party-budget",
+      "template": "ask.town_hall_here",
+      "title_key": "ask-town-hall-here",
       "unanswered": true
     }
   ],
@@ -340,13 +457,13 @@
       "aftermath": null,
       "args": {
         "crisis_key": "crisis-disaster_recovery",
-        "hood": "East Hill",
-        "official": "Osric Dell",
+        "hood": "Orchardfield",
+        "official": "Nadia Gallowaywood",
         "official_role_key": "role-mayor",
-        "organiser": "Neve Oak",
-        "organiser_role_key": "occupation-organiser",
-        "player": "Fen Galloway",
-        "town": "Belenwick"
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "player": "Mara Whit",
+        "town": "Halobridge"
       },
       "days_left": 10,
       "deadline": {
@@ -380,7 +497,7 @@
             {
               "args": {
                 "delta": "+8",
-                "name": "Neve Oak"
+                "name": "Sana Vargawell"
               },
               "key": "effect-opinion",
               "tone": "gain"
@@ -388,7 +505,7 @@
             {
               "args": {
                 "delta": "+2",
-                "hood": "East Hill"
+                "hood": "Orchardfield"
               },
               "key": "effect-approval-hood",
               "tone": "gain"
@@ -413,7 +530,7 @@
             {
               "args": {
                 "delta": "+3",
-                "name": "Neve Oak"
+                "name": "Sana Vargawell"
               },
               "key": "effect-opinion",
               "tone": "gain"
@@ -421,7 +538,7 @@
             {
               "args": {
                 "delta": "+1",
-                "hood": "East Hill"
+                "hood": "Orchardfield"
               },
               "key": "effect-approval-hood",
               "tone": "gain"
@@ -436,7 +553,7 @@
             {
               "args": {
                 "delta": "−6",
-                "name": "Neve Oak"
+                "name": "Sana Vargawell"
               },
               "key": "effect-opinion",
               "tone": "cost"
@@ -444,7 +561,7 @@
             {
               "args": {
                 "delta": "−1",
-                "hood": "East Hill"
+                "hood": "Orchardfield"
               },
               "key": "effect-approval-hood",
               "tone": "cost"
@@ -468,12 +585,12 @@
       "people": [
         {
           "ambient_slot": null,
-          "can_talk": true,
+          "can_talk": false,
           "has_news": true,
-          "id": 1409,
-          "level": "detailed",
-          "name": "Neve Oak",
-          "role_key": "occupation-organiser",
+          "id": 1410,
+          "level": "known",
+          "name": "Sana Vargawell",
+          "role_key": "occupation-shopkeeper",
           "rumoured": false,
           "tier": "named"
         },
@@ -481,9 +598,9 @@
           "ambient_slot": null,
           "can_talk": false,
           "has_news": true,
-          "id": 1044,
-          "level": "detailed",
-          "name": "Osric Dell",
+          "id": 1028,
+          "level": "known",
+          "name": "Nadia Gallowaywood",
           "role_key": "role-mayor",
           "rumoured": false,
           "tier": "principal"
@@ -509,12 +626,12 @@
         "place": {
           "kind_key": "streets",
           "location": {
-            "neighborhood": 91,
+            "neighborhood": 101,
             "type": "street"
           },
           "name": "",
-          "neighborhood": 91,
-          "neighborhood_name": "East Hill"
+          "neighborhood": 101,
+          "neighborhood_name": "Orchardfield"
         }
       },
       "situation_key": "dilemma-flood-money-situation",
@@ -529,8 +646,8 @@
       "attended": false,
       "cost": null,
       "date": {
-        "day": 25,
-        "day_number": 737355,
+        "day": 16,
+        "day_number": 737346,
         "month": 2,
         "year": 2020
       },
@@ -540,7 +657,7 @@
       "main": false,
       "name": {
         "args": {
-          "town": "Belenwick"
+          "town": "Halobridge"
         },
         "key": "cal-market-day"
       },
@@ -550,19 +667,19 @@
       "place": {
         "kind_key": "market",
         "location": {
-          "place": 124,
+          "place": 136,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       },
       "today": true,
-      "weekday_key": "weekday-thu"
+      "weekday_key": "weekday-tue"
     }
   ],
   "headlines": {
@@ -576,12 +693,12 @@
       "stale": false
     },
     "gov_approval": 0.65,
-    "monthly_rent": 940.0,
+    "monthly_rent": 1120.0,
     "top_concern_keys": [
       "concern-recovery",
-      "concern-taxes"
+      "concern-environment"
     ],
-    "unemployment": 0.03
+    "unemployment": 0.04
   },
   "in_campaign": false,
   "late_night_available": true,
@@ -600,55 +717,57 @@
   "location": {
     "kind_key": "community_centre",
     "location": {
-      "place": 127,
+      "place": 139,
       "type": "place"
     },
     "name": "",
-    "neighborhood": 94,
-    "neighborhood_name": "Queens Cross"
+    "neighborhood": 104,
+    "neighborhood_name": "Bridgegate"
   },
-  "mandate": 61.395381927490234,
+  "mandate": 100.0,
   "money": 5000.0,
   "needs_count": 2,
   "needs_you": [
     {
-      "arc": null,
+      "arc": 1,
       "args": {
-        "asker": "Neve Oak",
-        "asker_hood": "Orchardrow",
-        "asker_occupation": "organiser",
-        "asker_role_key": "occupation-organiser",
+        "asker": "Sana Vargawell",
+        "asker_hood": "Orchardfield",
+        "asker_occupation": "shopkeeper",
+        "asker_role_key": "occupation-shopkeeper",
         "crisis_key": "ask-crisis-disaster_recovery",
-        "days": "3",
+        "days": "9",
         "history": "none",
-        "player": "Fen Galloway",
-        "town": "Belenwick"
+        "official": "Nadia Gallowaywood",
+        "official_role_key": "role-mayor",
+        "player": "Mara Whit",
+        "town": "Halobridge"
       },
-      "days_left": 3,
+      "days_left": 9,
       "due": {
-        "day": 15,
-        "day_number": 737345,
+        "day": 21,
+        "day_number": 737351,
         "month": 2,
         "year": 2020
       },
       "kind": "ask_offer",
       "target": {
-        "id": 1,
+        "id": 2,
         "type": "ask"
       },
-      "title_key": "ask-town-hall-here"
+      "title_key": "ask-flood-shelter"
     },
     {
-      "arc": 0,
+      "arc": 1,
       "args": {
         "crisis_key": "crisis-disaster_recovery",
-        "hood": "East Hill",
-        "official": "Osric Dell",
+        "hood": "Orchardfield",
+        "official": "Nadia Gallowaywood",
         "official_role_key": "role-mayor",
-        "organiser": "Neve Oak",
-        "organiser_role_key": "occupation-organiser",
-        "player": "Fen Galloway",
-        "town": "Belenwick"
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "player": "Mara Whit",
+        "town": "Halobridge"
       },
       "days_left": 10,
       "due": {
@@ -669,25 +788,25 @@
     {
       "about_you": false,
       "args": {
-        "above": "Ferreland",
-        "away": "316",
-        "clock_day": "5",
+        "above": "Loreshire",
+        "away": "371",
+        "clock_day": "2",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
-        "hall": "Queens Cross",
-        "homes": "247",
-        "hood": "East Hill",
+        "hall": "Bridgegate",
+        "homes": "267",
+        "hood": "Orchardfield",
         "month_key": "month-2",
-        "official": "Osric Dell",
+        "official": "Nadia Gallowaywood",
         "official_role_key": "role-mayor",
         "ok": "yes",
-        "organiser": "Neve Oak",
-        "organiser_role_key": "occupation-organiser",
-        "place": "Belenwick",
-        "player": "Fen Galloway",
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "place": "Halobridge",
+        "player": "Mara Whit",
         "repaired": "0",
-        "town": "Belenwick",
+        "town": "Halobridge",
         "weeks": "1",
         "year": "2020"
       },
@@ -697,16 +816,16 @@
         "month": 2,
         "year": 2020
       },
-      "event": 2061,
+      "event": 1876,
       "framing": "straight",
       "headline_key": "headline-arc-flood-struck",
-      "id": 15,
+      "id": 11,
       "outlet": {
-        "credibility": "medium",
-        "id": 7,
+        "credibility": "high",
+        "id": 8,
         "kind": "town",
         "name_key": "outlet-local_paper",
-        "place": "The Belenwick Post"
+        "place": "The Halobridge Herald"
       }
     },
     {
@@ -714,7 +833,7 @@
       "args": {
         "hazard_key": "hazard-flood",
         "severity": "90",
-        "town": "Belenwick"
+        "town": "Halobridge"
       },
       "date": {
         "day": 1,
@@ -722,24 +841,24 @@
         "month": 2,
         "year": 2020
       },
-      "event": 2055,
+      "event": 1867,
       "framing": "straight",
       "headline_key": "headline-disaster",
-      "id": 8,
+      "id": 2,
       "outlet": {
-        "credibility": "medium",
-        "id": 7,
+        "credibility": "high",
+        "id": 8,
         "kind": "town",
         "name_key": "outlet-local_paper",
-        "place": "The Belenwick Post"
+        "place": "The Halobridge Herald"
       }
     },
     {
       "about_you": false,
       "args": {
         "no": "0",
-        "policy_key": "policy-upzoning",
-        "town": "Belenwick",
+        "policy_key": "policy-parks",
+        "town": "Halobridge",
         "yes": "1"
       },
       "date": {
@@ -748,16 +867,16 @@
         "month": 2,
         "year": 2020
       },
-      "event": 2043,
+      "event": 1848,
       "framing": "straight",
       "headline_key": "headline-policy-enacted",
-      "id": 7,
+      "id": 1,
       "outlet": {
-        "credibility": "medium",
-        "id": 7,
+        "credibility": "high",
+        "id": 8,
         "kind": "town",
         "name_key": "outlet-local_paper",
-        "place": "The Belenwick Post"
+        "place": "The Halobridge Herald"
       }
     }
   ],
@@ -769,46 +888,46 @@
   },
   "next_expected": null,
   "next_up": {
-    "arc": 0,
+    "arc": 1,
     "args": {},
     "ask": null,
     "bill": null,
     "date": {
-      "day": 5,
-      "day_number": 737363,
+      "day": 2,
+      "day_number": 737360,
       "month": 3,
       "year": 2020
     },
-    "days_left": 21,
+    "days_left": 18,
     "key": "now-next-arc",
     "kind": "arc",
     "title": {
       "args": {
-        "above": "Ferreland",
-        "away": "316",
-        "clock_day": "5",
+        "above": "Loreshire",
+        "away": "371",
+        "clock_day": "2",
         "clock_month_key": "month-3",
         "crisis_key": "crisis-disaster_recovery",
         "day": "1",
-        "hall": "Queens Cross",
-        "homes": "247",
-        "hood": "East Hill",
+        "hall": "Bridgegate",
+        "homes": "267",
+        "hood": "Orchardfield",
         "month_key": "month-2",
-        "official": "Osric Dell",
+        "official": "Nadia Gallowaywood",
         "official_role_key": "role-mayor",
-        "organiser": "Neve Oak",
-        "organiser_role_key": "occupation-organiser",
-        "place": "Belenwick",
-        "player": "Fen Galloway",
+        "organiser": "Sana Vargawell",
+        "organiser_role_key": "occupation-shopkeeper",
+        "place": "Halobridge",
+        "player": "Mara Whit",
         "repaired": "0",
-        "town": "Belenwick",
+        "town": "Halobridge",
         "weeks": "1",
         "year": "2020"
       },
       "key": "arc-flood"
     }
   },
-  "notebook_new": 52,
+  "notebook_new": 51,
   "record": 27.60000228881836,
   "renomination_standing": 25.0,
   "routes": [
@@ -816,232 +935,200 @@
       "action": "canvass",
       "here": false,
       "late_night": false,
-      "neighborhood": 90,
+      "neighborhood": 100,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 90,
+          "neighborhood": 100,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
       "action": "canvass",
       "here": false,
       "late_night": false,
-      "neighborhood": 91,
+      "neighborhood": 101,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 91,
+          "neighborhood": 101,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 91,
-        "neighborhood_name": "East Hill"
+        "neighborhood": 101,
+        "neighborhood_name": "Orchardfield"
       }
     },
     {
       "action": "canvass",
       "here": false,
       "late_night": false,
-      "neighborhood": 92,
+      "neighborhood": 102,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 92,
+          "neighborhood": 102,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 92,
-        "neighborhood_name": "Castle Green"
+        "neighborhood": 102,
+        "neighborhood_name": "Abbey Green"
       }
     },
     {
       "action": "canvass",
       "here": false,
       "late_night": false,
-      "neighborhood": 93,
+      "neighborhood": 103,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 93,
+          "neighborhood": 103,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 93,
-        "neighborhood_name": "Westwood"
+        "neighborhood": 103,
+        "neighborhood_name": "Wharfvale"
       }
     },
     {
       "action": "canvass",
       "here": false,
       "late_night": false,
-      "neighborhood": 94,
+      "neighborhood": 104,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 94,
+          "neighborhood": 104,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 94,
-        "neighborhood_name": "Queens Cross"
+        "neighborhood": 104,
+        "neighborhood_name": "Bridgegate"
       }
     },
     {
       "action": "canvass",
       "here": false,
       "late_night": false,
-      "neighborhood": 95,
+      "neighborhood": 105,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 95,
+          "neighborhood": 105,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 95,
-        "neighborhood_name": "Orchardrow"
-      }
-    },
-    {
-      "action": "canvass",
-      "here": false,
-      "late_night": false,
-      "neighborhood": 96,
-      "to": {
-        "kind_key": "streets",
-        "location": {
-          "neighborhood": 96,
-          "type": "street"
-        },
-        "name": "",
-        "neighborhood": 96,
-        "neighborhood_name": "Greentown"
+        "neighborhood": 105,
+        "neighborhood_name": "Churchfield"
       }
     },
     {
       "action": "town_hall",
       "here": false,
       "late_night": false,
-      "neighborhood": 90,
+      "neighborhood": 100,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 90,
+          "neighborhood": 100,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
       "action": "town_hall",
       "here": false,
       "late_night": false,
-      "neighborhood": 91,
+      "neighborhood": 101,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 91,
+          "neighborhood": 101,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 91,
-        "neighborhood_name": "East Hill"
+        "neighborhood": 101,
+        "neighborhood_name": "Orchardfield"
       }
     },
     {
       "action": "town_hall",
       "here": false,
       "late_night": false,
-      "neighborhood": 92,
+      "neighborhood": 102,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 92,
+          "neighborhood": 102,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 92,
-        "neighborhood_name": "Castle Green"
+        "neighborhood": 102,
+        "neighborhood_name": "Abbey Green"
       }
     },
     {
       "action": "town_hall",
       "here": false,
       "late_night": false,
-      "neighborhood": 93,
+      "neighborhood": 103,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 93,
+          "neighborhood": 103,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 93,
-        "neighborhood_name": "Westwood"
+        "neighborhood": 103,
+        "neighborhood_name": "Wharfvale"
       }
     },
     {
       "action": "town_hall",
       "here": true,
       "late_night": false,
-      "neighborhood": 94,
+      "neighborhood": 104,
       "to": {
         "kind_key": "community_centre",
         "location": {
-          "place": 127,
+          "place": 139,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 94,
-        "neighborhood_name": "Queens Cross"
+        "neighborhood": 104,
+        "neighborhood_name": "Bridgegate"
       }
     },
     {
       "action": "town_hall",
       "here": false,
       "late_night": false,
-      "neighborhood": 95,
+      "neighborhood": 105,
       "to": {
         "kind_key": "streets",
         "location": {
-          "neighborhood": 95,
+          "neighborhood": 105,
           "type": "street"
         },
         "name": "",
-        "neighborhood": 95,
-        "neighborhood_name": "Orchardrow"
-      }
-    },
-    {
-      "action": "town_hall",
-      "here": false,
-      "late_night": false,
-      "neighborhood": 96,
-      "to": {
-        "kind_key": "streets",
-        "location": {
-          "neighborhood": 96,
-          "type": "street"
-        },
-        "name": "",
-        "neighborhood": 96,
-        "neighborhood_name": "Greentown"
+        "neighborhood": 105,
+        "neighborhood_name": "Churchfield"
       }
     },
     {
@@ -1052,16 +1139,16 @@
       "to": {
         "kind_key": "news_office",
         "location": {
-          "place": 129,
+          "place": 141,
           "type": "place"
         },
-        "name": "The Belenwick Post",
-        "neighborhood": 90,
+        "name": "The Halobridge Herald",
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1072,16 +1159,16 @@
       "to": {
         "kind_key": "party_office",
         "location": {
-          "place": 122,
+          "place": 134,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1092,16 +1179,16 @@
       "to": {
         "kind_key": "party_office",
         "location": {
-          "place": 122,
+          "place": 134,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1112,16 +1199,16 @@
       "to": {
         "kind_key": "council_chamber",
         "location": {
-          "place": 121,
+          "place": 133,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1132,16 +1219,16 @@
       "to": {
         "kind_key": "diner",
         "location": {
-          "place": 123,
+          "place": 135,
           "type": "place"
         },
-        "name": "Cora's",
-        "neighborhood": 90,
+        "name": "Rolf's",
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1152,16 +1239,16 @@
       "to": {
         "kind_key": "council_chamber",
         "location": {
-          "place": 121,
+          "place": 133,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1172,16 +1259,16 @@
       "to": {
         "kind_key": "diner",
         "location": {
-          "place": 123,
+          "place": 135,
           "type": "place"
         },
-        "name": "Cora's",
-        "neighborhood": 90,
+        "name": "Rolf's",
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1192,16 +1279,16 @@
       "to": {
         "kind_key": "news_office",
         "location": {
-          "place": 129,
+          "place": 141,
           "type": "place"
         },
-        "name": "The Belenwick Post",
-        "neighborhood": 90,
+        "name": "The Halobridge Herald",
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1215,8 +1302,8 @@
           "type": "home"
         },
         "name": "",
-        "neighborhood": 92,
-        "neighborhood_name": "Castle Green"
+        "neighborhood": 103,
+        "neighborhood_name": "Wharfvale"
       }
     },
     {
@@ -1227,16 +1314,16 @@
       "to": {
         "kind_key": "council_chamber",
         "location": {
-          "place": 121,
+          "place": 133,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1247,16 +1334,16 @@
       "to": {
         "kind_key": "council_chamber",
         "location": {
-          "place": 121,
+          "place": 133,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1267,16 +1354,16 @@
       "to": {
         "kind_key": "council_chamber",
         "location": {
-          "place": 121,
+          "place": 133,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1287,16 +1374,16 @@
       "to": {
         "kind_key": "town_hall",
         "location": {
-          "place": 120,
+          "place": 132,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1307,16 +1394,16 @@
       "to": {
         "kind_key": "town_hall",
         "location": {
-          "place": 120,
+          "place": 132,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1327,16 +1414,16 @@
       "to": {
         "kind_key": "town_hall",
         "location": {
-          "place": 120,
+          "place": 132,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1347,16 +1434,16 @@
       "to": {
         "kind_key": "diner",
         "location": {
-          "place": 123,
+          "place": 135,
           "type": "place"
         },
-        "name": "Cora's",
-        "neighborhood": 90,
+        "name": "Rolf's",
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1367,16 +1454,16 @@
       "to": {
         "kind_key": "diner",
         "location": {
-          "place": 123,
+          "place": 135,
           "type": "place"
         },
-        "name": "Cora's",
-        "neighborhood": 90,
+        "name": "Rolf's",
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1387,16 +1474,16 @@
       "to": {
         "kind_key": "party_office",
         "location": {
-          "place": 122,
+          "place": 134,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1407,16 +1494,16 @@
       "to": {
         "kind_key": "news_office",
         "location": {
-          "place": 129,
+          "place": 141,
           "type": "place"
         },
-        "name": "The Belenwick Post",
-        "neighborhood": 90,
+        "name": "The Halobridge Herald",
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     },
     {
@@ -1427,16 +1514,16 @@
       "to": {
         "kind_key": "town_hall",
         "location": {
-          "place": 120,
+          "place": 132,
           "type": "place"
         },
         "name": "",
-        "neighborhood": 90,
+        "neighborhood": 100,
         "neighborhood_args": {
-          "centre_town": "Belenwick"
+          "centre_town": "Halobridge"
         },
         "neighborhood_key": "ui-hood-centre",
-        "neighborhood_name": "Belenwick"
+        "neighborhood_name": "Halobridge"
       }
     }
   ],
@@ -1446,9 +1533,9 @@
   "tracks": {
     "health": 87.0,
     "legal_jeopardy": 0.0,
-    "standing": 64.0,
+    "standing": 65.0,
     "threat": 5.0,
-    "viability": 60.30721664428711
+    "viability": 60.33561706542969
   },
   "turn": 3,
   "turn_days": 14

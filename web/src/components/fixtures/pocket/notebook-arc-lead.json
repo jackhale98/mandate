@@ -459,12 +459,12 @@
     },
     {
       "args": {
-        "rival": "Aurel Garrowby",
+        "rival": "Selma Rookley",
         "town": "Halobridge"
       },
       "lead": {
         "args": {
-          "rival": "Aurel Garrowby",
+          "rival": "Selma Rookley",
           "to_kind_key": "place-party_office",
           "to_place_key": "talk-place-party_office",
           "town": "Halobridge"
@@ -600,80 +600,6 @@
     {
       "args": {
         "band_key": "support-band-divisive",
-        "policy_key": "policy-flood"
-      },
-      "lead": {
-        "args": {
-          "band_key": "support-band-divisive",
-          "policy_key": "policy-flood",
-          "to_kind_key": "place-party_office",
-          "to_place_key": "talk-place-party_office"
-        },
-        "key": "lead-notebook-polls",
-        "level": "known",
-        "route": {
-          "action": "go",
-          "here": false,
-          "late_night": false,
-          "neighborhood": 100,
-          "to": {
-            "kind_key": "party_office",
-            "location": {
-              "place": 134,
-              "type": "place"
-            },
-            "name": "",
-            "neighborhood": 100,
-            "neighborhood_args": {
-              "centre_town": "Halobridge"
-            },
-            "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Halobridge"
-          }
-        },
-        "since": {
-          "day": 12,
-          "day_number": 737342,
-          "month": 2,
-          "year": 2020
-        },
-        "subject": {
-          "policy": {
-            "template": "policy.flood_defenses",
-            "type": "template"
-          },
-          "town": 8,
-          "type": "policy_support"
-        },
-        "to": {
-          "kind_key": "party_office",
-          "location": {
-            "place": 134,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 100,
-          "neighborhood_args": {
-            "centre_town": "Halobridge"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Halobridge"
-        }
-      },
-      "section": "support",
-      "subject": {
-        "policy": {
-          "template": "policy.flood_defenses",
-          "type": "template"
-        },
-        "town": 8,
-        "type": "policy_support"
-      },
-      "title_key": "notebook-policy-support"
-    },
-    {
-      "args": {
-        "band_key": "support-band-divisive",
         "policy_key": "policy-hardship"
       },
       "lead": {
@@ -738,80 +664,6 @@
       "subject": {
         "policy": {
           "template": "policy.hardship_fund",
-          "type": "template"
-        },
-        "town": 8,
-        "type": "policy_support"
-      },
-      "title_key": "notebook-policy-support"
-    },
-    {
-      "args": {
-        "band_key": "support-band-divisive",
-        "policy_key": "policy-wage-floor"
-      },
-      "lead": {
-        "args": {
-          "band_key": "support-band-divisive",
-          "policy_key": "policy-wage-floor",
-          "to_kind_key": "place-party_office",
-          "to_place_key": "talk-place-party_office"
-        },
-        "key": "lead-notebook-polls",
-        "level": "known",
-        "route": {
-          "action": "go",
-          "here": false,
-          "late_night": false,
-          "neighborhood": 100,
-          "to": {
-            "kind_key": "party_office",
-            "location": {
-              "place": 134,
-              "type": "place"
-            },
-            "name": "",
-            "neighborhood": 100,
-            "neighborhood_args": {
-              "centre_town": "Halobridge"
-            },
-            "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Halobridge"
-          }
-        },
-        "since": {
-          "day": 12,
-          "day_number": 737342,
-          "month": 2,
-          "year": 2020
-        },
-        "subject": {
-          "policy": {
-            "template": "policy.local_wage_floor",
-            "type": "template"
-          },
-          "town": 8,
-          "type": "policy_support"
-        },
-        "to": {
-          "kind_key": "party_office",
-          "location": {
-            "place": 134,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 100,
-          "neighborhood_args": {
-            "centre_town": "Halobridge"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Halobridge"
-        }
-      },
-      "section": "support",
-      "subject": {
-        "policy": {
-          "template": "policy.local_wage_floor",
           "type": "template"
         },
         "town": 8,
@@ -1118,80 +970,6 @@
     {
       "args": {
         "band_key": "support-band-popular",
-        "policy_key": "policy-tech-incubator"
-      },
-      "lead": {
-        "args": {
-          "band_key": "support-band-popular",
-          "policy_key": "policy-tech-incubator",
-          "to_kind_key": "place-party_office",
-          "to_place_key": "talk-place-party_office"
-        },
-        "key": "lead-notebook-polls",
-        "level": "known",
-        "route": {
-          "action": "go",
-          "here": false,
-          "late_night": false,
-          "neighborhood": 100,
-          "to": {
-            "kind_key": "party_office",
-            "location": {
-              "place": 134,
-              "type": "place"
-            },
-            "name": "",
-            "neighborhood": 100,
-            "neighborhood_args": {
-              "centre_town": "Halobridge"
-            },
-            "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Halobridge"
-          }
-        },
-        "since": {
-          "day": 12,
-          "day_number": 737342,
-          "month": 2,
-          "year": 2020
-        },
-        "subject": {
-          "policy": {
-            "template": "policy.tech_incubator",
-            "type": "template"
-          },
-          "town": 8,
-          "type": "policy_support"
-        },
-        "to": {
-          "kind_key": "party_office",
-          "location": {
-            "place": 134,
-            "type": "place"
-          },
-          "name": "",
-          "neighborhood": 100,
-          "neighborhood_args": {
-            "centre_town": "Halobridge"
-          },
-          "neighborhood_key": "ui-hood-centre",
-          "neighborhood_name": "Halobridge"
-        }
-      },
-      "section": "support",
-      "subject": {
-        "policy": {
-          "template": "policy.tech_incubator",
-          "type": "template"
-        },
-        "town": 8,
-        "type": "policy_support"
-      },
-      "title_key": "notebook-policy-support"
-    },
-    {
-      "args": {
-        "band_key": "support-band-popular",
         "policy_key": "policy-transit"
       },
       "lead": {
@@ -1369,13 +1147,35 @@
           "lead": null,
           "level": "heard",
           "new_this_turn": true,
-          "note": {
-            "args": {},
-            "key": "know-person-name-only"
+          "seen": {
+            "args": {
+              "kind_key": "place-community_centre",
+              "part_key": "day-part-morning",
+              "place_key": "talk-place-community_centre"
+            },
+            "at": {
+              "kind_key": "community_centre",
+              "location": {
+                "place": 139,
+                "type": "place"
+              },
+              "name": "",
+              "neighborhood": 104,
+              "neighborhood_name": "Bridgegate"
+            },
+            "key": "seen-last",
+            "on": {
+              "day": 12,
+              "day_number": 737342,
+              "month": 2,
+              "year": 2020
+            },
+            "part": "morning",
+            "part_key": "day-part-morning"
           },
           "stale": false,
           "subject": {
-            "person": 1406,
+            "person": 1412,
             "type": "person"
           },
           "title_key": "notebook-person"

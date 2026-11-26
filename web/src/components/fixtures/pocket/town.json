@@ -30,17 +30,17 @@
       {
         "id": "concern.recovery",
         "name_key": "concern-recovery",
-        "weight": 0.7000000000000001
+        "weight": 0.6000000000000001
       },
       {
-        "id": "concern.taxes",
-        "name_key": "concern-taxes",
-        "weight": 0.4
+        "id": "concern.environment",
+        "name_key": "concern-environment",
+        "weight": 0.5
       },
       {
         "id": "concern.housing",
         "name_key": "concern-housing",
-        "weight": 0.4
+        "weight": 0.5
       }
     ],
     "priorities_knowledge": {
@@ -53,21 +53,21 @@
       "ambient_slot": null,
       "can_talk": false,
       "has_news": true,
-      "id": 864,
-      "level": "detailed",
-      "name": "Rosa Brookwell",
-      "role_key": "occupation-student",
+      "id": 1216,
+      "level": "known",
+      "name": "Selma Rookley",
+      "role_key": "occupation-clergy",
       "rumoured": false,
       "tier": "named"
     },
     "rival_plan": null
   },
-  "home_neighborhood": 92,
+  "home_neighborhood": 103,
   "location": {
-    "place": 127,
+    "place": 139,
     "type": "place"
   },
-  "municipality": "Belenwick",
+  "municipality": "Halobridge",
   "neighborhoods": [
     {
       "concern_knowledge": {
@@ -76,13 +76,13 @@
         "level": "unknown",
         "stale": false
       },
-      "id": 90,
+      "id": 100,
       "in_ward": false,
       "is_home": false,
       "kind": "core",
-      "name": "Belenwick",
+      "name": "Halobridge",
       "name_args": {
-        "centre_town": "Belenwick"
+        "centre_town": "Halobridge"
       },
       "name_key": "ui-hood-centre",
       "spots": [
@@ -96,16 +96,16 @@
           "location": {
             "kind_key": "streets",
             "location": {
-              "neighborhood": 90,
+              "neighborhood": 100,
               "type": "street"
             },
             "name": "",
-            "neighborhood": 90,
+            "neighborhood": 100,
             "neighborhood_args": {
-              "centre_town": "Belenwick"
+              "centre_town": "Halobridge"
             },
             "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Belenwick"
+            "neighborhood_name": "Halobridge"
           },
           "now": [],
           "rank": 2,
@@ -124,16 +124,16 @@
           "location": {
             "kind_key": "town_hall",
             "location": {
-              "place": 120,
+              "place": 132,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 90,
+            "neighborhood": 100,
             "neighborhood_args": {
-              "centre_town": "Belenwick"
+              "centre_town": "Halobridge"
             },
             "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Belenwick"
+            "neighborhood_name": "Halobridge"
           },
           "now": [],
           "rank": 3,
@@ -157,16 +157,16 @@
           "location": {
             "kind_key": "council_chamber",
             "location": {
-              "place": 121,
+              "place": 133,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 90,
+            "neighborhood": 100,
             "neighborhood_args": {
-              "centre_town": "Belenwick"
+              "centre_town": "Halobridge"
             },
             "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Belenwick"
+            "neighborhood_name": "Halobridge"
           },
           "now": [],
           "rank": 4,
@@ -187,16 +187,16 @@
           "location": {
             "kind_key": "party_office",
             "location": {
-              "place": 122,
+              "place": 134,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 90,
+            "neighborhood": 100,
             "neighborhood_args": {
-              "centre_town": "Belenwick"
+              "centre_town": "Halobridge"
             },
             "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Belenwick"
+            "neighborhood_name": "Halobridge"
           },
           "now": [],
           "rank": 5,
@@ -219,16 +219,16 @@
           "location": {
             "kind_key": "diner",
             "location": {
-              "place": 123,
+              "place": 135,
               "type": "place"
             },
-            "name": "Cora's",
-            "neighborhood": 90,
+            "name": "Rolf's",
+            "neighborhood": 100,
             "neighborhood_args": {
-              "centre_town": "Belenwick"
+              "centre_town": "Halobridge"
             },
             "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Belenwick"
+            "neighborhood_name": "Halobridge"
           },
           "now": [],
           "rank": 6,
@@ -247,16 +247,16 @@
           "location": {
             "kind_key": "market",
             "location": {
-              "place": 124,
+              "place": 136,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 90,
+            "neighborhood": 100,
             "neighborhood_args": {
-              "centre_town": "Belenwick"
+              "centre_town": "Halobridge"
             },
             "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Belenwick"
+            "neighborhood_name": "Halobridge"
           },
           "now": [],
           "rank": 7,
@@ -274,16 +274,16 @@
           "location": {
             "kind_key": "clinic",
             "location": {
-              "place": 126,
+              "place": 138,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 90,
+            "neighborhood": 100,
             "neighborhood_args": {
-              "centre_town": "Belenwick"
+              "centre_town": "Halobridge"
             },
             "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Belenwick"
+            "neighborhood_name": "Halobridge"
           },
           "now": [],
           "rank": 8,
@@ -300,16 +300,16 @@
           "location": {
             "kind_key": "park",
             "location": {
-              "place": 128,
+              "place": 140,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 90,
+            "neighborhood": 100,
             "neighborhood_args": {
-              "centre_town": "Belenwick"
+              "centre_town": "Halobridge"
             },
             "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Belenwick"
+            "neighborhood_name": "Halobridge"
           },
           "now": [],
           "rank": 9,
@@ -329,16 +329,16 @@
           "location": {
             "kind_key": "news_office",
             "location": {
-              "place": 129,
+              "place": 141,
               "type": "place"
             },
-            "name": "The Belenwick Post",
-            "neighborhood": 90,
+            "name": "The Halobridge Herald",
+            "neighborhood": 100,
             "neighborhood_args": {
-              "centre_town": "Belenwick"
+              "centre_town": "Halobridge"
             },
             "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Belenwick"
+            "neighborhood_name": "Halobridge"
           },
           "now": [],
           "rank": 10,
@@ -358,16 +358,16 @@
           "location": {
             "kind_key": "business_association",
             "location": {
-              "place": 130,
+              "place": 142,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 90,
+            "neighborhood": 100,
             "neighborhood_args": {
-              "centre_town": "Belenwick"
+              "centre_town": "Halobridge"
             },
             "neighborhood_key": "ui-hood-centre",
-            "neighborhood_name": "Belenwick"
+            "neighborhood_name": "Halobridge"
           },
           "now": [],
           "rank": 11,
@@ -376,7 +376,7 @@
         }
       ],
       "top_concern_key": null,
-      "ward_number": 5
+      "ward_number": 1
     },
     {
       "concern_knowledge": {
@@ -385,11 +385,11 @@
         "level": "unknown",
         "stale": false
       },
-      "id": 91,
+      "id": 101,
       "in_ward": false,
       "is_home": false,
       "kind": "waterfront",
-      "name": "East Hill",
+      "name": "Orchardfield",
       "spots": [
         {
           "actions": [
@@ -401,16 +401,16 @@
           "location": {
             "kind_key": "streets",
             "location": {
-              "neighborhood": 91,
+              "neighborhood": 101,
               "type": "street"
             },
             "name": "",
-            "neighborhood": 91,
-            "neighborhood_name": "East Hill"
+            "neighborhood": 101,
+            "neighborhood_name": "Orchardfield"
           },
           "now": [
             {
-              "arc": 0,
+              "arc": 1,
               "args": {},
               "ask": null,
               "bill": null,
@@ -427,13 +427,13 @@
               "title": {
                 "args": {
                   "crisis_key": "crisis-disaster_recovery",
-                  "hood": "East Hill",
-                  "official": "Osric Dell",
+                  "hood": "Orchardfield",
+                  "official": "Nadia Gallowaywood",
                   "official_role_key": "role-mayor",
-                  "organiser": "Neve Oak",
-                  "organiser_role_key": "occupation-organiser",
-                  "player": "Fen Galloway",
-                  "town": "Belenwick"
+                  "organiser": "Sana Vargawell",
+                  "organiser_role_key": "occupation-shopkeeper",
+                  "player": "Mara Whit",
+                  "town": "Halobridge"
                 },
                 "key": "dilemma-flood-money"
               }
@@ -445,41 +445,21 @@
         }
       ],
       "top_concern_key": null,
-      "ward_number": 2
+      "ward_number": 4
     },
     {
       "concern_knowledge": {
         "as_of": null,
         "lead": null,
-        "level": "known",
+        "level": "unknown",
         "stale": false
       },
-      "id": 92,
-      "in_ward": true,
-      "is_home": true,
+      "id": 102,
+      "in_ward": false,
+      "is_home": false,
       "kind": "industrial",
-      "name": "Castle Green",
+      "name": "Abbey Green",
       "spots": [
-        {
-          "actions": [
-            "rest"
-          ],
-          "here": false,
-          "late_night": [],
-          "location": {
-            "kind_key": "home",
-            "location": {
-              "type": "home"
-            },
-            "name": "",
-            "neighborhood": 92,
-            "neighborhood_name": "Castle Green"
-          },
-          "now": [],
-          "rank": 12,
-          "services": [],
-          "verbs": []
-        },
         {
           "actions": [
             "canvass",
@@ -490,15 +470,15 @@
           "location": {
             "kind_key": "streets",
             "location": {
-              "neighborhood": 92,
+              "neighborhood": 102,
               "type": "street"
             },
             "name": "",
-            "neighborhood": 92,
-            "neighborhood_name": "Castle Green"
+            "neighborhood": 102,
+            "neighborhood_name": "Abbey Green"
           },
           "now": [],
-          "rank": 13,
+          "rank": 12,
           "services": [],
           "verbs": []
         },
@@ -512,15 +492,15 @@
           "location": {
             "kind_key": "union_hall",
             "location": {
-              "place": 131,
+              "place": 143,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 92,
-            "neighborhood_name": "Castle Green"
+            "neighborhood": 102,
+            "neighborhood_name": "Abbey Green"
           },
           "now": [],
-          "rank": 14,
+          "rank": 13,
           "services": [
             "overheard"
           ],
@@ -533,39 +513,60 @@
           "location": {
             "kind_key": "factory",
             "location": {
-              "place": 132,
+              "place": 144,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 92,
-            "neighborhood_name": "Castle Green"
+            "neighborhood": 102,
+            "neighborhood_name": "Abbey Green"
           },
           "now": [],
-          "rank": 15,
+          "rank": 14,
           "services": [],
           "verbs": [
             "verb-tour_works",
             "verb-listen_at_gate",
-            "verb-photo_op_gate"
+            "verb-photo_op_gate",
+            "visit-arc-plant-tour"
           ]
         }
       ],
-      "top_concern_key": "concern-recovery",
-      "ward_number": 6
+      "top_concern_key": null,
+      "ward_number": 5
     },
     {
       "concern_knowledge": {
         "as_of": null,
         "lead": null,
-        "level": "unknown",
+        "level": "known",
         "stale": false
       },
-      "id": 93,
-      "in_ward": false,
-      "is_home": false,
+      "id": 103,
+      "in_ward": true,
+      "is_home": true,
       "kind": "rural",
-      "name": "Westwood",
+      "name": "Wharfvale",
       "spots": [
+        {
+          "actions": [
+            "rest"
+          ],
+          "here": false,
+          "late_night": [],
+          "location": {
+            "kind_key": "home",
+            "location": {
+              "type": "home"
+            },
+            "name": "",
+            "neighborhood": 103,
+            "neighborhood_name": "Wharfvale"
+          },
+          "now": [],
+          "rank": 15,
+          "services": [],
+          "verbs": []
+        },
         {
           "actions": [
             "canvass",
@@ -576,21 +577,44 @@
           "location": {
             "kind_key": "streets",
             "location": {
-              "neighborhood": 93,
+              "neighborhood": 103,
               "type": "street"
             },
             "name": "",
-            "neighborhood": 93,
-            "neighborhood_name": "Westwood"
+            "neighborhood": 103,
+            "neighborhood_name": "Wharfvale"
           },
           "now": [],
           "rank": 16,
           "services": [],
           "verbs": []
+        },
+        {
+          "actions": [],
+          "here": false,
+          "late_night": [],
+          "location": {
+            "kind_key": "mine",
+            "location": {
+              "place": 145,
+              "type": "place"
+            },
+            "name": "",
+            "neighborhood": 103,
+            "neighborhood_name": "Wharfvale"
+          },
+          "now": [],
+          "rank": 17,
+          "services": [],
+          "verbs": [
+            "verb-tour_works",
+            "verb-listen_at_gate",
+            "verb-photo_op_gate"
+          ]
         }
       ],
-      "top_concern_key": null,
-      "ward_number": 3
+      "top_concern_key": "concern-environment",
+      "ward_number": 6
     },
     {
       "concern_knowledge": {
@@ -599,11 +623,11 @@
         "level": "heard",
         "stale": false
       },
-      "id": 94,
+      "id": 104,
       "in_ward": false,
       "is_home": false,
       "kind": "suburb",
-      "name": "Queens Cross",
+      "name": "Bridgegate",
       "spots": [
         {
           "actions": [
@@ -614,15 +638,15 @@
           "location": {
             "kind_key": "streets",
             "location": {
-              "neighborhood": 94,
+              "neighborhood": 104,
               "type": "street"
             },
             "name": "",
-            "neighborhood": 94,
-            "neighborhood_name": "Queens Cross"
+            "neighborhood": 104,
+            "neighborhood_name": "Bridgegate"
           },
           "now": [],
-          "rank": 17,
+          "rank": 18,
           "services": [],
           "verbs": []
         },
@@ -633,15 +657,15 @@
           "location": {
             "kind_key": "school",
             "location": {
-              "place": 125,
+              "place": 137,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 94,
-            "neighborhood_name": "Queens Cross"
+            "neighborhood": 104,
+            "neighborhood_name": "Bridgegate"
           },
           "now": [],
-          "rank": 18,
+          "rank": 19,
           "services": [],
           "verbs": [
             "verb-visit_service",
@@ -657,24 +681,24 @@
           "location": {
             "kind_key": "community_centre",
             "location": {
-              "place": 127,
+              "place": 139,
               "type": "place"
             },
             "name": "",
-            "neighborhood": 94,
-            "neighborhood_name": "Queens Cross"
+            "neighborhood": 104,
+            "neighborhood_name": "Bridgegate"
           },
           "now": [
             {
-              "arc": 0,
+              "arc": 1,
               "args": {},
               "ask": null,
               "bill": null,
-              "days_left": 21,
+              "days_left": 18,
               "decision": null,
               "due": {
-                "day": 5,
-                "day_number": 737363,
+                "day": 2,
+                "day_number": 737360,
                 "month": 3,
                 "year": 2020
               },
@@ -682,24 +706,24 @@
               "kind": "arc",
               "title": {
                 "args": {
-                  "above": "Ferreland",
-                  "away": "316",
-                  "clock_day": "5",
+                  "above": "Loreshire",
+                  "away": "371",
+                  "clock_day": "2",
                   "clock_month_key": "month-3",
                   "crisis_key": "crisis-disaster_recovery",
                   "day": "1",
-                  "hall": "Queens Cross",
-                  "homes": "247",
-                  "hood": "East Hill",
+                  "hall": "Bridgegate",
+                  "homes": "267",
+                  "hood": "Orchardfield",
                   "month_key": "month-2",
-                  "official": "Osric Dell",
+                  "official": "Nadia Gallowaywood",
                   "official_role_key": "role-mayor",
-                  "organiser": "Neve Oak",
-                  "organiser_role_key": "occupation-organiser",
-                  "place": "Belenwick",
-                  "player": "Fen Galloway",
+                  "organiser": "Sana Vargawell",
+                  "organiser_role_key": "occupation-shopkeeper",
+                  "place": "Halobridge",
+                  "player": "Mara Whit",
                   "repaired": "0",
-                  "town": "Belenwick",
+                  "town": "Halobridge",
                   "weeks": "1",
                   "year": "2020"
                 },
@@ -726,8 +750,8 @@
           ]
         }
       ],
-      "top_concern_key": "concern-recovery",
-      "ward_number": 4
+      "top_concern_key": "concern-housing",
+      "ward_number": 2
     },
     {
       "concern_knowledge": {
@@ -736,17 +760,11 @@
         "level": "unknown",
         "stale": false
       },
-      "id": 95,
+      "id": 105,
       "in_ward": false,
       "is_home": false,
       "kind": "suburb",
-      "name": "Orchardrow",
-      "note": {
-        "args": {
-          "hood": "Orchardrow"
-        },
-        "key": "know-hood-worries"
-      },
+      "name": "Churchfield",
       "spots": [
         {
           "actions": [
@@ -758,51 +776,12 @@
           "location": {
             "kind_key": "streets",
             "location": {
-              "neighborhood": 95,
+              "neighborhood": 105,
               "type": "street"
             },
             "name": "",
-            "neighborhood": 95,
-            "neighborhood_name": "Orchardrow"
-          },
-          "now": [],
-          "rank": 19,
-          "services": [],
-          "verbs": []
-        }
-      ],
-      "top_concern_key": null,
-      "ward_number": 1
-    },
-    {
-      "concern_knowledge": {
-        "as_of": null,
-        "lead": null,
-        "level": "unknown",
-        "stale": false
-      },
-      "id": 96,
-      "in_ward": false,
-      "is_home": false,
-      "kind": "rural",
-      "name": "Greentown",
-      "spots": [
-        {
-          "actions": [
-            "canvass",
-            "town_hall"
-          ],
-          "here": false,
-          "late_night": [],
-          "location": {
-            "kind_key": "streets",
-            "location": {
-              "neighborhood": 96,
-              "type": "street"
-            },
-            "name": "",
-            "neighborhood": 96,
-            "neighborhood_name": "Greentown"
+            "neighborhood": 105,
+            "neighborhood_name": "Churchfield"
           },
           "now": [],
           "rank": 20,
@@ -811,7 +790,7 @@
         }
       ],
       "top_concern_key": null,
-      "ward_number": 7
+      "ward_number": 3
     }
   ]
 }
