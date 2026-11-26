@@ -214,6 +214,11 @@ pub struct Street {
     pub argued: Vec<ContentKey>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub heard: Vec<ContentKey>,
+    /// Its doors taught the neighbourhood's worries (they agreed): the
+    /// canvass then does not read them again as it finishes, so a first
+    /// canvass knows them and a second reads them, doors or none.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub taught: bool,
 }
 
 impl Street {
@@ -722,6 +727,7 @@ mod tests {
             doors: vec![0, 1, 2, 3],
             argued: vec!["a".into(), "b".into()],
             heard: Vec::new(),
+            taught: false,
         };
         assert_eq!(s.issue().as_deref(), Some("a"));
         s.argued.push("b".into());

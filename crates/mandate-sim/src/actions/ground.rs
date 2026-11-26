@@ -106,9 +106,12 @@ pub(super) fn campaign_contact(
 /// Canvassing a neighbourhood (DEC-091, §1.3): its worries `known` (a
 /// second canvass reads them: `detailed`, dated), and one resident found on
 /// its streets met. Nobody new is created: only people already stored.
-fn learn_canvass(state: &mut State, content: &ContentBundle, hood: NeighborhoodId) {
+fn learn_canvass(state: &mut State, content: &ContentBundle, hood: NeighborhoodId, taught: bool) {
     let src = knowledge::action_source(state, "canvass");
-    knowledge::learn_hood(state, content, hood, src.clone());
+    // The street's doors taught them already (they agreed): known, not read.
+    if !taught {
+        knowledge::learn_hood(state, content, hood, src.clone());
+    }
     let me = characters::player_character(state);
     let Some(pl) = state.player.as_ref() else {
         return;
@@ -383,6 +386,7 @@ fn open_street(state: &mut State, hood: NeighborhoodId) {
         doors: Vec::new(),
         argued: Vec::new(),
         heard: Vec::new(),
+        taught: false,
     });
 }
 
@@ -459,6 +463,9 @@ fn knock(
                         )
                     {
                         res.args.insert("agreed".into(), "1".into());
+                        if let Some(s) = state.politics.characters.households.street.as_mut() {
+                            s.taught = true;
+                        }
                     }
                 }
                 let went = if !h.aware || h.view > p.cool {
@@ -573,7 +580,14 @@ fn finish_street(
     let street = state.politics.characters.households.street.take()?;
     let politician = state.player.as_ref()?.politician;
     let issue = issue.unwrap_or_else(|| street.issue());
-    let mut res = canvass_effect(state, content, politician, street.hood, issue.as_ref());
+    let mut res = canvass_effect(
+        state,
+        content,
+        politician,
+        street.hood,
+        issue.as_ref(),
+        street.taught,
+    );
     res.args
         .insert("doors".into(), street.doors.len().to_string());
     // The deed, and the one doorstep roll a canvass makes (`asks::offers`):
@@ -652,6 +666,7 @@ fn canvass_effect(
     politician: PoliticianId,
     hood: NeighborhoodId,
     issue: Option<&String>,
+    taught: bool,
 ) -> ActionResult {
     let mut res = ActionResult::default();
     let fx = &content.actions.canvass;
@@ -686,7 +701,7 @@ fn canvass_effect(
     if let Some(p) = state.player.as_mut() {
         p.ground.remember(hood, curve.visits + 1.0, on, turn);
     }
-    learn_canvass(state, content, hood);
+    learn_canvass(state, content, hood, taught);
     res.outcome_key = "outcome-canvass".into();
     // How fresh the doorsteps were (the player's own memory).
     res.args.insert(
