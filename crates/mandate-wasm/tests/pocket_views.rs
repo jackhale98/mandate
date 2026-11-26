@@ -1689,7 +1689,36 @@ fn fixtures_are_views_the_engine_made() {
         }
         end_turn(&mut over);
     }
+    // A neighbourhood's streets with faults on them (DEC-114): the same
+    // world, played on until some street has two.
+    let mut streets = Engine::from_state(e.state().clone(), e.content_arc()).unwrap();
+    let mut hood = None;
+    for _ in 0..40 {
+        let st = streets.state();
+        hood = st
+            .world
+            .neighborhoods
+            .iter()
+            .map(|n| n.id)
+            .find(|h| st.upkeep.in_hood(*h).count() >= 2);
+        if hood.is_some() {
+            break;
+        }
+        end_turn(&mut streets);
+    }
+    let hood = hood.expect("a street with faults within a year and a half");
     let files: Vec<(&str, serde_json::Value)> = vec![
+        (
+            "street.json",
+            serde_json::to_value(
+                place_panel_view(
+                    &streets,
+                    LocationDto::of(mandate_sim::places::Location::Street { neighborhood: hood }),
+                )
+                .unwrap(),
+            )
+            .unwrap(),
+        ),
         (
             "people.json",
             serde_json::to_value(people_view(&e).unwrap()).unwrap(),
@@ -1746,6 +1775,8 @@ fn fixtures_are_views_the_engine_made() {
     let lead: ArcView = serde_json::from_str(&read("arc-heard.json")).expect(stale);
     let nb: NotebookView = serde_json::from_str(&read("notebook-arc-lead.json")).expect(stale);
     let ended: ArcView = serde_json::from_str(&read("arc-ended.json")).expect(stale);
+    let street: PlacePanelView = serde_json::from_str(&read("street.json")).expect(stale);
+    assert!(street.faults.len() >= 2, "a street with faults on it");
     // What the web task needs each to show.
     assert!(people.groups.iter().any(|g| g.group == PersonGroup::Now));
     assert!(people.groups.len() >= 3, "sections to fold");

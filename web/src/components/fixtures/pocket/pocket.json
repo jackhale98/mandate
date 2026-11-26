@@ -47,7 +47,7 @@
         }
       },
       "id": 0,
-      "open_beats": 2,
+      "open_beats": 3,
       "place": "Belenwick",
       "stage": {
         "args": {
@@ -80,10 +80,10 @@
   "asks": [
     {
       "args": {
-        "asker": "Neve Oak",
-        "asker_hood": "Orchardrow",
-        "asker_occupation": "organiser",
-        "asker_role_key": "occupation-organiser",
+        "asker": "Mara Uedawood",
+        "asker_hood": "Queens Cross",
+        "asker_occupation": "editor",
+        "asker_role_key": "occupation-editor",
         "crisis_key": "ask-crisis-disaster_recovery",
         "days": "3",
         "history": "none",
@@ -93,14 +93,14 @@
       "asker": {
         "person": {
           "ambient_slot": null,
-          "can_talk": true,
+          "can_talk": false,
           "has_news": true,
-          "id": 1409,
-          "level": "detailed",
-          "name": "Neve Oak",
-          "role_key": "occupation-organiser",
+          "id": 1411,
+          "level": "known",
+          "name": "Mara Uedawood",
+          "role_key": "occupation-editor",
           "rumoured": false,
-          "tier": "named"
+          "tier": "principal"
         },
         "type": "person"
       },
@@ -109,17 +109,17 @@
         {
           "args": {
             "delta": "−10",
-            "name": "Neve Oak"
+            "name": "Mara Uedawood"
           },
           "key": "effect-opinion",
           "tone": "cost"
         },
         {
           "args": {
-            "delta": "−0.6",
-            "hood": "Orchardrow"
+            "delta": "−0.4",
+            "who_key": "effect-who-town"
           },
-          "key": "effect-approval-hood",
+          "key": "effect-approval",
           "tone": "cost"
         }
       ],
@@ -128,60 +128,64 @@
         {
           "args": {
             "delta": "−3",
-            "name": "Neve Oak"
+            "name": "Mara Uedawood"
           },
           "key": "effect-opinion",
           "tone": "cost"
         }
       ],
-      "detail_key": "ask-town-hall-here-detail",
+      "detail_key": "ask-say-something-detail",
       "due": {
-        "day": 12,
-        "day_number": 737370,
-        "month": 3,
+        "day": 15,
+        "day_number": 737345,
+        "month": 2,
         "year": 2020
       },
       "due_this_turn": true,
       "history": "none",
       "how": {
-        "action": "town_hall",
+        "action": "press",
         "here": false,
         "late_night": false,
-        "neighborhood": 95,
+        "neighborhood": null,
         "to": {
-          "kind_key": "streets",
+          "kind_key": "news_office",
           "location": {
-            "neighborhood": 95,
-            "type": "street"
+            "place": 129,
+            "type": "place"
           },
-          "name": "",
-          "neighborhood": 95,
-          "neighborhood_name": "Orchardrow"
+          "name": "The Belenwick Post",
+          "neighborhood": 90,
+          "neighborhood_args": {
+            "centre_town": "Belenwick"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Belenwick"
         }
       },
       "id": 1,
       "keep_lines": [
         {
           "args": {
-            "delta": "+8",
-            "name": "Neve Oak"
+            "delta": "+6",
+            "name": "Mara Uedawood"
           },
           "key": "effect-opinion",
           "tone": "gain"
         },
         {
           "args": {
-            "delta": "+1",
-            "hood": "Orchardrow"
+            "delta": "+0.4",
+            "who_key": "effect-who-town"
           },
-          "key": "effect-approval-hood",
+          "key": "effect-approval",
           "tone": "gain"
         }
       ],
-      "need_key": "ask-town-hall-here-need",
+      "need_key": "ask-say-something-need",
       "needs": [
         {
-          "kind": "town_hall",
+          "kind": "statement",
           "progress": null,
           "state": "current",
           "watch": false
@@ -207,12 +211,153 @@
         "year": 2020
       },
       "status": "offered",
-      "template": "ask.town_hall_here",
-      "title_key": "ask-town-hall-here",
+      "template": "ask.say_something",
+      "title_key": "ask-say-something",
+      "unanswered": false
+    },
+    {
+      "args": {
+        "asker": "Neve Oak",
+        "asker_hood": "Orchardrow",
+        "asker_occupation": "organiser",
+        "asker_role_key": "occupation-organiser",
+        "crisis_key": "ask-crisis-disaster_recovery",
+        "days": "7",
+        "history": "none",
+        "official": "Osric Dell",
+        "official_role_key": "role-mayor",
+        "player": "Fen Galloway",
+        "town": "Belenwick"
+      },
+      "asker": {
+        "person": {
+          "ambient_slot": null,
+          "can_talk": true,
+          "has_news": true,
+          "id": 1409,
+          "level": "detailed",
+          "name": "Neve Oak",
+          "role_key": "occupation-organiser",
+          "rumoured": false,
+          "tier": "named"
+        },
+        "type": "person"
+      },
+      "big": true,
+      "break_lines": [
+        {
+          "args": {
+            "delta": "−10",
+            "name": "Neve Oak"
+          },
+          "key": "effect-opinion",
+          "tone": "cost"
+        }
+      ],
+      "days_left": 7,
+      "decline_lines": [
+        {
+          "args": {
+            "delta": "−4",
+            "name": "Neve Oak"
+          },
+          "key": "effect-opinion",
+          "tone": "cost"
+        }
+      ],
+      "detail_key": "ask-flood-shelter-detail",
+      "due": {
+        "day": 19,
+        "day_number": 737349,
+        "month": 2,
+        "year": 2020
+      },
+      "due_this_turn": true,
+      "history": "none",
+      "how": {
+        "action": "talk",
+        "here": false,
+        "late_night": false,
+        "neighborhood": 90,
+        "to": {
+          "kind_key": "town_hall",
+          "location": {
+            "place": 120,
+            "type": "place"
+          },
+          "name": "",
+          "neighborhood": 90,
+          "neighborhood_args": {
+            "centre_town": "Belenwick"
+          },
+          "neighborhood_key": "ui-hood-centre",
+          "neighborhood_name": "Belenwick"
+        }
+      },
+      "id": 2,
+      "keep_lines": [
+        {
+          "args": {
+            "delta": "+10",
+            "name": "Neve Oak"
+          },
+          "key": "effect-opinion",
+          "tone": "gain"
+        },
+        {
+          "args": {
+            "delta": "+1",
+            "hood": "Orchardrow"
+          },
+          "key": "effect-approval-hood",
+          "tone": "gain"
+        }
+      ],
+      "need_key": "ask-flood-shelter-need",
+      "needs": [
+        {
+          "kind": "talk",
+          "progress": null,
+          "state": "current",
+          "watch": false
+        }
+      ],
+      "odds": null,
+      "opened": {
+        "day": 8,
+        "day_number": 737338,
+        "month": 2,
+        "year": 2020
+      },
+      "outcome_key": null,
+      "person": {
+        "ambient_slot": null,
+        "can_talk": false,
+        "has_news": true,
+        "id": 1044,
+        "level": "detailed",
+        "name": "Osric Dell",
+        "role_key": "role-mayor",
+        "rumoured": false,
+        "tier": "principal"
+      },
+      "progress": null,
+      "promise": false,
+      "public": false,
+      "resolved_on": null,
+      "respond_by": {
+        "day": 19,
+        "day_number": 737349,
+        "month": 2,
+        "year": 2020
+      },
+      "status": "offered",
+      "template": "ask.flood_shelter",
+      "title_key": "ask-flood-shelter",
       "unanswered": false
     }
   ],
-  "asks_due_soon": 1,
+  "asks_due_soon": 2,
   "asks_recent": [
     {
       "args": {
@@ -609,15 +754,15 @@
   },
   "mandate": 61.395381927490234,
   "money": 5000.0,
-  "needs_count": 2,
+  "needs_count": 3,
   "needs_you": [
     {
       "arc": null,
       "args": {
-        "asker": "Neve Oak",
-        "asker_hood": "Orchardrow",
-        "asker_occupation": "organiser",
-        "asker_role_key": "occupation-organiser",
+        "asker": "Mara Uedawood",
+        "asker_hood": "Queens Cross",
+        "asker_occupation": "editor",
+        "asker_role_key": "occupation-editor",
         "crisis_key": "ask-crisis-disaster_recovery",
         "days": "3",
         "history": "none",
@@ -636,7 +781,36 @@
         "id": 1,
         "type": "ask"
       },
-      "title_key": "ask-town-hall-here"
+      "title_key": "ask-say-something"
+    },
+    {
+      "arc": 0,
+      "args": {
+        "asker": "Neve Oak",
+        "asker_hood": "Orchardrow",
+        "asker_occupation": "organiser",
+        "asker_role_key": "occupation-organiser",
+        "crisis_key": "ask-crisis-disaster_recovery",
+        "days": "7",
+        "history": "none",
+        "official": "Osric Dell",
+        "official_role_key": "role-mayor",
+        "player": "Fen Galloway",
+        "town": "Belenwick"
+      },
+      "days_left": 7,
+      "due": {
+        "day": 19,
+        "day_number": 737349,
+        "month": 2,
+        "year": 2020
+      },
+      "kind": "ask_offer",
+      "target": {
+        "id": 2,
+        "type": "ask"
+      },
+      "title_key": "ask-flood-shelter"
     },
     {
       "arc": 0,
@@ -697,7 +871,7 @@
         "month": 2,
         "year": 2020
       },
-      "event": 2061,
+      "event": 2063,
       "framing": "straight",
       "headline_key": "headline-arc-flood-struck",
       "id": 15,

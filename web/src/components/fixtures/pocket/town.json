@@ -741,12 +741,6 @@
       "is_home": false,
       "kind": "suburb",
       "name": "Orchardrow",
-      "note": {
-        "args": {
-          "hood": "Orchardrow"
-        },
-        "key": "know-hood-worries"
-      },
       "spots": [
         {
           "actions": [

@@ -196,6 +196,16 @@ pub fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
     }
     for (i, f) in b.upkeep.faults.iter().enumerate() {
         let id = f.id.as_str();
+        if !b.concerns.iter().any(|c| c.id == f.feeds) {
+            // A pack may remove a concern: the fault then feeds no worry.
+            issues.push(Issue::warning(
+                id,
+                &format!(
+                    "`feeds` names no concern (`{}`): it adds to no worry",
+                    f.feeds
+                ),
+            ));
+        }
         let mut err = |m: &str| issues.push(Issue::error(id, m));
         if !valid_key(id) || !id.starts_with("fault.") {
             err("a fault id must be a key starting with `fault.`");
@@ -217,9 +227,6 @@ pub fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         }
         if !unit(f.restore) {
             err("`restore` is 0–1");
-        }
-        if !b.concerns.iter().any(|c| c.id == f.feeds) {
-            err("`feeds` must name a concern");
         }
         if f.cue.open.is_empty() || f.cue.repairing.is_empty() || f.cue.new.is_empty() {
             err("a fault names its three cues");

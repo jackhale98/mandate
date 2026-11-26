@@ -15,6 +15,7 @@ import type { TownPlacesView } from "../../engine/protocol/TownPlacesView";
 import { englishTranslator } from "../../i18n/englishLocale";
 import { useGame } from "../../state/gameStore";
 import { Notebook, NotebookTabs } from "./Notebook";
+import { stanceText } from "./People";
 
 const dir = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -128,7 +129,8 @@ describe("the Notebook", () => {
     // Three lines: the name, the stance in a word with its shape and the role, the reason (34 characters at most).
     const first = now[0] as HTMLElement;
     expect(first.textContent).toContain(rows[0]?.name);
-    expect(first.textContent).toContain("◆ Neutral");
+    // The stance as the fixture's row holds it (the world moves).
+    if (rows[0]) expect(first.textContent).toContain(stanceText(englishTranslator(), rows[0]));
     expect(first.textContent).toMatch(
       /Has asked you for something|An ask needs a word with them/,
     );
@@ -157,8 +159,9 @@ describe("the Notebook", () => {
     expect(within(opened).getAllByTestId("person-why").length).toBe(
       awayRow.now.length,
     );
+    const tr = englishTranslator();
     expect(within(opened).getByTestId("notebook-standing").textContent).toBe(
-      "Neutral about you · Trusts you a little",
+      `${tr.t(`opinion-${awayRow.opinion_band}`)} · ${tr.t(`trust-${awayRow.trust_band}`)}`,
     );
     fireEvent.click(
       within(opened).getByRole("button", { name: `Go to ${awayRow.name}` }),

@@ -4,6 +4,7 @@ import type { AskProgressView } from "./AskProgressView";
 import type { AskerView } from "./AskerView";
 import type { DateView } from "./DateView";
 import type { EffectLineView } from "./EffectLineView";
+import type { FaultView } from "./FaultView";
 import type { PersonRefView } from "./PersonRefView";
 import type { RouteView } from "./RouteView";
 
@@ -84,6 +85,11 @@ note_key?: string, keep_lines: Array<EffectLineView>, break_lines: Array<EffectL
  * Offers only: what saying no (or not answering) does.
  */
 decline_lines: Array<EffectLineView>, 
+/**
+ * The fault it is about (DEC-114): what is wrong and where ("See it"),
+ * how it stands in the repair queue.
+ */
+fault?: FaultView, 
 /**
  * The event of its ending (kept, broken, declined, void), to ask
  * "Why?" about (`QueryDto::Why`); none while it is open, or once the
