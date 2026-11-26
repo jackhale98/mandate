@@ -20,6 +20,7 @@ import { routeFor } from "../state/routing";
 import { isWide } from "../state/devicePrefs";
 import { formatDate, formatMoney } from "../i18n/format";
 import { ActionForm, AGENDA, type FormAction } from "./ActionForm";
+import { TALK_VERBS, VerbTalk } from "./talk/VerbTalk";
 import { placeName } from "../places/labels";
 import { useSheetClose } from "./useSheetClose";
 import { capital } from "./DecisionSheet";
@@ -68,12 +69,19 @@ function Tracks({ p }: { p: PocketView }) {
   );
 }
 
+/** A verb had in conversation (DEC-114, B5), from the agenda: whom with and where (the engine's), then the talk panel. */
+function AgendaTalk({ p, action }: { p: PocketView; action: string }) {
+  // The day's variant first; the late one where only it exists (the bribe).
+  const t = p.verb_talks.find((x) => x.action === action && !x.late_night) ?? p.verb_talks.find((x) => x.action === action) ?? null;
+  return <VerbTalk action={action} person={t?.person} to={t?.to ?? null} here={t?.here ?? false} topic={t?.topic} />;
+}
+
 /** The always-available agenda: every action, auto-routed to where it is done (DEC-079). Folded under "Take an action". */
 function Agenda({ p }: { p: PocketView }) {
   const tr = useGame((s) => s.tr);
   const visit = useGame((s) => s.visit);
   // Nothing is chosen until the player picks an action.
-  const [kind, setKind] = useState<FormAction | null>(null);
+  const [kind, setKind] = useState<string | null>(null);
   const kinds = AGENDA.filter((k) => k !== "advertise" || p.in_campaign);
   const go = (action: string) => {
     const to = routeFor(p, { action, lateNight: false, neighborhood: null })?.to;
@@ -89,8 +97,10 @@ function Agenda({ p }: { p: PocketView }) {
           </label>
         ))}
       </div>
-      {kind ? (
-        <ActionForm key={kind} action={kind} showRoute />
+      {kind && TALK_VERBS.has(kind) ? (
+        <AgendaTalk key={kind} p={p} action={kind} />
+      ) : kind ? (
+        <ActionForm key={kind} action={kind as FormAction} showRoute />
       ) : (
         <p className="muted small" data-testid="agenda-choose">
           {tr.t("ui-agenda-choose")}

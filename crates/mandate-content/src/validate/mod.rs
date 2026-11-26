@@ -140,6 +140,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     crate::media::validate(b, &mut issues);
     crate::knowledge::validate(b, &mut issues);
     crate::visits::validate(b, &mut issues);
+    crate::verb_talks::validate(b, &mut issues);
     crate::conversation::validate(b, &mut issues);
     crate::asks::validate(b, &mut issues);
     crate::arcs::validate(b, &mut issues);

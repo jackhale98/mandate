@@ -48,4 +48,9 @@ outcome_key: string, outcome_args: { [key in string]: string },
 /**
  * Asked the same thing of them earlier that week.
  */
-repeat: boolean, };
+repeat: boolean, 
+/**
+ * The Why under the result (an agenda verb had in conversation,
+ * DEC-114): a Fluent key that takes `outcome_args`.
+ */
+why_key?: string, };

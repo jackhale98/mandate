@@ -7,7 +7,7 @@ import { useRef } from "react";
 import type { PlacePanelView } from "../engine/protocol/PlacePanelView";
 import type { HotspotDef } from "../../../tools/pixelkit/art/mandate/interiorsRecipes";
 import { useGame } from "../state/gameStore";
-import { ActionForm, type FormAction } from "../components/ActionForm";
+import { VerbTalk } from "../components/talk/VerbTalk";
 import { ChamberWhip } from "../components/Chamber";
 import { Catalog, MyBills } from "../components/Desk";
 import { Calendar } from "../components/CampaignCards";
@@ -22,9 +22,13 @@ export function hotspotOffers(h: HotspotDef, v: Pick<PlacePanelView, "actions" |
   };
 }
 
-// Lobbying is a conversation (M6 note 29): a booth says so, and the forms are the rest.
+// Lobbying is a conversation (M6 note 29): a booth says so. The envelope is
+// had with whoever is offering, in the booth (DEC-114, B5).
 const FORMS = new Set<string>(["take_bribe"]);
 const TALKED = new Set<string>(["lobby", "trade_favor"]);
+
+/** A verb's offer here, its late variant first (the envelope is late). */
+const offerOf = (v: PlacePanelView, a: string) => v.actions.find((o) => o.action === a && o.late_night) ?? v.actions.find((o) => o.action === a);
 
 export function HotspotSheet({ hotspot, view, onClose }: { hotspot: HotspotDef; view: PlacePanelView; onClose: () => void }) {
   const tr = useGame((s) => s.tr);
@@ -34,7 +38,6 @@ export function HotspotSheet({ hotspot, view, onClose }: { hotspot: HotspotDef; 
   const [closing, requestClose, sheetRef] = useSheetClose(onClose, ref);
   const { actions, services } = hotspotOffers(hotspot, view);
   const has = (a: string) => actions.includes(a);
-  const lateHere = new Set(view.actions.filter((a) => a.late_night).map((a) => a.action));
   // The player's bills at the stages this hotspot handles.
   const statuses = [...new Set([...(has("introduce") || has("withdraw") || has("draft") ? ["draft"] : []), ...(has("amend") || has("withdraw") ? ["under_consideration"] : [])])];
   const whip = has("vote");
@@ -64,7 +67,7 @@ export function HotspotSheet({ hotspot, view, onClose }: { hotspot: HotspotDef; 
             .map((a) => (
               <section key={a} className="card" data-testid={`hotspot-action-${a}`}>
                 <h2>{tr.t(actionKey(a))}</h2>
-                <ActionForm action={a as FormAction} allowLate={lateHere.has(a)} lateOnly={hotspot.late === true} />
+                <VerbTalk action={a} person={offerOf(view, a)?.with} to={view.location} here={view.here} topic={offerOf(view, a)?.topic ?? null} />
               </section>
             ))}
           {!whip && actions.some((a) => TALKED.has(a)) && (

@@ -291,8 +291,8 @@ ui-canvass-landed-weak = You raised { $issue }: it fell flat here.
 ## engine's; these are the box's own words.
 
 ui-dlg-stranger = Someone you haven't met
-ui-dlg-cost-half = ½ slot · { $left } left
-ui-dlg-cost-slot = 1 slot · { $left } left
+ui-dlg-cost-half = Talking ½ slot · { $left } left
+ui-dlg-cost-slot = Talking 1 slot · { $left } left
 ui-dlg-cost-late = The late slot
 ui-dlg-out-of-time = Out of time
 ui-dlg-odds = { $pct }%

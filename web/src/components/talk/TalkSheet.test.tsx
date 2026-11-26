@@ -114,7 +114,7 @@ describe("dialogue mode", () => {
     expect(screen.getByRole("dialog", { name: "Talking with Dana Price" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Dana Price" })).toBeTruthy();
     expect(screen.getByTestId("talk-opinion").textContent).toBe("Warm towards you");
-    expect(screen.getByTestId("talk-cost").textContent).toMatch(/^½ slot · 2 left.*half a slot.*2 slots left/);
+    expect(screen.getByTestId("talk-cost").textContent).toMatch(/^Talking ½ slot · 2 left.*half a slot.*2 slots left/);
     // Away from the street (no stage): over a portrait.
     expect(screen.getByTestId("talk-layer").dataset.mode).toBe("portrait");
     expect(screen.getByTestId("talk-portrait")).toBeTruthy();
@@ -317,6 +317,43 @@ describe("dialogue mode", () => {
     expect(screen.getByTestId("talk-layer").textContent).not.toMatch(/\b(talk|ui|notebook|lead)-[a-z-]+\b/);
   });
 
+  it("an agenda verb had in conversation (DEC-114, B5): its chance and costs before choosing, bills behind one choice, and a Why under the result", () => {
+    const verb = (id: string, name_key: string, args: Record<string, string>) => ({
+      id,
+      name_key,
+      mechanic: "choice",
+      about_required: false,
+      about: [],
+      odds: 0.82,
+      available: true,
+      unavailable_key: null,
+      asked_this_week: false,
+      name_args: args,
+      say_key: "press-say-general",
+      costs: [
+        { key: "verb-cost-slot", args: {} },
+        { key: "press-cost-gaffe", args: { risk: "18" } },
+      ],
+      remote: true,
+    });
+    useGame.setState({ talk: view({ topics: [verb("choice.press.general", "press-choice-general", {}), verb("choice.press.3", "press-choice-bill", { bill_key: "policy-rebuild-fund" })] }) });
+    const { unmount } = render(<TalkSheet />);
+    const general = screen.getByTestId("talk-topic-choice.press.general");
+    expect(within(general).getByTestId("talk-odds").textContent).toBe("82%82% chance");
+    expect(within(general).getByTestId("talk-costs").textContent).toBe("one slot · a 18% chance of a gaffe");
+    // The interview on a bill waits behind one choice.
+    expect(screen.queryByTestId("talk-topic-choice.press.3")).toBeNull();
+    fireEvent.click(choice("talk-group-open"));
+    expect(within(screen.getByTestId("talk-group")).getByTestId("talk-topic-choice.press.3")).toBeTruthy();
+    unmount();
+    // The result: the outcome, and what set it behind "Why?".
+    useGame.setState({ exchange: { ...exchange, parts: exchange.parts.slice(1, 2), learned: [], leads: [], relationship: null, topic: "choice.press.general", outcome_key: "outcome-press-gaffe", outcome_args: { name: "Dana Price", risk: "18" }, why_key: "why-press-gaffe" } });
+    render(<TalkSheet />);
+    expect(screen.getByTestId("talk-outcome").textContent).toBe("Your remarks were taken badly. The clip is everywhere.");
+    expect(screen.getByTestId("talk-result-why").textContent).toContain("The chance of a gaffe was 18%");
+    expect(screen.getByTestId("talk-layer").textContent).not.toMatch(/\b(talk|ui|press|why|verb)-[a-z-]+\b/);
+  });
+
   it("the typewriter reveals a page; a tap shows it all, the next tap turns it", () => {
     reduceMotion(false);
     vi.useFakeTimers();
@@ -378,9 +415,9 @@ describe("the dialogue's words", () => {
   });
 
   it("states the cost in a few words", () => {
-    expect(costText(tr, view())?.short).toBe("½ slot · 2 left");
-    expect(costText(tr, view({ half_slot_left: true, slots_left: 2 }))?.short).toBe("½ slot · 2½ left");
-    expect(costText(tr, view({ half_slot_left: true, slots_left: 0 }))?.short).toBe("½ slot · ½ left");
+    expect(costText(tr, view())?.short).toBe("Talking ½ slot · 2 left");
+    expect(costText(tr, view({ half_slot_left: true, slots_left: 2 }))?.short).toBe("Talking ½ slot · 2½ left");
+    expect(costText(tr, view({ half_slot_left: true, slots_left: 0 }))?.short).toBe("Talking ½ slot · ½ left");
     expect(costText(tr, view({ late_night: true }))?.short).toBe("The late slot");
     expect(costText(tr, view({ out_of_time: true }))).toBeNull();
   });

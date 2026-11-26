@@ -130,13 +130,15 @@ pub fn present(state: &State, content: &ContentBundle) -> Vec<CharacterId> {
         .collect()
 }
 
-/// Whether the player can talk to this person now (they are here).
+/// Whether the player can talk to this person now (they are here, or they
+/// see the player where a verb had with them is done: DEC-114, B5).
 pub fn can_talk(state: &State, content: &ContentBundle, person: CharacterId) -> bool {
     let Some(pl) = state.player.as_ref() else {
         return false;
     };
     Some(person) != characters::player_character(state)
-        && characters::routines::whereabouts(state, content, person) == Some(pl.location)
+        && (characters::routines::whereabouts(state, content, person) == Some(pl.location)
+            || crate::actions::verbs::sees_player(state, content, person))
 }
 
 /// Whether talking late at night is possible here (where lobbying late is).
@@ -1051,6 +1053,13 @@ pub fn check_choice(
                 ));
             }
         }
+        // An agenda verb (DEC-114, B5): where it is done, and its own time.
+        hooks::ChoiceCost::Verb { key, late } => {
+            if late_night && !late {
+                return Err(bad("that is for the day: meet after hours instead"));
+            }
+            crate::actions::verbs::check_time(state, content, key, late)?;
+        }
     }
     Ok(found)
 }
@@ -1115,7 +1124,8 @@ fn choose(
         hooks::ChoiceCost::Conversation => pay(state, content, late_night),
         hooks::ChoiceCost::Day => pay(state, content, false),
         hooks::ChoiceCost::LateSlot => pay(state, content, true),
-        hooks::ChoiceCost::Free => {}
+        // The verb's effect pays its own time, as the one action did.
+        hooks::ChoiceCost::Free | hooks::ChoiceCost::Verb { .. } => {}
     }
     // Talking to someone is meeting them properly.
     let mut learned = Vec::new();

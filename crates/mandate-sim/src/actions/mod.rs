@@ -27,6 +27,7 @@ mod misconduct;
 mod movement;
 mod powers;
 mod publicity;
+pub mod verbs;
 
 use act::*;
 pub use checks::*;

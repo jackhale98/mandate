@@ -23,6 +23,7 @@ pub mod routines;
 pub mod town_map_layers;
 pub mod types;
 pub mod validate;
+pub mod verb_talks;
 pub mod visits;
 
 #[cfg(feature = "embedded")]

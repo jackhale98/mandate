@@ -112,7 +112,17 @@ function Conversation() {
 // wait behind "Something else…" (`more`), with search (M6 note 26).
 // Lobbying (M6 note 29): the engine's arguments on one bill are grouped
 // under it (`bill`), with each one's chance and cost shown before it is made.
-type Step = { kind: "topics" } | { kind: "subjects"; topic: string; more: boolean } | { kind: "bill"; bill: number };
+// An interview on a bill (DEC-114, B5): the press's choices on bills wait
+// behind "Talk about a bill…" (`group`), the general one stays in the list.
+type Step = { kind: "topics" } | { kind: "subjects"; topic: string; more: boolean } | { kind: "bill"; bill: number } | { kind: "group" };
+
+/** A choice listed behind "Talk about a bill…": the press on a bill (presentation only). */
+export function onBillChoice(t: TopicView): boolean {
+  return t.mechanic === "choice" && t.id.startsWith("choice.press.") && t.name_args?.bill_key !== undefined;
+}
+
+/** A choice's costs as one line (the engine's keys), or null. */
+const costLine = (tr: { event(key: string, args: Record<string, string>): string }, t: TopicView) => (t.costs && t.costs.length > 0 ? t.costs.map((c) => tr.event(c.key, c.args)).join(" · ") : null);
 
 /** The bills the engine offers arguments on, in its order, with the Fluent key of each one's name. */
 export function lobbyBills(topics: readonly TopicView[]): { bill: number; nameKey: string }[] {
@@ -151,6 +161,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   });
   useEffect(() => {
     useTalkFocus.getState().setBill(null);
+    useTalkFocus.getState().setTopic(null);
   }, []);
   const [q, setQ] = useState("");
   const [active, setActive] = useState<string | null>(null);
@@ -172,7 +183,11 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   const personBubble = useRef<HTMLDivElement>(null);
   const playerBubble = useRef<HTMLDivElement>(null);
   /** What to focus after the next render: the first choice, or one by id. */
-  const [focusReq, setFocusReq] = useState<{ to: string; n: number }>({ to: "first", n: 1 });
+  // Opened on an agenda verb (DEC-114, B5): at its choice.
+  const [focusReq, setFocusReq] = useState<{ to: string; n: number }>(() => {
+    const t = useTalkFocus.getState().topic;
+    return { to: t ? `topic-${t}` : "first", n: 1 };
+  });
   const focusDone = useRef(0);
   const focus = useCallback((to: string) => setFocusReq((r) => ({ to, n: r.n + 1 })), []);
   const opener = useRef<Element | null>(null);
@@ -228,7 +243,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
     if (busy) return;
     setAsked({ text: questionText(tr, t, about), after: xid, qShown: false });
     // An argument on a bill keeps the bill's arguments in view for the next.
-    if (t.bill === undefined) setStep({ kind: "topics" });
+    if (t.bill === undefined && !onBillChoice(t)) setStep({ kind: "topics" });
     focus("continue");
     // Nothing came of it (the engine refused): the question goes, rather than wait for a reply.
     void talkAbout(t.id, about ? about.about : null).then(() => {
@@ -249,6 +264,11 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   const back = useCallback(() => {
     if (step.kind === "bill") {
       focus(`bill-${step.bill}`);
+      setStep({ kind: "topics" });
+      return;
+    }
+    if (step.kind === "group") {
+      focus("group");
       setStep({ kind: "topics" });
       return;
     }
@@ -511,7 +531,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
         },
       });
     }),
-    ...v.topics.filter((t) => t.bill === undefined).map((t) => {
+    ...v.topics.filter((t) => t.bill === undefined && !onBillChoice(t)).map((t) => {
       const r = topicRow(t);
       const why = r.why && !shared.has(r.why) ? r.why : null;
       return choice(`topic-${t.id}`, {
@@ -520,13 +540,68 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
         why,
         describedBy: !r.available && !why ? statusId : undefined,
         odds: r.odds,
+        costs: costLine(tr, t),
         opens: r.opens,
         asked: t.asked_this_week,
         testId: `talk-topic-${t.id}`,
         onChoose: () => (r.opens ? openSubjects(t) : ask(t, null)),
       });
     }),
+    ...(v.topics.some(onBillChoice)
+      ? [
+          choice("group", {
+            label: tr.t("ui-dlg-verb-bills"),
+            disabled: !v.topics.some((t) => onBillChoice(t) && t.available),
+            opens: true,
+            testId: "talk-group-open",
+            onChoose: () => {
+              setStep({ kind: "group" });
+              focus("first");
+            },
+          }),
+        ]
+      : []),
   ];
+
+  /** The press on a bill (DEC-114, B5): each with its chance and what it costs, before it is chosen. */
+  const groupStep = () => {
+    const list = v.topics.filter(onBillChoice);
+    return (
+      <>
+        <div className="dlg-step-head">
+          <button type="button" className="dlg-back" onClick={back} data-testid="talk-back">
+            <span aria-hidden="true">‹ </span>
+            {tr.t("ui-dlg-back")}
+          </button>
+          <h3 className="dlg-step-title" id="dlg-step-title">
+            {tr.t("ui-dlg-verb-bills")}
+          </h3>
+        </div>
+        <ul className="dlg-choices" aria-labelledby="dlg-step-title" data-testid="talk-group">
+          {page &&
+            more &&
+            choice("continue", {
+              label: tr.t("ui-dlg-continue", { n: shown.page + 1, total: pages.length }),
+              kind: "continue",
+              testId: "talk-continue",
+              onChoose: advance,
+            })}
+          {list.map((t) =>
+            choice(`topic-${t.id}`, {
+              label: topicLabel(tr, t),
+              disabled: !t.available,
+              why: t.available || shared.has(t.unavailable_key ?? "") ? null : t.unavailable_key,
+              describedBy: !t.available ? statusId : undefined,
+              odds: t.odds,
+              costs: costLine(tr, t),
+              testId: `talk-topic-${t.id}`,
+              onChoose: () => ask(t, null),
+            }),
+          )}
+        </ul>
+      </>
+    );
+  };
 
   /** The arguments on one bill (lobbying): each with its chance and what it costs, before it is made. */
   const billStep = (bill: number) => {
@@ -560,7 +635,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
               why: t.available || shared.has(t.unavailable_key ?? "") ? null : t.unavailable_key,
               describedBy: !t.available ? statusId : undefined,
               odds: t.odds,
-              costs: t.costs && t.costs.length > 0 ? t.costs.map((c) => tr.event(c.key, c.args)).join(" · ") : null,
+              costs: costLine(tr, t),
               testId: "talk-argument",
               onChoose: () => ask(t, null),
             }),
@@ -741,6 +816,13 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
                 {tr.event(x.outcome_key, x.outcome_args)}
               </p>
             )}
+            {/* An agenda verb's result (DEC-114, B5): what set it, in the engine's words. */}
+            {atEnd && x?.why_key && (
+              <details className="dlg-status dlg-why-result" data-testid="talk-result-why">
+                <summary>{tr.t("ui-dlg-why")}</summary>
+                {tr.event(x.why_key, x.outcome_args)}
+              </details>
+            )}
             {billDone && (
               <p className="dlg-status" data-testid="talk-bill-done">
                 {tr.t("ui-dlg-lobby-done")}
@@ -748,6 +830,8 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
             )}
             {onBill !== null ? (
               billStep(onBill)
+            ) : step.kind === "group" && v.topics.some(onBillChoice) ? (
+              groupStep()
             ) : step.kind === "subjects" && topic ? (
               subjects()
             ) : (

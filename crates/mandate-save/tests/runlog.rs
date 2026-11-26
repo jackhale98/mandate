@@ -59,14 +59,16 @@ fn new_game(c: &Arc<mandate_content::ContentBundle>, s: &NewGameSetup) -> Engine
 /// A few turns with player commands (some refused, which are not logged).
 fn play(e: &mut Engine, log: &mut RunLog, turns: u32) {
     for t in 0..turns {
-        let _ = e.apply(Command::Player(PlayerCommand::Act {
+        let cmd = e.route(PlayerCommand::Act {
             action: if t % 2 == 0 {
                 Action::Fundraise
             } else {
                 Action::Rest
             },
             late_night: false,
-        }));
+        });
+        // (Fundraising is had with a donor: routing makes it the conversation.)
+        let _ = e.apply(cmd);
         let _ = e.apply(Command::Player(PlayerCommand::MoveTo {
             location: Location::Home,
         }));

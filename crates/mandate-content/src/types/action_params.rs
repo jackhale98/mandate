@@ -20,6 +20,9 @@ pub struct ActionParams {
     /// The `visit` action: its verbs and numbers (places with purpose).
     #[serde(default)]
     pub visit: crate::visits::VisitParams,
+    /// Fundraising, the press, the bribe and the leak as conversations
+    /// (DEC-114, B5): whom each is had with and what they say.
+    pub talks: crate::verb_talks::VerbTalks,
 }
 
 /// The player's declared council vote.

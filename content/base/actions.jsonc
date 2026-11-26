@@ -84,6 +84,50 @@
       "late_night_legal": 1.0,
       "donor_ties": 0.01,          // low-income approval lost per unit of awareness
     },
+    // Fundraising, the press, the bribe and the leak are conversations
+    // (DEC-114, B5; types `mandate-content/src/verb_talks.rs`). Each verb is
+    // a choice in a talk with someone of `with` from the player's town, who
+    // sees the player where the verb is done (the bribe: whoever is
+    // offering, the broker first). Its effect and time are the one action's
+    // (above, `tuning.action_costs`, `media.shady_actions`); the chance and
+    // the costs are shown on the choice. `replies`: what they say, the first
+    // whose conditions hold (slots `speaker`, `player`), the last always.
+    "talks": {
+      "press": {
+        "with": ["occupation.editor", "occupation.journalist"],
+        "replies": [
+          { "key": "press-reply-editor",
+            "when": [{ "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor"] }] },
+          { "key": "press-reply-wary",
+            "when": [{ "type": "opinion", "slot": "speaker", "max": -20 }] },
+          { "key": "press-reply" },
+        ],
+      },
+      "fundraise": {
+        "with": ["occupation.party_chair", "occupation.business_leader", "occupation.plant_manager",
+                 "occupation.hotel_manager", "occupation.tech_founder"],
+        "replies": [
+          { "key": "fundraise-reply-party",
+            "when": [{ "type": "occupation", "slot": "speaker", "occupations": ["occupation.party_chair"] }] },
+          { "key": "fundraise-reply-warm",
+            "when": [{ "type": "opinion", "slot": "speaker", "min": 20 }] },
+          { "key": "fundraise-reply" },
+        ],
+      },
+      "take_bribe": {
+        "replies": [
+          { "key": "bribe-reply" },
+        ],
+      },
+      "leak_file": {
+        "with": ["occupation.journalist", "occupation.editor"],
+        "replies": [
+          { "key": "leak-reply-editor",
+            "when": [{ "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor"] }] },
+          { "key": "leak-reply" },
+        ],
+      },
+    },
     // The `visit` action (places with purpose, DEC-079 note): the verbs a
     // place kind lists in places.jsonc (`verbs`). Types:
     // `mandate-content/src/visits.rs`. A verb is data:

@@ -128,7 +128,7 @@ test("talk from the Notebook's People: over a portrait; someone elsewhere is gon
   await expect(dlg.getByTestId("talk-odds")).toHaveCount(0);
   await choiceIn(dlg.getByTestId("talk-go")).click();
   await expect(dlg.getByTestId("talk-away")).toHaveCount(0);
-  await expect(dlg.getByTestId("talk-cost")).toHaveText(/^½ slot · \d+ left/);
+  await expect(dlg.getByTestId("talk-cost")).toHaveText(/^Talking ½ slot · \d+ left/);
   await shot(page, "portrait-topics", isMobile);
   // A topic about something opens its subjects in the same box, each with the engine's odds where it rolls
   // (asking for support; a colleague is lobbied on a bill in the bill's own arguments, M6 note 29).
@@ -161,7 +161,7 @@ test("talk from the Notebook's People: over a portrait; someone elsewhere is gon
   }
   // The half slot left: the next conversation uses it. A miss (they could not help) costs no time (M6 note 26).
   const missed = /It cost you no time\./.test((await dlg.getByTestId("talk-outcome").textContent()) ?? "");
-  await expect(dlg.getByTestId("talk-cost")).toHaveText(missed ? /^½ slot · \d+ left/ : /^½ slot · \d*½ left/);
+  await expect(dlg.getByTestId("talk-cost")).toHaveText(missed ? /^Talking ½ slot · \d+ left/ : /^Talking ½ slot · \d*½ left/);
   // Goodbye closes it.
   await choiceIn(dlg.getByTestId("talk-goodbye")).click();
   await expect(dlg).toHaveCount(0);

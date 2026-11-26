@@ -339,6 +339,8 @@ fn why(e: &EngineError) -> &'static str {
         "talk-why-not-now"
     } else if m.contains("owe them too much") {
         "talk-why-owe"
+    } else if m.contains("where it is done") {
+        "talk-why-verb-place"
     } else if m.contains("not here to talk") {
         "talk-why-away"
     } else if m.contains("nothing like that") || m.contains("not something to raise") {
@@ -866,6 +868,11 @@ pub struct ExchangeView {
     pub outcome_args: BTreeMap<String, String>,
     /// Asked the same thing of them earlier that week.
     pub repeat: bool,
+    /// The Why under the result (an agenda verb had in conversation,
+    /// DEC-114): a Fluent key that takes `outcome_args`.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub why_key: Option<String>,
 }
 
 /// What a subject is called, for a choice or an exchange's "about".
@@ -990,6 +997,7 @@ fn exchange_view_of(engine: &Engine, e: &Exchange) -> Option<ExchangeView> {
         } else {
             None
         },
+        why_key: mandate_sim::actions::verbs::why_key(&e.topic, &outcome_key),
         outcome_key,
         outcome_args,
         repeat: e.repeat,

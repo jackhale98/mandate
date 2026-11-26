@@ -313,9 +313,6 @@ pub enum ActionDto {
         neighborhood: u32,
         policy: Option<u32>,
     },
-    Press {
-        policy: Option<u32>,
-    },
     Canvass {
         neighborhood: u32,
         /// The worry raised on the doorsteps (a concern id, DEC-091): the
@@ -325,15 +322,13 @@ pub enum ActionDto {
         #[ts(optional)]
         issue: Option<String>,
     },
-    Fundraise,
+    // Fundraising, the press, the bribe and the leak are conversations
+    // (DEC-114, B5): `CommandDto::Talk` with a verb's choice
+    // (`TopicView`, `choice.press.*`, `choice.fundraise.*`, …).
     Rest,
     Advertise,
-    /// Shady (DEC-034): late at night, at the diner.
-    TakeBribe,
     /// Shady: at the party office.
     DipFunds,
-    /// Shady: at the newspaper office (about the rival).
-    LeakFile,
     /// A verb the place offers (places with purpose): `PlacePanelView.verbs`.
     Visit {
         verb: String,
