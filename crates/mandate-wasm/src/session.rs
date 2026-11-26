@@ -351,6 +351,9 @@ impl Session {
                 QueryDto::People => people_view(self.engine_mut()?)
                     .map(ResponseBody::People)
                     .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
+                QueryDto::Draft { recent } => draft_view(self.engine_mut()?, &recent)
+                    .map(ResponseBody::Draft)
+                    .map_err(|e| err(ErrorCode::BadRequest, e)),
                 QueryDto::Arc { id } => arc_view(self.engine_mut()?, id)
                     .map(ResponseBody::Arc)
                     .ok_or_else(|| err(ErrorCode::BadRequest, format!("no arc {id}"))),

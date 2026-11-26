@@ -38,8 +38,11 @@
 //! - [`exchange`]: the eighth beat kind (DEC-112): a played scene of a few
 //!   rounds, its state on the run.
 //! - [`score`]: the five terms and coverage a played run is measured by
-//!   (the grader, and the audition to come).
+//!   (the grader, and the audition).
+//! - [`audition`]: the openings worth offering (DEC-101 §5): candidates,
+//!   forks played by the stand-ins, the score and the draft.
 
+pub mod audition;
 pub mod beats;
 pub mod cast;
 pub mod effects;

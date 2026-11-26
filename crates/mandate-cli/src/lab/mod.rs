@@ -18,6 +18,7 @@
 //! plant closed, a hazard released, a recession begun), or content changes
 //! (`--set`) loaded through the save path as a balance patch would be.
 
+pub mod audition;
 pub mod cli;
 pub mod impact;
 pub mod metrics;
