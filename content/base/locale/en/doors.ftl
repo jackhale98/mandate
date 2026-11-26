@@ -78,3 +78,4 @@ ui-door-hint = Knock at number { $number }
 ui-doors-blocked-away = Go to these streets to knock.
 ui-doors-blocked-time = Not enough time left this turn to canvass.
 ui-doors-canvass-all = Canvass the street
+ui-door-back = Back

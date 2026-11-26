@@ -258,7 +258,7 @@ export default function TownStreet({ town, map, walkTo, plan }: TownStreetProps)
     const v = viewRef.current;
     if (!ready || !v) return;
     const ranks = plan?.plots.map((p) => p.fillRank) ?? v.map.buildings.map((b) => b.index);
-    v.scene.doors = doorPlots(v.map, ranks, new Map(town.neighborhoods.map((h) => [h.id, h.doors])));
+    v.scene.doors = doorPlots(v.map, ranks, new Map(town.neighborhoods.map((h) => [h.id, h.doors ?? 0])));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, plan, slotsKey]);
 

@@ -3642,6 +3642,37 @@
         "generation": {
           "$ref": "#/$defs/CharacterGenParams"
         },
+        "households": {
+          "$ref": "#/$defs/HouseholdParams",
+          "default": {
+            "adults": [
+              1,
+              3
+            ],
+            "agree": 2,
+            "ask_base": 0.35,
+            "ask_max": 0.9,
+            "ask_min": 0.05,
+            "ask_view": 0.6,
+            "cool": -0.15,
+            "doors": [
+              16,
+              60
+            ],
+            "forget_days": 365,
+            "not_in": 0.15,
+            "owner_by_class": [
+              0.35,
+              0.6,
+              0.85
+            ],
+            "records_per_hood": 16,
+            "residents_per_door": 150,
+            "street_doors": 4,
+            "view_sd": 0.25,
+            "warm": 0.15
+          }
+        },
         "memories": {
           "additionalProperties": {
             "$ref": "#/$defs/MemoryKindParams"
@@ -11649,6 +11680,132 @@
         "h",
         "stand",
         "facing"
+      ],
+      "type": "object"
+    },
+    "HouseholdParams": {
+      "additionalProperties": false,
+      "description": "Doors and households (DEC-114 §2, `BEING_THERE.md` §3): door slots per\nneighbourhood, households generated on demand at a door, the doorstep\nexchange's chances, and the bounded doorstep records.",
+      "properties": {
+        "adults": {
+          "description": "Adults in a household, [min, max]; children by the neighbourhood's\nchildren per adult.",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "agree": {
+          "description": "Listening at this many doors of a street that name the same worry\nteaches the neighbourhood's worries (`known`).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ask_base": {
+          "description": "Asking for their vote (in a campaign) or a poster: the chance is\n`ask_base + ask_view × view`, within [`ask_min`, `ask_max`].",
+          "format": "double",
+          "type": "number"
+        },
+        "ask_max": {
+          "format": "double",
+          "type": "number"
+        },
+        "ask_min": {
+          "format": "double",
+          "type": "number"
+        },
+        "ask_view": {
+          "format": "double",
+          "type": "number"
+        },
+        "cool": {
+          "format": "double",
+          "type": "number"
+        },
+        "doors": {
+          "description": "... within [min, max].",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "forget_days": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "not_in": {
+          "description": "Chance nobody answers at an occupied door (keyed by door and day).",
+          "format": "double",
+          "type": "number"
+        },
+        "owner_by_class": {
+          "description": "Chance a household owns its home, by class (low, middle, high).",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "records_per_hood": {
+          "description": "Doorstep records kept a neighbourhood (the oldest forgotten), and the\ndays after which a household forgets a call.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "residents_per_door": {
+          "description": "One door slot per this many residents (adults and children) ...",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "street_doors": {
+          "description": "Doors a canvass knocks at most (a street).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "view_sd": {
+          "description": "The spread of a household's view of the player around its cohort's\n(−1..1, a keyed normal draw).",
+          "format": "double",
+          "type": "number"
+        },
+        "warm": {
+          "description": "A view at or above this is warm; at or below `cool`, cool.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "residents_per_door",
+        "doors",
+        "street_doors",
+        "adults",
+        "owner_by_class",
+        "not_in",
+        "view_sd",
+        "warm",
+        "cool",
+        "ask_base",
+        "ask_view",
+        "ask_min",
+        "ask_max",
+        "records_per_hood",
+        "forget_days",
+        "agree"
       ],
       "type": "object"
     },

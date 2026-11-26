@@ -478,10 +478,60 @@ fn a_doorstep_ask_comes_from_a_household_knocked_on() {
         .filter(|a| a.opened == r.on)
         .collect();
     for a in asks {
-        if let mandate_sim::asks::Asker::Person { id: who } = a.asker
-            && who == id
-        {
-            return;
+        if let mandate_sim::asks::Asker::Person { id: who } = a.asker {
+            println!("ask {} from {who:?} (speaker {id:?})", a.template);
         }
     }
+}
+
+/// A worked example for the report (`--ignored --nocapture`): one street,
+/// four doors, what each said, and what was remembered.
+#[test]
+#[ignore]
+fn worked_example() {
+    let c = base();
+    let mut e = game(SEED, c.clone());
+    let hood = street(&e);
+    go(&mut e, hood);
+    let issue = top_worry(&e, hood);
+    let name = e.state().world.neighborhoods[hood.index()].name.clone();
+    println!(
+        "street: {name} ({} doors)",
+        households::doors(e.state(), &c, hood)
+    );
+    let choices = [
+        DoorChoice::Listen,
+        DoorChoice::Case {
+            issue: issue.clone(),
+        },
+        DoorChoice::Ask,
+        DoorChoice::Listen,
+    ];
+    for (d, choice) in choices.into_iter().enumerate() {
+        let v = mandate_protocol::doors::door_view(&e, hood, d as u16).unwrap();
+        let h = households::household(e.state(), &c, hood, d as u16).unwrap();
+        println!(
+            "door {} ({}): answers {} | {:?} | work {:?} worry {:?} mood {}",
+            v.number,
+            v.family,
+            v.answers,
+            v.opener
+                .iter()
+                .map(|l| (&l.key, &l.args))
+                .collect::<Vec<_>>(),
+            h.work,
+            h.worry.map(|i| c.concerns[i].id.clone()),
+            h.mood(&c)
+        );
+        let r = knock(&mut e, hood, d as u16, choice.clone());
+        println!("  said {choice:?} -> {} {:?}", r.outcome_key, r.args);
+    }
+    let me = mandate_sim::characters::player_character(e.state()).unwrap();
+    for r in &e.state().politics.characters.households.records {
+        if r.by == me {
+            println!("remembered: {r:?}");
+        }
+    }
+    let log = &e.state().player.as_ref().unwrap().actions;
+    println!("last log: {:?}", log.last());
 }

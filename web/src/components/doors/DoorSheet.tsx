@@ -77,7 +77,7 @@ export function DoorSheet() {
                     </button>
                   ))}
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCasing(false)}>
-                    {tr.t("ui-back")}
+                    {tr.t("ui-door-back")}
                   </button>
                 </div>
               ) : (
