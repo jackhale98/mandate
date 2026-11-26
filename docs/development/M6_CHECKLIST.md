@@ -70,6 +70,11 @@ On hold until then:
 Done since 2026-11-24 (live): the power broker (note 27), conversations narrowed and tied to role (note 26), exchange scenes X1, X2 and X4, staged arcs A1–A4, industries and named plants, the impact estimate, the pocket rework (DEC-113), lobbying as a conversation (note 29).
 
 ## Next (queued, in order; three builders)
+0. **Queued by the owner on 2026-11-26, to start as builders free (in this order):**
+   - **The draft as front pages, and a one-button title page** (on A8): each opening is its town's local paper (masthead, the arc's pitch as the headline, the town rendered from its layout, the cast's portraits, the seat); a carousel on phones that shows a sliver of the next paper and dots, no auto-rotate, side by side on desktop; the audition's wait as "the presses are rolling". The title opens with the landing page's masthead and "Begin a career"; size, mode, storyteller, scenario and seed fold under "Set up your country". Draft the budget round only when nothing better qualifies; sharper pitch lines. The career card shares the style.
+   - **Four interiors** (DEC-088): the news office, the party office, the community centre and the union hall, with hotspots for their verbs; entering a building on arrival (note 6 below); people walking off after a conversation (note 7).
+   - **Consequences (DEC-115):** the budget's room on the proposal sheet; "Why?" naming the programmes behind a cut or a rate rise; the fiscal hole reachable and played as an arc; insolvency and the tier above's administration; a spendthrift lab check.
+   - Built and waiting to merge (2026-11-26): F4/F5 and F6, A7 with A8, the short-time review (DEC-110 amended), the career card, the first new worries, the WASM size pass.
 1. **Being there (DEC-114), on B1:** B2 faults and casework; B3 doors; B4 street dressing; B5 fundraising, press, the bribe and the leak as conversations. Two at a time at most (street and talk panel).
 2. **The cold open, after X3:** A7 the audition; A8 frames, the draft screen, the first-beat guarantee; crises rewritten as arcs and about a dozen new ones (sized by the pilot's ledger); the career card and stepping away (note 23).
 3. **Policy families:** F3 with the impact estimate on proposals, then F4 and F5, then F6 and works you can see.
