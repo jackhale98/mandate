@@ -165,8 +165,10 @@ test("the keyboard moves between places on the map and Enter walks there", async
   await expect.poll(() => page.evaluate(() => window.__townMap?.view?.camera.state.zoom ?? 0)).toBeGreaterThan(z0 * 1.2);
   expect(await focused()).not.toBeNull();
   // Enter goes to the focused place (a place with something to do): the map closes, the player walks, the panel opens.
-  const active = page.locator("[data-hotspot]:not(.town-map-hit-quiet)").filter({ hasNot: page.locator("[aria-current]") });
-  const target = active.nth(1);
+  // A building, not a street (walking to a street opens nothing); which one
+  // depends on the world, so the test takes the first that is not the player's.
+  const active = page.locator("[data-hotspot]:not(.town-map-hit-quiet):not([data-hotspot^='streets:'])").filter({ hasNot: page.locator("[aria-current]") });
+  const target = active.first();
   const name = (await target.getAttribute("data-name")) ?? "";
   await target.focus();
   await page.keyboard.press("Enter");
