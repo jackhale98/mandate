@@ -267,10 +267,11 @@ fn edges(
                     .is_none_or(|d| run.clock.is_some_and(|c| today.add_days(d) >= c))
                 && holds(v, run, &people, &e.when)
         });
-        let Some(to) = next.and_then(|e| def.stage(&e.to)) else {
+        let Some((edge, to)) = next.and_then(|e| Some((e, def.stage(&e.to)?))) else {
             break;
         };
-        if let Some(exit) = enter(deferred, run, def, to, v, out) {
+        let law = law_behind(v, out.events, run.at, &edge.when);
+        if let Some(exit) = enter(deferred, run, def, to, v, out, law) {
             return Some(exit);
         }
         moved = true;
@@ -283,9 +284,45 @@ fn edges(
     None
 }
 
+/// The enactment of the law a `law_in_force` edge read, if the log still
+/// holds it: the stage it moves the run to names it as a cause, so the Why
+/// panel says which law moved the matter on (a top-level condition only).
+fn law_behind(
+    v: &View<'_>,
+    log: &crate::events::EventLog,
+    at: Jurisdiction,
+    when: &[Condition],
+) -> Option<EventId> {
+    let m = at.municipality()?.0;
+    let templates: Vec<&String> = when
+        .iter()
+        .filter_map(|c| match c {
+            Condition::LawInForce {
+                templates,
+                absent: false,
+            } => Some(templates),
+            _ => None,
+        })
+        .flatten()
+        .collect();
+    if templates.is_empty() {
+        return None;
+    }
+    let laws: Vec<u32> =
+        v.r.policy()
+            .in_municipality(m)
+            .filter(|p| p.active() && templates.contains(&&p.template))
+            .map(|p| p.id.0)
+            .collect();
+    log.iter().rev().find_map(|e| match &e.kind {
+        EventKind::PolicyEnacted { policy, .. } if laws.contains(policy) => Some(e.id),
+        _ => None,
+    })
+}
+
 /// Enter a stage: its clock, its event with the facts as they are, its
 /// entry effects. An exit ends the run: its event closes the thread and
-/// its effects go to their owners.
+/// its effects go to their owners. `law`: the enactment the edge read.
 fn enter(
     deferred: &mut Vec<Request>,
     run: &mut ArcRun,
@@ -293,6 +330,7 @@ fn enter(
     stage: &StageDef,
     v: &View<'_>,
     out: &mut Outs<'_>,
+    law: Option<EventId>,
 ) -> Option<String> {
     let today = v.date();
     run.stage = stage.id.clone();
@@ -396,10 +434,13 @@ fn enter(
             &x.effects,
         ),
     };
-    // The edge's rule fired; the log links it to the run's last event.
-    let ev = out
-        .events
-        .record(today, kind, Cause::Process(Process::Arcs));
+    // The edge's rule fired; the log links it to the run's last event, and
+    // to the law it read.
+    let mut causes = crate::spine::Causes::from(Cause::Process(Process::Arcs));
+    if let Some(id) = law {
+        causes = causes.and(Cause::caused_by(id));
+    }
+    let ev = out.events.record(today, kind, causes);
     let asked = effects::resolve(v, run, list);
     run.add_heat(asked.heat);
     post(out, deferred, asked.requests, Cause::caused_by(ev));
@@ -926,7 +967,7 @@ fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
             // An arc raised mid-matter starts where the world is: the
             // first stage's edges are checked on entry, and the stage it
             // rests in offers its beats the same day.
-            let mut exit = enter(&mut a.deferred, &mut run, def, first, v, out);
+            let mut exit = enter(&mut a.deferred, &mut run, def, first, v, out, None);
             if exit.is_none() {
                 exit = edges(&mut a.deferred, &mut run, def, v, out);
                 if exit.is_none() && run.stage == first.id {

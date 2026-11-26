@@ -157,7 +157,10 @@ fn state_shape_matches_format_version() {
     // conversations work and the exchange scenes merged. No serialized
     // struct changed in this task; the sample game's contents did, so the
     // version stays 31.
-    const EXPECTED: (u16, &str) = (31, "8e30e5a8b2465cf8");
+    // 8e30e5a8b2465cf8 -> 24cdc9d71dec1269 (v31): the pilot arc (the zoning
+    // fight) runs in the sample game, and an arc's stage names the law its
+    // edge read. No serialized struct changed; the version stays 31.
+    const EXPECTED: (u16, &str) = (31, "24cdc9d71dec1269");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -766,6 +769,12 @@ fn v10_payload(st: &mandate_sim::State) -> serde_json::Value {
         .as_object_mut()
         .unwrap()
         .remove("characters");
+    // A v10 save held no arc runs (the sample game may have one raised).
+    v.pointer_mut("/state")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .remove("arcs");
     v
 }
 

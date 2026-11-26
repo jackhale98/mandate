@@ -621,7 +621,11 @@ fn plant_flood(e: &mut Engine) {
 /// and each ends by its own rules.
 #[test]
 fn a_flood_runs_beside_the_round_and_leads_the_chapter() {
-    let c = base();
+    // Without the zoning fight, which holds the second place for arcs in
+    // this world when the flood comes (2026-11-25).
+    let mut b = (*base()).clone();
+    b.arcs.retain(|a| a.id != "arc.zoning");
+    let c = Arc::new(b);
     let flood_def = c.arc("arc.flood").unwrap();
     // A world where the flood's turn comes before the round's (seed 7 before
     // industries, 99 after: one of eleven tried; 106 since the power broker

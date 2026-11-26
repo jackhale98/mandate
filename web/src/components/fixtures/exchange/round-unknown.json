@@ -1,5 +1,5 @@
 {
-  "arc": 1,
+  "arc": 2,
   "beat": "showdown.debate",
   "phase": "under_way",
   "layout": "crowd",
@@ -826,8 +826,8 @@
   "played": [
     {
       "round": 1,
-      "prompt_key": "exchange-debate-prompt-thin_record-3",
-      "said_key": "exchange-debate-say-promise-1",
+      "prompt_key": "exchange-debate-prompt-thin_record-1",
+      "said_key": "exchange-debate-say-promise-2",
       "option": "promise:promise.clean_politics",
       "kind": "promise",
       "reply_key": null,
@@ -850,7 +850,7 @@
           "points": null
         }
       ],
-      "event": 2098
+      "event": 2114
     }
   ],
   "result": null

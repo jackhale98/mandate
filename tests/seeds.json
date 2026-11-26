@@ -20,7 +20,7 @@
     "needs": "a small world where the explorer legislator's own bill is enacted within 72 months"
   },
   "flood_arc_exits_idle_by_month_12": {
-    "seed": 7,
+    "seed": 8,
     "needs": "a planted flood raises the arc, still running at month 3, and the idle game lets it exit by month 12"
   },
   "fresh_colleague_and_bill_before_council": {

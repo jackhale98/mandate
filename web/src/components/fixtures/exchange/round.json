@@ -1,5 +1,5 @@
 {
-  "arc": 1,
+  "arc": 2,
   "beat": "showdown.debate",
   "phase": "under_way",
   "layout": "crowd",
@@ -268,7 +268,7 @@
     "by": "other",
     "source": "thin_record",
     "text": {
-      "key": "exchange-debate-prompt-thin_record-3",
+      "key": "exchange-debate-prompt-thin_record-1",
       "args": {
         "ally": "Kerstin Everwell",
         "ally_role_key": "occupation-party_chair",

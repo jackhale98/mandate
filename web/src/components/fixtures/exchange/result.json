@@ -1,5 +1,5 @@
 {
-  "arc": 1,
+  "arc": 2,
   "beat": "showdown.debate",
   "phase": "done",
   "layout": "crowd",
@@ -259,8 +259,8 @@
   "played": [
     {
       "round": 1,
-      "prompt_key": "exchange-debate-prompt-thin_record-3",
-      "said_key": "exchange-debate-say-promise-1",
+      "prompt_key": "exchange-debate-prompt-thin_record-1",
+      "said_key": "exchange-debate-say-promise-2",
       "option": "promise:promise.clean_politics",
       "kind": "promise",
       "reply_key": null,
@@ -283,7 +283,7 @@
           "points": -4
         }
       ],
-      "event": 2098
+      "event": 2114
     },
     {
       "round": 2,
@@ -311,7 +311,7 @@
           "points": -5
         }
       ],
-      "event": 2100
+      "event": 2116
     },
     {
       "round": 3,
@@ -339,7 +339,7 @@
           "points": 4
         }
       ],
-      "event": 2102
+      "event": 2118
     }
   ],
   "result": {
@@ -451,7 +451,7 @@
     ],
     "promises": [
       {
-        "ask": 7,
+        "ask": 9,
         "title": {
           "key": "promise-clean-politics",
           "args": {
@@ -471,7 +471,7 @@
         }
       },
       {
-        "ask": 8,
+        "ask": 10,
         "title": {
           "key": "promise-services",
           "args": {
@@ -491,7 +491,7 @@
         }
       },
       {
-        "ask": 9,
+        "ask": 11,
         "title": {
           "key": "promise-town-halls",
           "args": {
@@ -511,6 +511,6 @@
         }
       }
     ],
-    "event": 2103
+    "event": 2119
   }
 }
