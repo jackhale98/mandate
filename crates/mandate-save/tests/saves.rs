@@ -172,7 +172,11 @@ fn state_shape_matches_format_version() {
     // its faults; absent while empty), an ask's need `fixed`, the log the
     // event `fault`, and the effect `expedite`. Migration: `upkeep_faults`
     // (no change: the domain starts empty).
-    const EXPECTED: (u16, &str) = (33, "0c4e6ceb189381f3");
+    // 0c4e6ceb189381f3 (v33) -> the same (v35): doors (B3, DEC-114). The
+    // characters gained `households` (doorstep records and the canvass under
+    // way; absent while empty, as in this sample game, which canvasses
+    // nobody), an action `doorstep`. Migration: `doorsteps` (no change).
+    const EXPECTED: (u16, &str) = (35, "0c4e6ceb189381f3");
     let c = content();
     let mut e = generate(
         &WorldConfig {

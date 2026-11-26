@@ -273,24 +273,24 @@ fn digests(
 /// that merge.
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
     (2026, "idle", 96, "cebdae00cb41038a", "d8ba2cd3c0cda014"), // 2015 events
-    (2026, "mixed", 96, "7ba70a88815de570", "90ac43d47f94a0f4"), // 3308 events
+    (2026, "mixed", 96, "f46db71fc62e3235", "6c41d8a58aad2273"), // 3672 events
     (7, "idle", 96, "d4a947cbd3bf85a5", "73409ebb60c39005"),    // 1764 events
-    (7, "corrupt", 96, "6e74c32319e2735d", "808e6b5b96285339"), // 3283 events
+    (7, "corrupt", 96, "b2ebfe0b0b5f9c77", "5c3ebe2ecb61b532"), // 3276 events
     (31, "idle", 96, "c89ca66286d70ada", "6cdad0610a99efcc"),   // 2058 events
     (
         31,
         "explorer_legislator",
         96,
         "2094fca53eb9fa37",
-        "c53cf6cab55f003a",
+        "2f04275f60324ca4",
     ), // 3920 events
     (
         2026,
         "mixed+prison",
         96,
-        "ecb34f2fb5677415",
-        "a8c91e8fd2d59cfb",
-    ), // 2728 events
+        "ccfc0eed9cdb47ac",
+        "2ec78fbff3aa81f1",
+    ), // 2735 events
     (
         2026,
         "idle+six_years",
@@ -371,24 +371,24 @@ fn the_spine_changes_no_outcome() {
 /// them.
 const BEFORE_ARCS: [(u64, &str, u32, &str, &str); 8] = [
     (2026, "idle", 96, "76722819bb111a6b", "285c5936a9f7208f"), // 1868 events
-    (2026, "mixed", 96, "2ca71d040cb9b450", "f05fb65f3673f373"), // 2922 events
+    (2026, "mixed", 96, "1008f58f1ab6198d", "2f4f4b259e3fd383"), // 2832 events
     (7, "idle", 96, "eb56537a698088fe", "025d2da0674bcfbe"),    // 1626 events
-    (7, "corrupt", 96, "d0cf729d840fa106", "5c57e36d7b58ef48"), // 3079 events
+    (7, "corrupt", 96, "860d5d033d393325", "945ed9bb51b5e6a8"), // 3060 events
     (31, "idle", 96, "f74f307f5a7a57c4", "f3bb8842fd47229c"),   // 1939 events
     (
         31,
         "explorer_legislator",
         96,
-        "728dae4ecd07e65b",
-        "469ba0caed7ab8da",
+        "ab721090ba92ad7d",
+        "2b9de34ab0d079bf",
     ), // 3764 events
     (
         2026,
         "mixed+prison",
         96,
-        "b497d8122690c768",
-        "76b7d60df25dae86",
-    ), // 2413 events
+        "7294deb2ec5d714e",
+        "31ea75a6af0031c7",
+    ), // 2411 events
     (
         2026,
         "idle+six_years",
